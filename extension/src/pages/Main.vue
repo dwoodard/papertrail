@@ -1,175 +1,185 @@
 <template>
   <div class="papertrail">
-    <!-- Header -->
-    <header class="header">
-      <div class="header__left">
-        <h1 class="header__logo">Papertrail</h1>
-        <p class="header__subtitle">Intelligence Research Platform</p>
-      </div>
-      <div class="header__actions">
-        <button class="btn-new" @click="openCreateModal">
-          <span class="btn-new__icon">+</span>
-          New Project
-        </button>
-      </div>
-    </header>
+    <!-- Frame 1: Project Detail -->
+    <ProjectDetail v-if="selectedProject" :project="selectedProject" @back="selectedProject = null" />
 
-    <!-- Navigation Tabs -->
-    <nav class="tabs">
-      <button
-        v-for="tab in availableTabs"
-        :key="tab"
-        :class="['tab', { 'tab--active': activeTab === tab }]"
-        @click="activeTab = tab"
-      >
-        <span class="tab__label">{{ tab }}</span>
-        <span v-if="tab === activeTab" class="tab__indicator"></span>
-      </button>
-    </nav>
-
-    <!-- Content -->
-    <main class="content">
-      <!-- Overview Tab -->
-      <div v-show="activeTab === 'Overview'" class="tab-pane">
-        <section v-if="projects.length > 0" class="projects-section">
-          <h2 class="section-title">Active Projects</h2>
-          <div class="projects-grid">
-            <article v-for="project in projects" :key="project.id" class="project-card" @click="selectProject(project)">
-              <div class="project-card__header">
-                <h3 class="project-card__title">{{ project.name }}</h3>
-                <span class="project-card__badge">Active</span>
-              </div>
-
-              <p class="project-card__goal">{{ project.goal }}</p>
-
-              <div class="project-card__stats">
-                <div class="stat">
-                  <span class="stat__value">{{ project.observations }}</span>
-                  <span class="stat__label">observations</span>
-                </div>
-                <div class="stat">
-                  <span class="stat__value">{{ project.entities }}</span>
-                  <span class="stat__label">entities</span>
-                </div>
-                <div class="stat">
-                  <span class="stat__value">{{ project.suggestions }}</span>
-                  <span class="stat__label">suggestions</span>
-                </div>
-              </div>
-
-              <div class="project-card__footer">
-                <time class="project-card__time">{{ project.lastActivity }}</time>
-                <div class="project-card__actions">
-                  <button class="btn-action" title="Open project">
-                    <span>→</span>
-                  </button>
-                </div>
-              </div>
-            </article>
-          </div>
-        </section>
-
-        <section v-else class="empty-state">
-          <div class="empty-state__content">
-            <h2 class="empty-state__title">No Projects Yet</h2>
-            <p class="empty-state__text">Start your first research project to begin collecting intelligence.</p>
-            <button class="btn-primary" @click="openCreateModal">Create Project</button>
-          </div>
-        </section>
-      </div>
-
-      <!-- Graph Tab -->
-      <div v-show="activeTab === 'Graph'" class="tab-pane">
-        <section class="placeholder-section">
-          <div class="placeholder">
-            <h2>Knowledge Graph</h2>
-            <p>Multi-project entity relationships visualization</p>
-          </div>
-        </section>
-      </div>
-
-      <!-- Entities Tab -->
-      <div v-show="activeTab === 'Entities'" class="tab-pane">
-        <section class="placeholder-section">
-          <div class="placeholder">
-            <h2>All Entities</h2>
-            <p>Cross-project entity directory and search</p>
-          </div>
-        </section>
-      </div>
-
-      <!-- Timeline Tab -->
-      <div v-show="activeTab === 'Timeline'" class="tab-pane">
-        <section class="placeholder-section">
-          <div class="placeholder">
-            <h2>Activity Timeline</h2>
-            <p>Master timeline across all projects</p>
-          </div>
-        </section>
-      </div>
-    </main>
-
-    <!-- Create Project Modal -->
-    <Teleport to="body">
-      <div v-if="showCreateModal" class="modal-overlay" @click="closeCreateModal">
-        <div class="modal" @click.stop>
-          <div class="modal__header">
-            <h2 class="modal__title">New Project</h2>
-            <button class="modal__close" @click="closeCreateModal">×</button>
-          </div>
-
-          <form class="modal__form" @submit.prevent="createProject">
-            <div class="form-group">
-              <label class="form-label" for="project-name">Project Name *</label>
-              <input
-                id="project-name"
-                v-model="form.name"
-                class="form-input"
-                type="text"
-                placeholder="e.g., Davis County Contractors"
-                required
-              />
-            </div>
-
-            <div class="form-group">
-              <label class="form-label" for="project-goal">Research Goal</label>
-              <input
-                id="project-goal"
-                v-model="form.goal"
-                class="form-input"
-                type="text"
-                placeholder="What are you trying to discover?"
-              />
-            </div>
-
-            <div class="form-group">
-              <label class="form-label" for="project-target">Starting Target</label>
-              <input
-                id="project-target"
-                v-model="form.target"
-                class="form-input"
-                type="text"
-                placeholder="Initial search terms or scope"
-              />
-            </div>
-
-            <div class="modal__actions">
-              <button type="button" class="btn-secondary" @click="closeCreateModal">Cancel</button>
-              <button type="submit" class="btn-primary" :disabled="!form.name.trim()">Create Project</button>
-            </div>
-          </form>
+    <!-- Frame 0: Hub (Default View) -->
+    <template v-else>
+      <header class="header">
+        <div class="header__left">
+          <h1 class="header__logo">Papertrail</h1>
+          <p class="header__subtitle">Intelligence Research Platform</p>
         </div>
-      </div>
-    </Teleport>
+        <div class="header__actions">
+          <button class="btn-new" @click="openCreateModal">
+            <span class="btn-new__icon">+</span>
+            New Project
+          </button>
+        </div>
+      </header>
+
+      <nav class="tabs">
+        <button
+          v-for="tab in tabs"
+          :key="tab"
+          :class="['tab', { 'tab--active': activeTab === tab }]"
+          @click="activeTab = tab"
+        >
+          <span class="tab__label">{{ tab }}</span>
+          <span v-if="tab === activeTab" class="tab__indicator"></span>
+        </button>
+      </nav>
+
+      <main class="content">
+        <!-- Overview Tab -->
+        <div v-show="activeTab === 'Overview'" class="tab-pane">
+          <section v-if="projects.length > 0" class="projects-section">
+            <h2 class="section-title">Active Projects</h2>
+            <div class="projects-grid">
+              <article
+                v-for="project in projects"
+                :key="project.id"
+                class="project-card"
+                @click="selectedProject = project"
+              >
+                <div class="project-card__header">
+                  <h3 class="project-card__title">{{ project.name }}</h3>
+                  <span class="project-card__badge">Active</span>
+                </div>
+
+                <p class="project-card__goal">{{ project.goal }}</p>
+
+                <div class="project-card__stats">
+                  <div class="stat">
+                    <span class="stat__value">{{ project.observations }}</span>
+                    <span class="stat__label">observations</span>
+                  </div>
+                  <div class="stat">
+                    <span class="stat__value">{{ project.entities }}</span>
+                    <span class="stat__label">entities</span>
+                  </div>
+                  <div class="stat">
+                    <span class="stat__value">{{ project.suggestions }}</span>
+                    <span class="stat__label">suggestions</span>
+                  </div>
+                </div>
+
+                <div class="project-card__footer">
+                  <time class="project-card__time">{{ project.lastActivity }}</time>
+                  <div class="project-card__actions">
+                    <button class="btn-action" title="Open project">
+                      <span>→</span>
+                    </button>
+                  </div>
+                </div>
+              </article>
+            </div>
+          </section>
+
+          <section v-else class="empty-state">
+            <div class="empty-state__content">
+              <h2 class="empty-state__title">No Projects Yet</h2>
+              <p class="empty-state__text">Start your first research project to begin collecting intelligence.</p>
+              <button class="btn-primary" @click="openCreateModal">Create Project</button>
+            </div>
+          </section>
+        </div>
+
+        <!-- Graph Tab -->
+        <div v-show="activeTab === 'Graph'" class="tab-pane">
+          <section class="placeholder-section">
+            <div class="placeholder">
+              <h2>Knowledge Graph</h2>
+              <p>Multi-project entity relationships visualization</p>
+            </div>
+          </section>
+        </div>
+
+        <!-- Entities Tab -->
+        <div v-show="activeTab === 'Entities'" class="tab-pane">
+          <section class="placeholder-section">
+            <div class="placeholder">
+              <h2>All Entities</h2>
+              <p>Cross-project entity directory and search</p>
+            </div>
+          </section>
+        </div>
+
+        <!-- Timeline Tab -->
+        <div v-show="activeTab === 'Timeline'" class="tab-pane">
+          <section class="placeholder-section">
+            <div class="placeholder">
+              <h2>Activity Timeline</h2>
+              <p>Master timeline across all projects</p>
+            </div>
+          </section>
+        </div>
+      </main>
+
+      <!-- Create Project Modal -->
+      <Teleport to="body">
+        <div v-if="showCreateModal" class="modal-overlay" @click="closeCreateModal">
+          <div class="modal" @click.stop>
+            <div class="modal__header">
+              <h2 class="modal__title">New Project</h2>
+              <button class="modal__close" @click="closeCreateModal">×</button>
+            </div>
+
+            <form class="modal__form" @submit.prevent="createProject">
+              <div class="form-group">
+                <label class="form-label" for="project-name">Project Name *</label>
+                <input
+                  id="project-name"
+                  v-model="form.name"
+                  class="form-input"
+                  type="text"
+                  placeholder="e.g., Davis County Contractors"
+                  required
+                />
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="project-goal">Research Goal</label>
+                <input
+                  id="project-goal"
+                  v-model="form.goal"
+                  class="form-input"
+                  type="text"
+                  placeholder="What are you trying to discover?"
+                />
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="project-target">Starting Target</label>
+                <input
+                  id="project-target"
+                  v-model="form.target"
+                  class="form-input"
+                  type="text"
+                  placeholder="Initial search terms or scope"
+                />
+              </div>
+
+              <div class="modal__actions">
+                <button type="button" class="btn-secondary" @click="closeCreateModal">Cancel</button>
+                <button type="submit" class="btn-primary" :disabled="!form.name.trim()">Create Project</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </Teleport>
+    </template>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
+import ProjectDetail from './ProjectDetail.vue'
 
 const activeTab = ref('Overview')
-const availableTabs = ['Overview', 'Graph', 'Entities', 'Timeline']
+const tabs = ['Overview', 'Graph', 'Entities', 'Timeline']
 const showCreateModal = ref(false)
+const selectedProject = ref<any>(null)
 
 const form = reactive({
   name: '',
@@ -224,10 +234,6 @@ function createProject(): void {
 
   closeCreateModal()
 }
-
-function selectProject(project: any): void {
-  console.log('Opening project:', project.name)
-}
 </script>
 
 <style scoped>
@@ -242,8 +248,6 @@ function selectProject(project: any): void {
   --pt-text-muted: #a8adb5;
   --pt-accent: #4a90e2;
   --pt-accent-hover: #5a9fee;
-  --pt-danger: #ef4444;
-  --pt-success: #10b981;
 
   /* Typography */
   --font-display: 'Playfair Display', serif;
@@ -621,7 +625,6 @@ body {
   align-items: center;
   justify-content: center;
   min-height: 400px;
-  text-align: center;
 }
 
 .empty-state__content {
@@ -629,6 +632,7 @@ body {
   flex-direction: column;
   gap: 16px;
   max-width: 400px;
+  text-align: center;
 }
 
 .empty-state__title {
