@@ -28,6 +28,21 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     }
 })
 
+// Set up context menu
+chrome.contextMenus.create({
+    id: 'papertrail-main',
+    title: 'Papertrail Main',
+    contexts: ['action'],
+})
+
+chrome.contextMenus.onClicked.addListener((info) => {
+    if (info.menuItemId === 'papertrail-main') {
+        void chrome.tabs.create({
+            url: chrome.runtime.getURL('src/pages/main.html'),
+        })
+    }
+})
+
 console.log('[Papertrail] background service worker loaded')
 
 export {}

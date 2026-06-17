@@ -18,6 +18,11 @@ export default defineConfig({
     build: {
         outDir: 'dist',
         emptyOutDir: true,
+        rollupOptions: {
+            input: {
+                main: fileURLToPath(new URL('./src/pages/main.html', import.meta.url)),
+            },
+        },
     },
     server: {
         port: 5174,

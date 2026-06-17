@@ -1,0 +1,29 @@
+:root {
+  --pt-bg: #ffffff;
+  --pt-surface: #fafafa;
+  --pt-text: #1a1a1a;
+  --pt-muted: #666666;
+  --pt-border: #e0e0e0;
+  --pt-accent: #0066cc;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell,
+    'Helvetica Neue', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#app {
+  width: 100%;
+  height: 100%;
+}
