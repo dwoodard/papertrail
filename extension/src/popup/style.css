@@ -1,0 +1,31 @@
+:root {
+    color-scheme: light dark;
+    font-family:
+        'Instrument Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --pt-bg: #0b0d10;
+    --pt-surface: #14171c;
+    --pt-border: #232a33;
+    --pt-text: #e6e9ee;
+    --pt-muted: #8b94a3;
+    --pt-accent: #4f8cff;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    margin: 0;
+    padding: 0;
+    background: var(--pt-bg);
+    color: var(--pt-text);
+}
+
+body {
+    min-width: 340px;
+}
+
+#app {
+    height: 100%;
+}
