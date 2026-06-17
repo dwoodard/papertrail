@@ -2,50 +2,168 @@ Use case: Davis County Contractors
 
 Goal: find decision makers for local contractor businesses.
 
-The user starts in PaperTrail, creates a project, searches Google Maps, captures businesses automatically, opens a business website, follows Best Next Paths, then reviews the graph/workspace.
+The user launches Papertrail, creates a project, activates Google Maps module, captures businesses automatically, reviews discoveries in the timeline and graph, then explores entities and AI suggestions.
 
-Frame 1 — Create Project
+---
+
+# Extension Architecture
+
+Full-page extension with unified tabbed workspace. No popups or side panels — everything is tabs.
+
+---
+
+Frame 0 — Main Papertrail Hub (Overview Tab)
+
+Main entry point. Shows all projects and their status. Bird's eye view of everything.
+
 ┌──────────────────────────────────────────────────────────────┐
-│ PaperTrail                                                   │
+│ 🔗 Papertrail                              [+ New Project] ⚙️ │
 ├──────────────────────────────────────────────────────────────┤
-│ New Project                                                  │
+│ [Overview] [Graph] [Entities] [Timeline]                      │
+├──────────────────────────────────────────────────────────────┤
 │                                                              │
-│ Project Name                                                 │
+│ My Active Projects                                           │
+│                                                              │
 │ ┌──────────────────────────────────────────────────────────┐ │
-│ │ Davis County Contractors                                  │ │
+│ │ Davis County Contractors                                 │ │
+│ │ Goal: Find decision makers for contractor businesses      │ │
+│ │ 48 observations  │  12 entities  │  6 pending suggestions │ │
+│ │ Last activity: 2h ago                                    │ │
+│ │ [Open] [Graph] [Settings]                                │ │
 │ └──────────────────────────────────────────────────────────┘ │
 │                                                              │
-│ Goal                                                         │
 │ ┌──────────────────────────────────────────────────────────┐ │
-│ │ Find decision makers for contractor businesses             │ │
+│ │ [Another Active Project]                                 │ │
+│ │ Goal...                                                  │ │
+│ │ Stats...                                                 │ │
+│ │ [Open] [Graph] [Settings]                                │ │
 │ └──────────────────────────────────────────────────────────┘ │
 │                                                              │
-│ Starting Target                                              │
-│ ┌──────────────────────────────────────────────────────────┐ │
-│ │ concrete contractors in Davis County Utah                  │ │
-│ └──────────────────────────────────────────────────────────┘ │
+│ ─────────────────────────────────────────────────────────── │
 │                                                              │
-│ [Create Project]                                             │
+│ Archived Projects (3)                                        │
+│ [View Archive]                                               │
+│                                                              │
 └──────────────────────────────────────────────────────────────┘
 
-This keeps setup light: name + goal + optional starting target.
+Hub shows all projects with key stats. Click [Open] to dive into a project's workspace (Frame 1+).
 
-Frame 2 — Project Workspace Opens
+---
+
+Frame 0b — Hub Graph Tab
+
+All projects visualized as a network. See cross-project entity connections.
+
+┌──────────────────────────────────────────────────────────────┐
+│ 🔗 Papertrail                                               │
+├──────────────────────────────────────────────────────────────┤
+│ [Overview] [Graph] [Entities] [Timeline]                      │
+├──────────────────────────────────────────────────────────────┤
+│                                                              │
+│ Multi-Project Knowledge Graph                                │
+│                                                              │
+│ Project Layer: [Show All] [By Project]                       │
+│                                                              │
+│                  Davis County          Tech Research         │
+│                  Contractors           Project               │
+│                      ●─────────────────●                    │
+│                     /│\               /│\                   │
+│                    / │ \             / │ \                  │
+│                   ●  ●  ●    ...    ●  ●  ●                │
+│             Barlow Rock Interstate StartUp Tech Co...       │
+│                   │                   │                    │
+│                   └───────── DUPLICATE ────────┘            │
+│                   Possible Match: same founders             │
+│                   [Merge] [Keep Separate]                   │
+│                                                              │
+│ Cross-project matches highlighted. Shows research overlap.  │
+│                                                              │
+└──────────────────────────────────────────────────────────────┘
+
+---
+
+Frame 0c — Hub Entities Tab
+
+All entities across all projects in one searchable table.
+
+┌──────────────────────────────────────────────────────────────┐
+│ 🔗 Papertrail                                               │
+├──────────────────────────────────────────────────────────────┤
+│ [Overview] [Graph] [Entities] [Timeline]                      │
+├──────────────────────────────────────────────────────────────┤
+│                                                              │
+│ [Businesses] [People] [Locations] [All]                      │
+│ [Search across projects...]                                  │
+│                                                              │
+│ Entity                    Project              Type   Status │
+│ ────────────────────────────────────────────────────────── │
+│ Barlow Masonry            Davis County...      Biz    ✓      │
+│ Rock Solid Concrete       Davis County...      Biz    ✓      │
+│ Mark Barlow               Davis County...      Person ◊      │
+│ Interstate Brick          Davis County...      Biz    ⚠      │
+│                                                              │
+│ (48 entities across 2 projects)                              │
+│                                                              │
+└──────────────────────────────────────────────────────────────┘
+
+---
+
+Frame 0d — Hub Timeline Tab
+
+Master timeline of all research activity across all projects.
+
+┌──────────────────────────────────────────────────────────────┐
+│ 🔗 Papertrail                                               │
+├──────────────────────────────────────────────────────────────┤
+│ [Overview] [Graph] [Entities] [Timeline]                      │
+├──────────────────────────────────────────────────────────────┤
+│                                                              │
+│ All Projects Activity Timeline                               │
+│                                                              │
+│ [Filter by Project] [Last 24h] [This Week] [All]             │
+│                                                              │
+│ 2h ago    🗺️  Davis County / Google Maps                     │
+│           Captured: Barlow Masonry                           │
+│           [View]                                             │
+│                                                              │
+│ 1h 50m ago  🌐 Davis County / Website                        │
+│           Visited: barlowmasonry.com                         │
+│           [View]                                             │
+│                                                              │
+│ 1h 30m ago  👥 Davis County / LinkedIn                       │
+│           Found: Mark Barlow profile                         │
+│           [View]                                             │
+│                                                              │
+│ 1h 15m ago  📸 Davis County / Screenshot                     │
+│           LinkedIn evidence added                            │
+│           [View]                                             │
+│                                                              │
+│ 45m ago   🔗 Davis County / Relationship Suggested           │
+│           Mark Barlow WORKS_AT Barlow Masonry (high)         │
+│           [Confirm] [Reject]                                │
+│                                                              │
+│ [Earlier Activity...]                                        │
+│                                                              │
+└──────────────────────────────────────────────────────────────┘
+
+Unified activity log across all research. See what you've discovered when.
+
+---
+
+Frame 1 — Individual Project Workspace (Overview Tab)
 ┌──────────────────────────────────────────────────────────────┐
 │ PaperTrail / Davis County Contractors                        │
-├──────────────────────────────────────────────────────────────┤
 │ Goal: Find decision makers for contractor businesses          │
-│ Starting Target: concrete contractors in Davis County Utah    │
-│                                                              │
-│ [Open Chrome Side Panel] [Graph] [Entities] [Suggestions]    │
+├──────────────────────────────────────────────────────────────┤
+│ [Overview] [Graph] [Entities] [Suggestions] [Timeline]       │
+│ [Evidence] [Google Maps] [Website]                           │
 ├──────────────────────────────────────────────────────────────┤
 │ Project Status                                               │
 │                                                              │
-│ Observations: 0                                              │
-│ Entities: 0                                                  │
-│ Relationships: 0                                             │
-│ AI Suggestions: 0                                            │
-│ Cross-Project Matches: 0                                     │
+│ Observations: 0        Entities: 0                            │
+│ Relationships: 0       AI Suggestions: 0                      │
+│ Cross-Project Matches: 0                                      │
+│                                                              │
 ├──────────────────────────────────────────────────────────────┤
 │ Start Collecting                                             │
 │                                                              │
@@ -55,23 +173,20 @@ Frame 2 — Project Workspace Opens
 │ 2. Search Google for company websites                        │
 │ 3. Paste a list, screenshot, or copied table                  │
 │                                                              │
-│ [Open Google Maps Search] [Paste Evidence]                   │
+│ [Open Google Maps] [Paste Evidence]                          │
 └──────────────────────────────────────────────────────────────┘
 
-The workspace is not graph-only. It is the project home base.
+Tabs are the primary navigation. Click a tab to switch views. Module tabs appear/disappear as you activate modules.
 
-Frame 3 — Google Maps Module Activates
+---
 
-User opens Google Maps in another tab. Side panel stays open.
+Frame 2 — Google Maps Module Tab
+User navigates to Google Maps, sees [Google Maps] tab appear. Clicks it to view the module.
 
 ┌────────────────────────────────────────────┐
-│ PaperTrail                                 │
-│ Project: Davis County Contractors          │
-│ Goal: Find decision makers                 │
+│ PaperTrail / Davis County Contractors      │
 ├────────────────────────────────────────────┤
-│ Active Module                              │
-│ Google Maps Collector                      │
-│ Status: Ready                              │
+│ [Overview] [Graph] [Timeline] [Google Maps]│
 ├────────────────────────────────────────────┤
 │ Keywords                                   │
 │                                            │
@@ -90,15 +205,120 @@ User opens Google Maps in another tab. Side panel stays open.
 │ [Scroll & Collect]                         │
 │ [Pause Module]                             │
 ├────────────────────────────────────────────┤
-│ Useful Right Now                           │
-│ Nothing captured yet                       │
+│ Status: Ready                              │
 └────────────────────────────────────────────┘
 
-This keeps your existing Google Maps pattern: keywords on the side, selected keyword drives the results.
+---
 
-Frame 4 — Google Maps Results Captured
+Frame 3 — Timeline Tab (Horizontal Canvas)
 
-After Scroll & Collect runs.
+Chronological view of research journey. Shows what was discovered, when, and from where.
+
+┌──────────────────────────────────────────────────────────────────────────┐
+│ PaperTrail / Davis County Contractors                                    │
+├──────────────────────────────────────────────────────────────────────────┤
+│ [Overview] [Graph] [Entities] [Suggestions] [Timeline] [Evidence]        │
+├──────────────────────────────────────────────────────────────────────────┤
+│ Research Journey                                                         │
+│                                                                          │
+│ ◄─────────────────────────────────────────────────────────────────────► │
+│                                                                          │
+│      ┌─────────┐        ┌─────────┐      ┌─────────┐      ┌─────────┐ │
+│      │         │        │         │      │         │      │         │ │
+│      │  🗺️     │        │  🌐     │      │  👥     │      │  📸     │ │
+│      │         │        │         │      │         │      │         │ │
+│      │Barlow   │        │Visit    │      │LinkedIn │      │Screenshot│
+│      │Masonry  │        │Website  │      │Profile  │      │Evidence  │
+│      │         │        │         │      │         │      │         │ │
+│      │2h ago   │        │1h50m ago│      │1h30m ago│      │1h15m ago│ │
+│      └─────────┘        └─────────┘      └─────────┘      └─────────┘ │
+│           │                   │                │                 │      │
+│           └───────────────────┴────────────────┴─────────────────┘      │
+│                                 │                                       │
+│                          ┌──────▼───────┐                               │
+│                          │ 🔗 Mark Barlow                               │
+│                          │ WORKS_AT      │                               │
+│                          │ Barlow Masonry│                               │
+│                          │ (Suggested)   │                               │
+│                          │ [Confirm]     │                               │
+│                          └───────────────┘                               │
+│                                                                          │
+│ Scroll for more ──────────────────────────────────────────────────────► │
+│                                                                          │
+└──────────────────────────────────────────────────────────────────────────┘
+
+Events cascade down showing relationships. Each event is clickable for full details. Shows causality and research flow.
+
+---
+
+Frame 4 — Graph Tab
+
+Click [Graph] tab to see knowledge graph visualization of the project's entities and relationships.
+
+┌──────────────────────────────────────────────────────┐
+│ PaperTrail / Davis County Contractors               │
+├──────────────────────────────────────────────────────┤
+│ [Overview] [Graph] [Entities] [Suggestions]          │
+│ [Timeline] [Evidence]                                │
+├──────────────────────────────────────────────────────┤
+│                                                      │
+│  Confirmed + Suggested Relations                     │
+│  [Show Suggestions] [Confirmed Only]                 │
+│                                                      │
+│        Google Maps Listing                           │
+│                │                                     │
+│                ▼                                     │
+│        Barlow Masonry ─────┐                         │
+│          │       │       │  │                        │
+│          │       │       │  └─ Website: .com         │
+│          │       │       │         │                 │
+│          │       │       │         ├─ About          │
+│          │       │       │         └─ Contact        │
+│          │       │       │                           │
+│    Phone │    Address │  LinkedIn Link              │
+│         │       │       │          │                 │
+│         │       │       │          ▼                 │
+│         └───────┴───────┴─ Mark Barlow (suggested)   │
+│                                                      │
+│ Click edge for evidence and confirmation controls   │
+│                                                      │
+└──────────────────────────────────────────────────────┘
+
+---
+
+Frame 5 — Entities Tab
+
+Click [Entities] tab to see extracted entities as a structured table.
+
+┌──────────────────────────────────────────────────────┐
+│ PaperTrail / Davis County Contractors               │
+├──────────────────────────────────────────────────────┤
+│ [Overview] [Graph] [Entities] [Suggestions]          │
+│ [Timeline] [Evidence]                                │
+├──────────────────────────────────────────────────────┤
+│                                                      │
+│ [Businesses] [People] [Locations] [All]              │
+│ [Search] [Filter by confidence]                      │
+│                                                      │
+│ Business Name           Phone      Address    Status │
+│ ────────────────────────────────────────────────── │
+│ Barlow Masonry         801-555...  123 Main   ✓      │
+│ Rock Solid Concrete    801-555...  456 Oak    ✓      │
+│ Interstate Brick       —           789 Pine   ◊      │
+│                                                      │
+│ People                                               │
+│ ────────────────────────────────────────────────── │
+│ Mark Barlow           Barlow Mason. WORKS_AT ◊      │
+│                                                      │
+│ Locations (8), Websites (6)                          │
+│                                                      │
+└──────────────────────────────────────────────────────┘
+
+---
+
+Frame 6 — Google Maps Results Captured
+
+After Scroll & Collect runs in the [Google Maps] tab.
 
 ┌────────────────────────────────────────────┐
 │ PaperTrail                                 │

@@ -6,6 +6,7 @@
         "lib": ["ESNext", "DOM", "DOM.Iterable"],
         "types": ["chrome", "vite/client"],
         "strict": true,
+        "allowJs": true,
         "noUnusedLocals": true,
         "noUnusedParameters": true,
         "esModuleInterop": true,
@@ -19,6 +20,6 @@
             "@/*": ["./src/*"]
         }
     },
-    "include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.vue", "*.ts"],
+    "include": ["src/**/*.ts", "src/**/*.js", "src/**/*.d.ts", "src/**/*.vue", "*.ts"],
     "exclude": ["node_modules", "dist"]
 }

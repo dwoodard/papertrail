@@ -60,6 +60,8 @@ export interface Observation<TData = Record<string, unknown>> {
  * reference scraper collects, normalised to typed fields.
  */
 export interface GoogleMapsListingData {
+    /** Data bags are stored generically; index signature keeps them assignable. */
+    [key: string]: unknown
     name: string
     category?: string
     rating?: string

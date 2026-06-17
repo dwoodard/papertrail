@@ -3,11 +3,27 @@ import { computed } from 'vue'
 
 import { sendRuntimeMessage } from '@/utils/messaging'
 import { uuid } from '@/utils/id'
+import { STORAGE_KEYS } from '@/stores/keys'
 
 import { useChromeStorage } from './useChromeStorage'
 
-const PROJECTS_KEY = 'pt.projects'
-const ACTIVE_PROJECT_KEY = 'pt.activeProjectId'
+const PROJECTS_KEY = STORAGE_KEYS.projects
+const ACTIVE_PROJECT_KEY = STORAGE_KEYS.activeProjectId
+
+/**
+ * Coerce a stored projects value into an array. Earlier builds wrote the list
+ * as an object (`{0: …}`) when a Vue reactive proxy was structured-cloned, so
+ * tolerate and heal that shape.
+ */
+function asProjectArray(value: unknown): Project[] {
+    if (Array.isArray(value)) {
+        return value as Project[]
+    }
+    if (value && typeof value === 'object') {
+        return Object.values(value as Record<string, Project>)
+    }
+    return []
+}
 
 /**
  * Manages the project list and the active project (product spec §3). Backed by
@@ -20,10 +36,17 @@ export function useProject() {
         null,
     )
 
-    const ready = Promise.all([projectsReady, activeReady]).then(() => undefined)
+    // Self-heal any legacy object-shaped list, persisting it back as an array.
+    const ready = Promise.all([projectsReady, activeReady]).then(() => {
+        if (!Array.isArray(projects.value)) {
+            projects.value = asProjectArray(projects.value)
+        }
+    })
+
+    const projectList = computed<Project[]>(() => asProjectArray(projects.value))
 
     const activeProject = computed<Project | null>(
-        () => projects.value.find((project) => project.id === activeProjectId.value) ?? null,
+        () => projectList.value.find((project) => project.id === activeProjectId.value) ?? null,
     )
 
     function createProject(input: NewProjectInput): Project {
@@ -36,7 +59,7 @@ export function useProject() {
             createdAt: now,
             updatedAt: now,
         }
-        projects.value = [...projects.value, project]
+        projects.value = [...projectList.value, project]
         void selectProject(project.id)
         return project
     }
@@ -47,14 +70,15 @@ export function useProject() {
     }
 
     function removeProject(id: string): void {
-        projects.value = projects.value.filter((project) => project.id !== id)
+        const remaining = projectList.value.filter((project) => project.id !== id)
+        projects.value = remaining
         if (activeProjectId.value === id) {
-            void selectProject(projects.value[0]?.id ?? null)
+            void selectProject(remaining[0]?.id ?? null)
         }
     }
 
     return {
-        projects,
+        projects: projectList,
         activeProjectId,
         activeProject,
         ready,

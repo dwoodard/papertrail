@@ -9,23 +9,28 @@ export interface ChromeStorageHandle<T> {
     dispose: () => void
 }
 
+/** Strip Vue reactivity to a plain, structured-cloneable value. */
+function toPlain<T>(value: T): T {
+    return JSON.parse(JSON.stringify(value)) as T
+}
+
 /**
- * Reactive wrapper around a single `chrome.storage.local` key. Writes are
- * persisted automatically; external changes (from other extension contexts)
- * are reflected back. A guard prevents our own writes from echoing into an
- * update loop.
+ * Reactive wrapper around a single `chrome.storage.local` key.
+ *
+ * Writes persist a plain JSON snapshot — passing a Vue reactive proxy straight
+ * to `chrome.storage.local.set` throws "An object could not be cloned", which
+ * silently drops the write. A `lastSynced` comparison suppresses echoes so two
+ * open contexts (popup + side panel) don't ping-pong identical writes.
  */
 export function useChromeStorage<T>(key: string, defaultValue: T): ChromeStorageHandle<T> {
     const state = ref(defaultValue) as Ref<T>
-    let writingFromState = false
-    let applyingFromStorage = false
+    let lastSynced = JSON.stringify(defaultValue)
 
     const ready = new Promise<void>((resolve) => {
         chrome.storage.local.get([key], (result) => {
             if (result[key] !== undefined) {
-                applyingFromStorage = true
+                lastSynced = JSON.stringify(result[key])
                 state.value = result[key] as T
-                applyingFromStorage = false
             }
             resolve()
         })
@@ -34,12 +39,13 @@ export function useChromeStorage<T>(key: string, defaultValue: T): ChromeStorage
     const stopWatch = watch(
         state,
         (value) => {
-            if (applyingFromStorage) {
+            const json = JSON.stringify(value)
+            if (json === lastSynced) {
                 return
             }
-            writingFromState = true
-            chrome.storage.local.set({ [key]: value }, () => {
-                writingFromState = false
+            lastSynced = json
+            chrome.storage.local.set({ [key]: toPlain(value) }, () => {
+                void chrome.runtime.lastError
             })
         },
         { deep: true },
@@ -49,12 +55,15 @@ export function useChromeStorage<T>(key: string, defaultValue: T): ChromeStorage
         changes: Record<string, chrome.storage.StorageChange>,
         areaName: string,
     ): void => {
-        if (areaName !== 'local' || !(key in changes) || writingFromState) {
+        if (areaName !== 'local' || !(key in changes)) {
             return
         }
-        applyingFromStorage = true
+        const json = JSON.stringify(changes[key].newValue)
+        if (json === lastSynced) {
+            return
+        }
+        lastSynced = json
         state.value = changes[key].newValue as T
-        applyingFromStorage = false
     }
     chrome.storage.onChanged.addListener(onChanged)
 

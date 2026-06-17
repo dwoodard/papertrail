@@ -18,13 +18,13 @@ export default defineManifest({
         default_path: 'src/side-panel/index.html',
     },
     background: {
-        service_worker: 'src/background/index.ts',
+        service_worker: 'src/background/service-worker.ts',
         type: 'module',
     },
     content_scripts: [
         {
             matches: ['https://www.google.com/maps/*'],
-            js: ['src/content/index.ts'],
+            js: ['src/content/content-script.ts'],
             run_at: 'document_idle',
         },
     ],
