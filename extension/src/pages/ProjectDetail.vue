@@ -84,89 +84,124 @@
 
       <!-- Graph Tab -->
       <div v-show="activeTab === 'Graph'" class="tab-pane graph-tab">
-        <div class="graph-controls">
-          <div class="control-group">
-            <button
-              :class="['control-btn', { 'control-btn--active': showSuggestions }]"
-              @click="showSuggestions = !showSuggestions"
-            >
-              Show Suggestions
-            </button>
-            <button
-              :class="['control-btn', { 'control-btn--active': !showSuggestions }]"
-              @click="showSuggestions = false"
-            >
-              Confirmed Only
-            </button>
+        <!-- Premium Header with Search & Filters -->
+        <div class="graph-header">
+          <div class="header-left">
+            <div class="search-box">
+              <span class="search-icon">🔍</span>
+              <input
+                v-model="searchQuery"
+                type="text"
+                placeholder="Search entities..."
+                class="search-input"
+              />
+              <button v-if="searchQuery" class="search-clear" @click="searchQuery = ''">✕</button>
+            </div>
           </div>
 
-          <div class="control-group">
-            <label class="filter-label">Filter by type:</label>
-            <select v-model="selectedRelationType" class="filter-select">
-              <option value="">All Relationships</option>
-              <option value="WEBSITE">Website</option>
-              <option value="WORKS_AT">Works At</option>
-              <option value="PHONE">Phone</option>
-              <option value="ADDRESS">Address</option>
-              <option value="SOCIAL_PROFILE">Social Profile</option>
-            </select>
+          <div class="header-center">
+            <div class="filter-group">
+              <span class="filter-label">Type:</span>
+              <select v-model="selectedRelationType" class="filter-select">
+                <option value="">All Types</option>
+                <option value="business">Business</option>
+                <option value="person">Person</option>
+                <option value="website">Website</option>
+                <option value="location">Location</option>
+                <option value="contact">Contact</option>
+              </select>
+            </div>
+
+            <div class="filter-group">
+              <span class="filter-label">Status:</span>
+              <button
+                :class="['status-btn', { 'status-btn--active': showSuggestions }]"
+                @click="showSuggestions = !showSuggestions"
+                title="Toggle suggested relationships"
+              >
+                <span class="status-dot"></span>
+                All
+              </button>
+              <button
+                :class="['status-btn', { 'status-btn--active': !showSuggestions }]"
+                @click="showSuggestions = false"
+                title="Show confirmed only"
+              >
+                <span class="status-dot"></span>
+                Confirmed
+              </button>
+            </div>
           </div>
 
-          <div class="control-spacer"></div>
-          <button class="btn-reset" @click="resetGraphView">Reset View</button>
+          <div class="header-right">
+            <button
+              v-if="searchQuery || selectedRelationType || !showSuggestions"
+              class="btn-reset-header"
+              @click="resetGraphView"
+            >
+              Reset
+            </button>
+          </div>
         </div>
 
-        <div class="graph-container">
+        <!-- Graph Container -->
+        <div class="graph-container-wrapper">
           <div class="graph-canvas" id="graph-canvas" ref="graphContainer">
-            <!-- D3 Force-Directed Graph with Information Density -->
-            <!-- Rendered by D3 -->
+            <!-- D3 Interactive Force-Directed Graph renders here -->
           </div>
 
-          <!-- Entity Inspector Panel -->
-          <div :class="['entity-inspector', { 'entity-inspector--open': selectedNode }]">
+          <!-- Inspector Panel -->
+          <div :class="['inspector-panel', { 'panel-open': selectedNode }]">
             <template v-if="selectedNode">
-              <div class="inspector-header">
-                <h3 class="inspector-title">{{ selectedNode.name }}</h3>
-                <button class="inspector-close" @click="selectedNode = null">×</button>
+              <div class="panel-header">
+                <div class="panel-title-group">
+                  <div :class="['type-badge', `badge-${selectedNode.type}`]">
+                    {{ selectedNode.type }}
+                  </div>
+                  <h3 class="panel-title">{{ selectedNode.name }}</h3>
+                </div>
+                <button class="panel-close" @click="selectedNode = null">✕</button>
               </div>
 
-              <div class="inspector-body">
-                <!-- Entity Info -->
-                <section class="inspector-section">
-                  <h4 class="section-label">Type</h4>
-                  <p class="entity-type">{{ selectedNode.type }}</p>
-                </section>
-
-                <section class="inspector-section">
-                  <h4 class="section-label">Details</h4>
-                  <div class="properties-list">
-                    <div class="property-item">
-                      <span class="prop-key">ID:</span>
-                      <span class="prop-value">{{ selectedNode.id }}</span>
+              <div class="panel-content">
+                <section class="panel-section">
+                  <h4 class="section-title">About</h4>
+                  <div class="section-info">
+                    <div v-if="selectedNode.value" class="info-row">
+                      <span class="info-label">Connectivity:</span>
+                      <span class="info-value">{{ selectedNode.value }} connections</span>
                     </div>
-                    <div v-if="selectedNode.value" class="property-item">
-                      <span class="prop-key">Connectivity:</span>
-                      <span class="prop-value">{{ selectedNode.value }}</span>
-                    </div>
-                    <div v-if="selectedNode.confidence" class="property-item">
-                      <span class="prop-key">Confidence:</span>
-                      <span class="prop-value">{{ Math.round(selectedNode.confidence * 100) }}%</span>
+                    <div v-if="selectedNode.confidence" class="info-row">
+                      <span class="info-label">Confidence:</span>
+                      <div class="confidence-bar">
+                        <div
+                          class="confidence-fill"
+                          :style="{ width: `${selectedNode.confidence * 100}%` }"
+                        ></div>
+                      </div>
+                      <span class="info-value">{{ Math.round(selectedNode.confidence * 100) }}%</span>
                     </div>
                   </div>
                 </section>
 
-                <!-- Actions -->
-                <section class="inspector-section">
-                  <button class="path-btn">View Evidence</button>
-                  <button class="path-btn">Show Connected</button>
-                  <button class="path-btn">Expand Related</button>
+                <section class="panel-section">
+                  <h4 class="section-title">Connections</h4>
+                  <p style="color: var(--pt-text-muted); font-size: 12px; margin: 0;">
+                    Connected in the graph — click relationship edges for details
+                  </p>
+                </section>
+
+                <section class="panel-section">
+                  <button class="action-btn">View Evidence</button>
+                  <button class="action-btn">View Timeline</button>
                 </section>
               </div>
             </template>
 
             <template v-else>
-              <div class="inspector-empty">
-                <p>Click a node to inspect</p>
+              <div class="panel-empty">
+                <div class="empty-icon">◯</div>
+                <p>Click an entity to inspect</p>
               </div>
             </template>
           </div>
@@ -219,6 +254,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useGraphSimulation, type GraphData, type GraphNode } from '../composables/useGraphSimulation'
+import graphExamples from '../data/examples/graphs.json'
 
 interface ProjectDetailProps {
   project: {
@@ -239,43 +275,23 @@ const activeTab = ref('Overview')
 const projectTabs = ['Overview', 'Graph', 'Entities', 'Suggestions', 'Timeline', 'Evidence']
 const showSuggestions = ref(true)
 const selectedRelationType = ref('')
+const searchQuery = ref('')
+const selectedNode = ref<GraphNode | null>(null)
 const graphContainer = ref<HTMLElement | null>(null)
-const { selectedNode, initializeGraph } = useGraphSimulation(graphContainer)
 
-const recentActivity = [
-  { time: '2h ago', text: 'Captured Barlow Masonry from Google Maps' },
-  { time: '1h 50m ago', text: 'Visited barlowmasonry.com' },
-  { time: '1h 30m ago', text: 'Found LinkedIn profile' },
-  { time: '1h 15m ago', text: 'Screenshot evidence added' },
-]
+const { initializeGraph } = useGraphSimulation(graphContainer)
 
-// Mock graph data for D3
-const mockGraphData: GraphData = {
-  nodes: [
-    { id: 'biz_123', name: 'Barlow Masonry', type: 'business', value: 3, confidence: 1 },
-    { id: 'web_456', name: 'barlowmasonry.com', type: 'website', value: 1, confidence: 1 },
-    { id: 'contact_789', name: '(801) 555-0123', type: 'contact', value: 1, confidence: 1 },
-    { id: 'loc_321', name: '123 Main St, Davis County', type: 'location', value: 1, confidence: 1 },
-    { id: 'person_654', name: 'Mark Barlow', type: 'person', value: 2, confidence: 0.7 },
-    { id: 'maps_111', name: 'Google Maps', type: 'location', value: 1, confidence: 1 },
-  ],
-  links: [
-    { source: 'maps_111', target: 'biz_123', type: 'ORIGIN', status: 'confirmed' },
-    { source: 'biz_123', target: 'web_456', type: 'WEBSITE', status: 'confirmed' },
-    { source: 'biz_123', target: 'contact_789', type: 'PHONE', status: 'confirmed' },
-    { source: 'biz_123', target: 'loc_321', type: 'ADDRESS', status: 'confirmed' },
-    { source: 'biz_123', target: 'person_654', type: 'WORKS_AT', status: 'suggested' },
-  ],
-}
+// Load graph data from JSON (first example by default)
+const mockGraphData: GraphData = graphExamples.examples[0] as unknown as GraphData
 
 function resetGraphView(): void {
   selectedNode.value = null
   selectedRelationType.value = ''
+  searchQuery.value = ''
   showSuggestions.value = true
 }
 
 onMounted(() => {
-  // Initialize graph when tab becomes active
   if (activeTab.value === 'Graph' && graphContainer.value) {
     setTimeout(() => {
       initializeGraph(mockGraphData, (node) => {
@@ -284,6 +300,14 @@ onMounted(() => {
     }, 100)
   }
 })
+
+const recentActivity = [
+  { time: '2h ago', text: 'Captured Barlow Masonry from Google Maps' },
+  { time: '1h 50m ago', text: 'Visited barlowmasonry.com' },
+  { time: '1h 30m ago', text: 'Found LinkedIn profile' },
+  { time: '1h 15m ago', text: 'Screenshot evidence added' },
+]
+
 </script>
 
 <style scoped>
@@ -594,61 +618,98 @@ onMounted(() => {
   font-size: 13px;
 }
 
-/* Graph Tab */
+/* Graph Tab - Premium Redesign */
 .graph-tab {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 0;
+  height: 100%;
 }
 
-.graph-controls {
+/* Graph Header - Premium Search & Filters */
+.graph-header {
   display: flex;
-  gap: 16px;
   align-items: center;
-  padding: 16px 0;
+  gap: 24px;
+  padding: 20px 24px;
   border-bottom: 1px solid var(--pt-border);
+  background: linear-gradient(135deg, var(--pt-surface) 0%, var(--pt-bg) 100%);
+  animation: slideDown 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-.control-group {
+.header-left {
+  flex: 1;
+  min-width: 300px;
+}
+
+.search-box {
   display: flex;
-  gap: 8px;
-}
-
-.control-btn {
-  padding: 8px 16px;
-  background: transparent;
-  border: 1px solid var(--pt-border);
-  color: var(--pt-text-muted);
-  border-radius: 6px;
-  cursor: pointer;
-  font-family: var(--font-body);
-  font-size: 12px;
-  font-weight: 500;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--pt-bg);
+  border: 1.5px solid var(--pt-border);
+  border-radius: 8px;
   transition: all 0.2s ease;
 }
 
-.control-btn:hover {
-  border-color: var(--pt-text-muted);
+.search-box:focus-within {
+  border-color: var(--pt-accent);
+  background: var(--pt-surface-alt);
+  box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
+}
+
+.search-icon {
+  font-size: 14px;
+  opacity: 0.6;
+}
+
+.search-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--pt-text);
+  font-family: var(--font-body);
+  font-size: 13px;
+  outline: none;
+}
+
+.search-input::placeholder {
+  color: var(--pt-text-muted);
+}
+
+.search-clear {
+  background: transparent;
+  border: none;
+  color: var(--pt-text-muted);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 4px;
+  transition: color 0.2s ease;
+}
+
+.search-clear:hover {
   color: var(--pt-text);
 }
 
-.control-btn--active {
-  background: var(--pt-accent);
-  border-color: var(--pt-accent);
-  color: white;
+.header-center {
+  display: flex;
+  align-items: center;
+  gap: 20px;
 }
 
-.control-spacer {
-  flex: 1;
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .filter-label {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--pt-text-muted);
-  font-weight: 500;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-right: 8px;
+  letter-spacing: 0.6px;
 }
 
 .filter-select {
@@ -666,11 +727,15 @@ onMounted(() => {
 .filter-select:hover,
 .filter-select:focus {
   border-color: var(--pt-accent);
+  background: var(--pt-surface-alt);
   outline: none;
 }
 
-.btn-reset {
-  padding: 8px 16px;
+.status-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
   background: transparent;
   border: 1px solid var(--pt-border);
   color: var(--pt-text-muted);
@@ -682,36 +747,256 @@ onMounted(() => {
   transition: all 0.2s ease;
 }
 
-.btn-reset:hover {
+.status-btn:hover {
+  border-color: var(--pt-text-muted);
+  color: var(--pt-text);
+}
+
+.status-btn--active {
+  background: rgba(74, 144, 226, 0.1);
   border-color: var(--pt-accent);
   color: var(--pt-accent);
 }
 
-.graph-container {
+.status-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.header-right {
+  display: flex;
+  gap: 12px;
+}
+
+.btn-reset-header {
+  padding: 8px 14px;
+  background: transparent;
+  border: 1px solid var(--pt-border);
+  color: var(--pt-text-muted);
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.btn-reset-header:hover {
+  border-color: var(--pt-accent);
+  color: var(--pt-accent);
+  background: rgba(74, 144, 226, 0.05);
+}
+
+/* Graph Container Layout */
+.graph-container-wrapper {
   display: grid;
-  grid-template-columns: 1fr 320px;
+  grid-template-columns: 1fr 340px;
   gap: 20px;
-  min-height: 500px;
+  padding: 20px 24px;
   flex: 1;
+  overflow: hidden;
+  animation: fadeIn 0.4s ease 0.1s both;
 }
 
 .graph-canvas {
-  background: var(--pt-surface);
+  background: radial-gradient(circle at 50% 40%, rgba(74, 144, 226, 0.05) 0%, transparent 70%),
+    linear-gradient(135deg, var(--pt-surface) 0%, var(--pt-bg) 100%);
   border: 1px solid var(--pt-border);
-  border-radius: 8px;
-  padding: 20px;
+  border-radius: 12px;
+  padding: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   position: relative;
   overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
 }
 
-.graph-svg {
+/* Constellation Graph SVG */
+.constellation-graph {
   width: 100%;
   height: 100%;
-  min-height: 800px;
-  background: var(--pt-surface);
+  cursor: grab;
+}
+
+.constellation-graph:active {
+  cursor: grabbing;
+}
+
+/* Grid background */
+.grid-background circle {
+  stroke: var(--pt-accent);
+  opacity: 0.05;
+}
+
+/* Connections layer */
+.connections-layer line {
+  stroke-linecap: round;
+  transition: stroke-width 0.3s ease, opacity 0.3s ease;
+}
+
+.connection-line.status-confirmed {
+  stroke: #4a90e2;
+  stroke-width: 2.5;
+  opacity: 0.8;
+}
+
+.connection-line.status-suggested {
+  stroke: #fbbf24;
+  stroke-width: 2;
+  opacity: 0.5;
+}
+
+.connection-line:hover {
+  stroke-width: 4;
+  opacity: 1;
+}
+
+/* Central node */
+.central-node {
+  cursor: pointer;
+}
+
+.central-node .node-circle {
+  filter: drop-shadow(0 8px 16px rgba(74, 144, 226, 0.3));
+  transition: filter 0.3s ease;
+}
+
+.central-node:hover .node-circle {
+  filter: drop-shadow(0 12px 24px rgba(74, 144, 226, 0.5));
+}
+
+.central-node .node-ring {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 0.2;
+    r: 45px;
+  }
+  50% {
+    opacity: 0.4;
+    r: 50px;
+  }
+}
+
+/* Entity nodes */
+.entity-node {
+  cursor: pointer;
+  transition: filter 0.2s ease;
+}
+
+.entity-node .node-circle {
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.3));
+  transition: filter 0.3s ease, r 0.3s ease;
+}
+
+.entity-node:hover .node-circle {
+  filter: drop-shadow(0 8px 20px rgba(74, 144, 226, 0.4));
+}
+
+.entity-node.node-selected .node-circle {
+  filter: drop-shadow(0 0 20px rgba(74, 144, 226, 0.8));
+  stroke-width: 3 !important;
+}
+
+.entity-node .node-ring {
+  transition: stroke 0.2s ease;
+}
+
+.entity-node:hover .node-ring {
+  stroke: rgba(255, 255, 255, 0.4);
+}
+
+.confidence-ring {
+  animation: confidence-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes confidence-pulse {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* Node labels */
+.node-label {
+  font-size: 12px;
+  font-weight: 600;
+  fill: white;
+  text-anchor: middle;
+  pointer-events: none;
+  dominant-baseline: central;
+}
+
+.node-label.central-label {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+/* Relationship labels */
+.relationship-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-anchor: middle;
+  pointer-events: none;
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+}
+
+.relationship-label.rel-confirmed {
+  fill: #4a90e2;
+}
+
+.relationship-label.rel-suggested {
+  fill: #fbbf24;
+}
+
+/* Graph info stats */
+.graph-info {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  background: rgba(10, 15, 25, 0.9);
+  border: 1px solid var(--pt-border);
+  border-radius: 8px;
+  padding: 12px 16px;
+  backdrop-filter: blur(10px);
+}
+
+.info-stats {
+  display: flex;
+  gap: 20px;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: center;
+}
+
+.stat-label {
+  font-size: 10px;
+  color: var(--pt-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+}
+
+.stat-value {
+  font-size: 16px;
+  color: var(--pt-accent);
+  font-weight: 700;
+  font-family: 'Courier New', monospace;
 }
 
 .graph-background {
@@ -936,61 +1221,111 @@ onMounted(() => {
   line-height: 1.4;
 }
 
-/* Entity Inspector Panel */
-.entity-inspector {
-  background: var(--pt-surface);
+/* Inspector Panel - Premium Design */
+.inspector-panel {
+  background: linear-gradient(135deg, var(--pt-surface) 0%, var(--pt-surface-alt) 100%);
   border: 1px solid var(--pt-border);
-  border-radius: 8px;
+  border-radius: 12px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  transition: all 0.3s ease;
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
   opacity: 0;
   pointer-events: none;
+  transform: translateX(20px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
 }
 
-.entity-inspector--open {
+.inspector-panel.panel-open {
   opacity: 1;
   pointer-events: auto;
+  transform: translateX(0);
 }
 
-.inspector-header {
+.panel-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
   padding: 16px;
   border-bottom: 1px solid var(--pt-border);
-  background: var(--pt-surface-alt);
+  background: linear-gradient(135deg, var(--pt-surface-alt) 0%, var(--pt-bg) 100%);
 }
 
-.inspector-title {
-  font-size: 14px;
-  font-weight: 600;
+.panel-title-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+.type-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: white;
+  flex-shrink: 0;
+}
+
+.badge-business {
+  background: #2563eb;
+}
+
+.badge-person {
+  background: #9333ea;
+}
+
+.badge-website {
+  background: #0891b2;
+}
+
+.badge-location {
+  background: #16a34a;
+}
+
+.badge-contact {
+  background: #d97706;
+}
+
+.panel-title {
+  font-size: 13px;
+  font-weight: 700;
   color: var(--pt-text);
   margin: 0;
-  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.inspector-close {
+.panel-close {
   background: transparent;
   border: none;
   color: var(--pt-text-muted);
-  font-size: 20px;
+  font-size: 18px;
   cursor: pointer;
-  padding: 0;
-  width: 24px;
-  height: 24px;
+  padding: 4px;
+  width: 28px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: color 0.2s ease;
+  border-radius: 6px;
+  transition: all 0.2s ease;
 }
 
-.inspector-close:hover {
-  color: var(--pt-text);
+.panel-close:hover {
+  background: rgba(74, 144, 226, 0.1);
+  color: var(--pt-accent);
 }
 
-.inspector-body {
+.panel-content {
   flex: 1;
   overflow-y: auto;
   padding: 0;
@@ -998,82 +1333,120 @@ onMounted(() => {
   flex-direction: column;
 }
 
-.inspector-empty {
+.panel-empty {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 200px;
-  color: var(--pt-text-muted);
-  font-size: 13px;
+  flex: 1;
+  padding: 40px 20px;
   text-align: center;
+  color: var(--pt-text-muted);
 }
 
-.inspector-section {
+.empty-icon {
+  font-size: 36px;
+  margin-bottom: 12px;
+  opacity: 0.3;
+}
+
+.panel-section {
   padding: 16px;
   border-bottom: 1px solid var(--pt-border);
 }
 
-.inspector-section:last-child {
+.panel-section:last-child {
   border-bottom: none;
+  margin-top: auto;
 }
 
-.section-label {
+.section-title {
   font-size: 11px;
   color: var(--pt-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  margin: 0 0 10px;
-  font-weight: 600;
+  margin: 0 0 12px;
+  font-weight: 700;
 }
 
-.entity-type {
-  font-size: 12px;
-  color: var(--pt-text);
-  margin: 0;
-  padding: 6px 10px;
-  background: var(--pt-bg);
-  border-radius: 4px;
-  display: inline-block;
-}
-
-.relationships-list {
+.section-info {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
-.relationship-item {
+.info-row {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 10px;
-  background: var(--pt-bg);
-  border-radius: 4px;
-  border-left: 2px solid var(--pt-border);
-  font-size: 11px;
+  gap: 8px;
+  font-size: 12px;
 }
 
-.relationship-item.rel-confirmed {
-  border-left-color: var(--pt-accent);
-}
-
-.relationship-item.rel-suggested {
-  border-left-color: rgba(255, 193, 7, 0.6);
-  background: rgba(255, 193, 7, 0.05);
-}
-
-.rel-type {
-  font-weight: 600;
-  color: var(--pt-accent);
+.info-label {
+  color: var(--pt-text-muted);
+  font-weight: 500;
   flex-shrink: 0;
 }
 
-.rel-arrow {
-  color: var(--pt-text-muted);
-  font-size: 9px;
+.info-value {
+  color: var(--pt-text);
+  font-weight: 600;
 }
 
-.rel-target {
+.confidence-bar {
+  flex: 1;
+  height: 4px;
+  background: var(--pt-bg);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.confidence-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--pt-accent), #4a90e2);
+  transition: width 0.3s ease;
+}
+
+.connections-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.connection-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: var(--pt-bg);
+  border-radius: 6px;
+  border-left: 3px solid transparent;
+  font-size: 11px;
+  transition: all 0.2s ease;
+}
+
+.connection-item.status-confirmed {
+  border-left-color: #2563eb;
+  background: rgba(37, 99, 235, 0.05);
+}
+
+.connection-item.status-suggested {
+  border-left-color: #fbbf24;
+  background: rgba(251, 191, 36, 0.05);
+}
+
+.connection-item:hover {
+  background: var(--pt-surface-alt);
+}
+
+.conn-type {
+  font-weight: 700;
+  color: var(--pt-accent);
+  flex-shrink: 0;
+  min-width: 60px;
+}
+
+.conn-target {
   color: var(--pt-text);
   flex: 1;
   overflow: hidden;
@@ -1081,10 +1454,38 @@ onMounted(() => {
   white-space: nowrap;
 }
 
-.rel-confidence {
-  font-size: 10px;
-  color: rgba(255, 193, 7, 0.8);
+.conn-badge {
+  font-size: 9px;
+  color: #fbbf24;
+  text-transform: uppercase;
+  font-weight: 700;
+  padding: 2px 6px;
+  background: rgba(251, 191, 36, 0.2);
+  border-radius: 3px;
   flex-shrink: 0;
+}
+
+.action-btn {
+  width: 100%;
+  padding: 10px;
+  background: rgba(74, 144, 226, 0.1);
+  border: 1px solid var(--pt-accent);
+  color: var(--pt-accent);
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.action-btn:hover {
+  background: rgba(74, 144, 226, 0.2);
+  transform: translateY(-1px);
+}
+
+.action-btn + .action-btn {
+  margin-top: 6px;
 }
 
 .properties-list {

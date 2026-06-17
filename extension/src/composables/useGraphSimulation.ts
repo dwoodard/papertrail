@@ -28,22 +28,37 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>) {
   const simulation = ref<d3.Simulation<GraphNode, GraphLink> | null>(null)
 
   function initializeGraph(data: GraphData, onNodeSelect: (node: GraphNode | null) => void) {
-    if (!container.value) return
+    if (!container.value) {
+      console.error('Container not available')
+      return
+    }
 
-    const width = container.value.clientWidth
-    const height = container.value.clientHeight
+    const width = container.value.clientWidth || 800
+    const height = container.value.clientHeight || 600
+
+    if (width === 0 || height === 0) {
+      console.warn('Container has no dimensions, retrying...')
+      setTimeout(() => initializeGraph(data, onNodeSelect), 100)
+      return
+    }
+
+    console.log(`Initializing graph with dimensions: ${width}x${height}`)
 
     // Clear previous
     d3.select(container.value).selectAll('svg').remove()
 
-    // Create SVG
+    // Create SVG with proper sizing
     const svg = d3
       .select(container.value)
       .append('svg')
-      .attr('width', width)
-      .attr('height', height)
+      .attr('width', '100%')
+      .attr('height', '100%')
       .attr('viewBox', [0, 0, width, height])
+      .attr('preserveAspectRatio', 'xMidYMid meet')
       .attr('class', 'graph-svg')
+      .style('border', '1px solid #ccc')
+
+    console.log('SVG created')
 
     // Add defs for markers and filters
     const defs = svg.append('defs')
@@ -122,10 +137,14 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>) {
       .enter()
       .append('line')
       .attr('class', (d) => `link link-${d.status}`)
-      .attr('stroke-width', (d) => (d.status === 'confirmed' ? 2.5 : 2))
-      .attr('marker-end', (d) =>
+      .attr('stroke', (d: GraphLink) => (d.status === 'confirmed' ? '#3b82f6' : '#fbbf24'))
+      .attr('stroke-width', (d: GraphLink) => (d.status === 'confirmed' ? 2.5 : 2))
+      .attr('stroke-dasharray', (d: GraphLink) => (d.status === 'suggested' ? '5,3' : 'none'))
+      .attr('marker-end', (d: GraphLink) =>
         d.status === 'confirmed' ? 'url(#arrow-confirmed)' : 'url(#arrow-suggested)',
       )
+
+    console.log(`Created ${link.size()} links`)
 
     // Create nodes group
     const nodesGroup = g.append('g').attr('class', 'nodes-layer')
@@ -140,7 +159,7 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>) {
       })
       .attr('class', (d) => `node node-${d.type}`)
       .attr('fill', (d) => getNodeColor(d.type))
-      .attr('stroke', 'var(--pt-border)')
+      .attr('stroke', '#3a4557')
       .attr('stroke-width', 2)
       .attr('opacity', (d) => d.confidence || 1)
       .style('cursor', 'pointer')
@@ -165,6 +184,8 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>) {
         highlightedNodes.value.clear()
         updateLinkOpacity()
       })
+
+    console.log(`Created ${node.size()} nodes`)
 
     // Create labels
     const labels = g

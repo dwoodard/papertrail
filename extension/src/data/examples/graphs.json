@@ -1,0 +1,162 @@
+{
+  "examples": [
+    {
+      "id": "davis-county-contractors",
+      "name": "Davis County Contractors",
+      "description": "Research into local contractor businesses",
+      "nodes": [
+        {
+          "id": "biz_123",
+          "name": "Barlow Masonry",
+          "type": "business",
+          "value": 3,
+          "confidence": 1
+        },
+        {
+          "id": "web_456",
+          "name": "barlowmasonry.com",
+          "type": "website",
+          "value": 1,
+          "confidence": 1
+        },
+        {
+          "id": "contact_789",
+          "name": "(801) 555-0123",
+          "type": "contact",
+          "value": 1,
+          "confidence": 1
+        },
+        {
+          "id": "loc_321",
+          "name": "123 Main St, Davis County, UT",
+          "type": "location",
+          "value": 1,
+          "confidence": 1
+        },
+        {
+          "id": "person_654",
+          "name": "Mark Barlow",
+          "type": "person",
+          "value": 2,
+          "confidence": 0.7
+        },
+        {
+          "id": "linkedin_111",
+          "name": "LinkedIn Profile",
+          "type": "website",
+          "value": 1,
+          "confidence": 0.8
+        }
+      ],
+      "links": [
+        {
+          "source": "biz_123",
+          "target": "web_456",
+          "type": "WEBSITE",
+          "status": "confirmed",
+          "evidence": "Found in Google Maps listing"
+        },
+        {
+          "source": "biz_123",
+          "target": "contact_789",
+          "type": "PHONE",
+          "status": "confirmed",
+          "evidence": "Phone number from business directory"
+        },
+        {
+          "source": "biz_123",
+          "target": "loc_321",
+          "type": "ADDRESS",
+          "status": "confirmed",
+          "evidence": "Physical location verified"
+        },
+        {
+          "source": "biz_123",
+          "target": "person_654",
+          "type": "WORKS_AT",
+          "status": "suggested",
+          "evidence": "LinkedIn connection identified"
+        },
+        {
+          "source": "person_654",
+          "target": "linkedin_111",
+          "type": "HAS_PROFILE",
+          "status": "confirmed",
+          "evidence": "Profile URL found"
+        }
+      ]
+    },
+    {
+      "id": "tech-research",
+      "name": "Tech Sector Analysis",
+      "description": "Map key players and funding connections",
+      "nodes": [
+        {
+          "id": "company_001",
+          "name": "TechStart Ventures",
+          "type": "business",
+          "value": 4,
+          "confidence": 1
+        },
+        {
+          "id": "person_001",
+          "name": "Sarah Chen",
+          "type": "person",
+          "value": 3,
+          "confidence": 0.9
+        },
+        {
+          "id": "person_002",
+          "name": "James Wilson",
+          "type": "person",
+          "value": 2,
+          "confidence": 0.75
+        },
+        {
+          "id": "company_002",
+          "name": "InnovateCorp",
+          "type": "business",
+          "value": 2,
+          "confidence": 1
+        },
+        {
+          "id": "location_001",
+          "name": "Silicon Valley, CA",
+          "type": "location",
+          "value": 1,
+          "confidence": 1
+        }
+      ],
+      "links": [
+        {
+          "source": "person_001",
+          "target": "company_001",
+          "type": "FOUNDED",
+          "status": "confirmed",
+          "evidence": "Public record"
+        },
+        {
+          "source": "person_002",
+          "target": "company_001",
+          "type": "BOARD_MEMBER",
+          "status": "confirmed",
+          "evidence": "LinkedIn profile"
+        },
+        {
+          "source": "company_001",
+          "target": "company_002",
+          "type": "INVESTED_IN",
+          "status": "suggested",
+          "evidence": "Crunchbase data"
+        },
+        {
+          "source": "company_001",
+          "target": "location_001",
+          "type": "HEADQUARTERS",
+          "status": "confirmed",
+          "evidence": "Business registration"
+        }
+      ]
+    }
+  ]
+}
