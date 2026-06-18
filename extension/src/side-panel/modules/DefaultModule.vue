@@ -1,21 +1,25 @@
 <template>
   <div class="default-module">
     <div class="module-header">
-      <div class="logo">📎</div>
+      <div class="logo"><Paperclip :size="20" /></div>
       <div class="title">Papertrail</div>
     </div>
     <div class="module-content">
       <div class="modules-grid">
         <div v-for="module in modules" :key="module.id" class="module-card">
-          <div class="card-icon">{{ module.icon }}</div>
-          <div class="card-heading">{{ module.heading }}</div>
-          <div class="card-description">
-            {{ module.description }}
+          <div class="card-icon">
+            <component :is="module.icon" :size="40" />
           </div>
-          <a v-if="module.link" :href="module.link" target="_blank" rel="noopener" class="card-link">
-            Open Module →
-          </a>
-          <div v-else class="card-placeholder">Coming Soon</div>
+          <div class="card-content">
+            <div class="card-heading">{{ module.heading }}</div>
+            <div class="card-description">
+              {{ module.description }}
+            </div>
+            <a v-if="module.link" :href="module.link" target="_blank" rel="noopener" class="card-link">
+              Open Module →
+            </a>
+            <div v-else class="card-placeholder">Coming Soon</div>
+          </div>
         </div>
       </div>
     </div>
@@ -23,162 +27,190 @@
 </template>
 
 <script setup>
+import {
+  MapPin,
+  Star,
+  Users,
+  Mail,
+  Camera,
+  Briefcase,
+  CheckCircle,
+  Building2,
+  ClipboardList,
+  Hammer,
+  Home,
+  Building,
+  DollarSign,
+  Bed,
+  FileText,
+  ShoppingCart,
+  Palette,
+  Store,
+  ShoppingBag,
+  Search,
+  BarChart3,
+  Map,
+  Globe,
+  Paperclip
+} from '@lucide/vue'
+
 const modules = [
   {
     id: 'google-maps',
-    icon: '📍',
+    icon: MapPin,
     heading: 'Google Maps',
     description: 'Collect listings and business data from Google Maps',
     link: 'https://www.google.com/maps'
   },
   {
     id: 'yelp-leads',
-    icon: '⭐',
+    icon: Star,
     heading: 'Yelp Business Leads',
-    description: 'Extract local service businesses and reviews'
+    description: 'Extract local service businesses and reviews',
+    link: 'https://www.yelp.com'
   },
   {
     id: 'facebook-leads',
-    icon: '👥',
+    icon: Users,
     heading: 'Facebook Business Leads',
     description: 'Find local pages, contact info, and activity'
   },
   {
     id: 'contact-data',
-    icon: '✉️',
+    icon: Mail,
     heading: 'Website Contact Data',
     description: 'Extract emails, phones, and business details'
   },
   {
     id: 'instagram-data',
-    icon: '📸',
+    icon: Camera,
     heading: 'Instagram Business Data',
     description: 'Extract local business profiles and engagement'
   },
   {
     id: 'linkedin-leads',
-    icon: '💼',
+    icon: Briefcase,
     heading: 'LinkedIn Company Leads',
     description: 'Find B2B companies and decision makers'
   },
   {
     id: 'bbb-data',
-    icon: '✓',
+    icon: CheckCircle,
     heading: 'BBB Business Data',
     description: 'Extract accredited businesses and complaints'
   },
   {
     id: 'chamber-leads',
-    icon: '🏢',
+    icon: Building2,
     heading: 'Chamber of Commerce Leads',
     description: 'Find local registered business members'
   },
   {
     id: 'state-registry',
-    icon: '📋',
+    icon: ClipboardList,
     heading: 'State Business Registry Data',
     description: 'Extract registered companies by location'
   },
   {
     id: 'contractor-licenses',
-    icon: '🔨',
+    icon: Hammer,
     heading: 'Contractor License Data',
     description: 'Find licensed contractors and trade businesses'
   },
   {
     id: 'realtor-leads',
-    icon: '🏠',
+    icon: Home,
     heading: 'Real Estate Agent Leads',
     description: 'Extract realtor profiles and broker details'
   },
   {
     id: 'property-managers',
-    icon: '🏘️',
+    icon: Building,
     heading: 'Property Manager Leads',
     description: 'Find rental managers and apartment contacts'
   },
   {
     id: 'zillow-data',
-    icon: '💰',
+    icon: DollarSign,
     heading: 'Zillow Property Data',
     description: 'Extract listings, agents, and pricing trends'
   },
   {
     id: 'airbnb-data',
-    icon: '🛏️',
+    icon: Bed,
     heading: 'Airbnb Rental Data',
     description: 'Analyze short-term rental listings and pricing'
   },
   {
     id: 'indeed-jobs',
-    icon: '💼',
+    icon: Briefcase,
     heading: 'Indeed Job Posting Data',
     description: 'Scrape hiring companies and job demand'
   },
   {
     id: 'craigslist-data',
-    icon: '📄',
+    icon: FileText,
     heading: 'Craigslist Listing Data',
     description: 'Extract local service and product listings'
   },
   {
     id: 'facebook-marketplace',
-    icon: '🛒',
+    icon: ShoppingCart,
     heading: 'Facebook Marketplace Data',
     description: 'Monitor local products, prices, and sellers'
   },
   {
     id: 'etsy-data',
-    icon: '🎨',
+    icon: Palette,
     heading: 'Etsy Product Data',
     description: 'Extract handmade product listings and shops'
   },
   {
     id: 'walmart-data',
-    icon: '🏬',
+    icon: Store,
     heading: 'Walmart Product Data',
     description: 'Track product prices, sellers, and rankings'
   },
   {
     id: 'shopify-data',
-    icon: '🛍️',
+    icon: ShoppingBag,
     heading: 'Shopify Store Data',
     description: 'Discover products, prices, and store trends'
   },
 
   {
     id: 'competitor-audit',
-    icon: '🔍',
+    icon: Search,
     heading: 'Competitor Website Audit',
     description: 'Scrape competitor pages, offers, and keywords'
   },
   {
     id: 'review-extractor',
-    icon: '⭐',
+    icon: Star,
     heading: 'Review Data Extractor',
     description: 'Pull reviews from Google, Yelp, Facebook, etc.'
   },
   {
     id: 'seo-audit',
-    icon: '📊',
+    icon: BarChart3,
     heading: 'Local SEO Audit Data',
     description: 'Analyze rankings, reviews, categories, and gaps'
   },
   {
     id: 'gbp-audit',
-    icon: '🗺️',
+    icon: Map,
     heading: 'Google Business Profile Audit',
     description: 'Find missing info, weak profiles, and SEO issues'
   },
   {
     id: 'domain-tech',
-    icon: '🌐',
+    icon: Globe,
     heading: 'Domain & Tech Stack Data',
     description: 'Detect websites, platforms, pixels, and tools'
   },
   {
     id: 'email-verify',
-    icon: '✔️',
+    icon: CheckCircle,
     heading: 'Email Verification Data',
     description: 'Validate emails and reduce bounce risk'
   }
@@ -221,7 +253,7 @@ const modules = [
 
 .modules-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   gap: 20px;
   max-width: 1200px;
   margin: 0 auto;
@@ -231,10 +263,9 @@ const modules = [
   background: white;
   border: 1px solid #e0e0e0;
   border-radius: 8px;
-  padding: 24px;
+  padding: 20px;
   display: flex;
-  flex-direction: column;
-  gap: 12px;
+  gap: 16px;
   transition: all 0.2s ease;
   cursor: pointer;
 }
@@ -245,32 +276,41 @@ const modules = [
 }
 
 .card-icon {
-  font-size: 48px;
-  line-height: 1;
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-start;
+  padding-top: 2px;
+  color: #1a73e8;
+}
+
+.card-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
 }
 
 .card-heading {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
   color: #202124;
+  margin: 0;
 }
 
 .card-description {
-  font-size: 13px;
+  font-size: 12px;
   color: #666;
-  line-height: 1.5;
-  flex: 1;
+  line-height: 1.4;
+  margin: 0;
 }
 
 .card-link {
   display: inline-block;
-  font-size: 13px;
+  font-size: 12px;
   color: #1a73e8;
   text-decoration: none;
   font-weight: 500;
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px solid #e0e0e0;
+  margin-top: 4px;
 }
 
 .card-link:hover {
@@ -279,11 +319,9 @@ const modules = [
 
 .card-placeholder {
   display: inline-block;
-  font-size: 12px;
+  font-size: 11px;
   color: #999;
   font-style: italic;
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px solid #e0e0e0;
+  margin-top: 4px;
 }
 </style>
