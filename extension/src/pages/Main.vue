@@ -11,6 +11,10 @@
           <p class="header__subtitle">Intelligence Research Platform</p>
         </div>
         <div class="header__actions">
+          <button class="btn-workspace" @click="openWorkspace">
+            <span class="btn-workspace__icon">🔧</span>
+            Open Workspace
+          </button>
           <button class="btn-new" @click="openCreateModal">
             <span class="btn-new__icon">+</span>
             New Project
@@ -336,16 +340,27 @@
             <div :class="['graph-stats', { 'stats-open': selectedGraphNode }]">
               <template v-if="selectedGraphNode">
                 <div class="stats-header" @click="centerStatsPanel">
-                  <div class="stats-title">
+
+                    <div class="stats-title">
                     <div class="type-badge" :class="`badge-${selectedGraphNode.type}`">
                       {{ selectedGraphNode.type }}
                     </div>
                     <h4>{{ selectedGraphNode.name }}</h4>
                   </div>
-                  <button class="stats-close" @click.stop="selectNodeInGraph(null)">✕</button>
+
+                  <div>
+                    <button class="stats-close" @click.stop="selectNodeInGraph(null)">✕</button>
+                  </div>
                 </div>
 
                 <div class="stats-body">
+
+                    <!-- add a what project this node belongs to -->
+                  <div v-if="selectedGraphNode.project" class="info-row">
+                    <span class="info-label">Project:</span>
+                    <span class="info-value">{{ selectedGraphNode.project.name }}</span>
+                  </div>
+
                   <section class="stats-section">
                     <h5 class="section-title">About</h5>
                     <div v-if="selectedGraphNode.value" class="info-row">
@@ -616,6 +631,18 @@ function toggleAllTypes(show: boolean) {
 }
 
 onMounted(() => {
+  // Save projects to storage on mount
+  saveProjectsToStorage()
+
+  // Set first project as active by default
+  if (projects.value.length > 0) {
+    console.log('[Main.vue] Setting active project to:', projects.value[0].id)
+    chrome.storage.local.set({ 'pt.activeProjectId': projects.value[0].id }, () => {
+      console.log('[Main.vue] Active project saved:', projects.value[0].id)
+      debugStorage()
+    })
+  }
+
   document.addEventListener('click', closeGraphControls)
   document.addEventListener('click', closeViewByDropdown)
 })
@@ -623,6 +650,13 @@ onMounted(() => {
 onBeforeUnmount(() => {
   document.removeEventListener('click', closeGraphControls)
   document.removeEventListener('click', closeViewByDropdown)
+})
+
+// Save active project when selected
+watch(selectedProject, (newProject) => {
+  if (newProject) {
+    chrome.storage.local.set({ 'pt.activeProjectId': newProject.id })
+  }
 })
 
 const form = reactive({
@@ -670,6 +704,14 @@ const projects = ref([
   },
 ])
 
+function openWorkspace(): void {
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    if (tabs[0]) {
+      chrome.sidePanel.open({ tabId: tabs[0].id })
+    }
+  })
+}
+
 function openCreateModal(): void {
   showCreateModal.value = true
 }
@@ -681,10 +723,27 @@ function closeCreateModal(): void {
   form.target = ''
 }
 
+function saveProjectsToStorage(): void {
+  const projectsArray = JSON.parse(JSON.stringify(projects.value))
+  console.log('[Main.vue] Saving projects to storage:', projectsArray)
+  chrome.storage.local.set({ 'pt.projects': projectsArray }, () => {
+    console.log('[Main.vue] Projects saved successfully')
+  })
+}
+
+function debugStorage(): void {
+  chrome.storage.local.get(null, (allData) => {
+    console.log('[DEBUG] All Chrome Storage:', allData)
+    console.log('[DEBUG] pt.activeProjectId:', allData['pt.activeProjectId'])
+    console.log('[DEBUG] pt.projects:', allData['pt.projects'])
+    console.log('[DEBUG] results count:', allData['results']?.length || 0)
+  })
+}
+
 function createProject(): void {
   if (!form.name.trim()) return
 
-  projects.value.unshift({
+  const newProject = {
     id: Date.now().toString(),
     name: form.name,
     goal: form.goal,
@@ -692,7 +751,10 @@ function createProject(): void {
     entities: 0,
     suggestions: 0,
     lastActivity: 'just now',
-  })
+  }
+
+  projects.value.unshift(newProject)
+  saveProjectsToStorage()
 
   closeCreateModal()
 }
@@ -950,12 +1012,18 @@ function buildHubGraphData(): GraphData {
       if (!matchesSearch) return
 
       if (!nodeMap.has(node.id)) {
+        // Find the project object matching this node's project ID
+        const projectObj = projects.value.find(p => p.id === nodeProject) || {
+          id: nodeProject,
+          name: nodeProject,
+        }
+
         const graphNode: GraphNode = {
           ...node,
-          project: nodeProject,
+          project: projectObj,
           name: selectedGraphProject.value
             ? node.name // Don't add project label when filtering to single project
-            : `${node.name}\n(${nodeProject})`, // Add project label when showing all
+            : `${node.name}\n(${projectObj.name})`, // Add project label when showing all
         }
         allNodes.push(graphNode)
         nodeMap.set(node.id, graphNode)
@@ -1142,6 +1210,7 @@ body {
 
 /* Buttons */
 .btn-new,
+.btn-workspace,
 .btn-primary,
 .btn-secondary,
 .btn-action {
@@ -1152,6 +1221,27 @@ body {
   transition: all 0.2s ease;
   font-weight: 500;
   font-size: 13px;
+}
+
+.btn-workspace {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px;
+  background: transparent;
+  color: var(--pt-text-muted);
+  border: 1px solid var(--pt-border);
+}
+
+.btn-workspace:hover {
+  background: rgba(74, 144, 226, 0.1);
+  border-color: var(--pt-accent);
+  color: var(--pt-accent);
+  transform: translateY(-2px);
+}
+
+.btn-workspace__icon {
+  font-size: 14px;
 }
 
 .btn-new {
@@ -1860,10 +1950,12 @@ body {
 
 .stats-title {
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: flex-start;
   gap: 10px;
   flex: 1;
   min-width: 0;
+  font-size: 8px;
 }
 
 .stats-title h4 {
@@ -1934,7 +2026,7 @@ body {
 .stats-body {
   flex: 1;
   overflow-y: auto;
-  padding: 0;
+  padding: 16px;
   display: flex;
   flex-direction: column;
 }
@@ -1957,7 +2049,7 @@ body {
 }
 
 .stats-section {
-  padding: 16px;
+  padding: 12px 0;
   border-bottom: 1px solid var(--pt-border);
 }
 

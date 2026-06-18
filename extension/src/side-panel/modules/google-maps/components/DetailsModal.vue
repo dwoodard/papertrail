@@ -15,61 +15,75 @@
           {{ entry.source === 'bulk' ? '✅ Enriched' : '⌛ Pending enrichment' }}
         </div>
 
-        <div class="details-grid">
-          <div class="detail-item">
-            <span class="label">Category:</span>
-            <span class="value">{{ entry.category || 'N/A' }}</span>
+        <div v-if="entry.project" class="info-row">
+          <span class="info-label">Project:</span>
+          <span class="info-value">{{ entry.project.name }}</span>
+        </div>
+
+        <section class="stats-section">
+          <h5 class="section-title">About</h5>
+          <div class="info-row">
+            <span class="info-label">Category:</span>
+            <span class="info-value">{{ entry.category || 'N/A' }}</span>
           </div>
-          <div class="detail-item">
-            <span class="label">Rating:</span>
-            <span class="value">{{ entry.rating || 'N/A' }}</span>
+          <div class="info-row">
+            <span class="info-label">Rating:</span>
+            <span class="info-value">{{ entry.rating || 'N/A' }}</span>
           </div>
-          <div class="detail-item">
-            <span class="label">Reviews:</span>
-            <span class="value">{{ entry.reviews || 'N/A' }}</span>
+          <div class="info-row">
+            <span class="info-label">Reviews:</span>
+            <span class="info-value">{{ entry.reviews || 'N/A' }}</span>
           </div>
-          <div class="detail-item">
-            <span class="label">Address:</span>
-            <span class="value">{{ entry.address || 'N/A' }}</span>
+          <div class="info-row">
+            <span class="info-label">Status:</span>
+            <span class="info-value">{{ entry.status || 'N/A' }}</span>
           </div>
-          <div class="detail-item">
-            <span class="label">Phone:</span>
-            <span class="value">{{ entry.phone || 'N/A' }}</span>
+          <div class="info-row">
+            <span class="info-label">Price:</span>
+            <span class="info-value">{{ entry.priceRange || 'N/A' }}</span>
           </div>
-          <div class="detail-item">
-            <span class="label">Website:</span>
-            <span class="value">
-              <a v-if="isValidUrl" :href="entry.website" target="_blank">
+        </section>
+
+        <section class="stats-section">
+          <h5 class="section-title">Location & Contact</h5>
+          <div class="info-row">
+            <span class="info-label">Address:</span>
+            <span class="info-value">{{ entry.address || 'N/A' }}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Phone:</span>
+            <span class="info-value">{{ entry.phone || 'N/A' }}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Website:</span>
+            <span class="info-value">
+              <a v-if="isValidUrl" :href="entry.website">
                 {{ entry.website }}
               </a>
               <span v-else>{{ entry.website || 'N/A' }}</span>
             </span>
           </div>
-          <div class="detail-item">
-            <span class="label">Plus Code:</span>
-            <span class="value">{{ entry.plusCode || 'N/A' }}</span>
+          <div class="info-row">
+            <span class="info-label">Coordinates:</span>
+            <span class="info-value">{{ entry.latitude }}, {{ entry.longitude }}</span>
           </div>
-          <div class="detail-item">
-            <span class="label">Hours:</span>
-            <span class="value">{{ entry.hours || 'N/A' }}</span>
+          <div class="info-row">
+            <span class="info-label">Plus Code:</span>
+            <span class="info-value">{{ entry.plusCode || 'N/A' }}</span>
           </div>
-          <div class="detail-item">
-            <span class="label">Status:</span>
-            <span class="value">{{ entry.status || 'N/A' }}</span>
+          <div class="info-row">
+            <span class="info-label">Hours:</span>
+            <span class="info-value">{{ entry.hours || 'N/A' }}</span>
           </div>
-          <div class="detail-item">
-            <span class="label">Price:</span>
-            <span class="value">{{ entry.priceRange || 'N/A' }}</span>
+        </section>
+
+        <section class="stats-section">
+          <h5 class="section-title">Identifiers</h5>
+          <div class="info-row">
+            <span class="info-label">Place ID:</span>
+            <span class="info-value monospace">{{ entry.placeId || 'N/A' }}</span>
           </div>
-          <div class="detail-item">
-            <span class="label">Coordinates:</span>
-            <span class="value">{{ entry.latitude }}, {{ entry.longitude }}</span>
-          </div>
-          <div class="detail-item">
-            <span class="label">Place ID:</span>
-            <span class="value monospace">{{ entry.placeId || 'N/A' }}</span>
-          </div>
-        </div>
+        </section>
       </div>
 
       <div class="modal-footer">
@@ -356,51 +370,56 @@ defineExpose({ open, close })
   border-radius: 4px;
 }
 
-.details-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 8px;
-}
-
-.detail-item {
+.info-row {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  font-size: 11px;
+  font-size: 13px;
   padding: 8px 0;
-  border-bottom: 1px solid #f0f0f0;
+  gap: 12px;
 }
 
-.detail-item:last-child {
-  border-bottom: none;
+.info-label {
+  font-weight: 600;
+  color: #666;
+  flex-shrink: 0;
+  min-width: 100px;
 }
 
-.label {
-  font-weight: 500;
-  color: #555;
-  min-width: 90px;
-}
-
-.value {
+.info-value {
   color: #333;
   word-break: break-word;
   text-align: right;
   flex: 1;
-  margin-left: 8px;
 }
 
-.value.monospace {
+.info-value.monospace {
   font-family: monospace;
-  font-size: 10px;
+  font-size: 11px;
 }
 
-.value a {
+.info-value a {
   color: #1a73e8;
   text-decoration: none;
 }
 
-.value a:hover {
+.info-value a:hover {
   text-decoration: underline;
+}
+
+.stats-section {
+  margin-bottom: 20px;
+}
+
+.section-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #333;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0 0 12px 0;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e0e0e0;
 }
 
 .modal-footer {

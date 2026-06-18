@@ -11,7 +11,11 @@ export interface GraphNode {
   y?: number
   fx?: number | null
   fy?: number | null
-  project?: string
+  project?: {
+    id: string
+    name: string
+    goal?: string
+  }
 }
 
 export interface GraphLink {
@@ -238,11 +242,11 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
     // Calculate project centroids for clustering visualization
     const projectGroups = new Map<string, GraphNode[]>()
     filteredNodes.forEach((node) => {
-      const project = node.project || 'unknown'
-      if (!projectGroups.has(project)) {
-        projectGroups.set(project, [])
+      const projectId = node.project?.id || 'unknown'
+      if (!projectGroups.has(projectId)) {
+        projectGroups.set(projectId, [])
       }
-      projectGroups.get(project)!.push(node)
+      projectGroups.get(projectId)!.push(node)
     })
 
     const projectCentroids = new Map<string, { x: number; y: number; color: string }>()
@@ -272,8 +276,8 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
       .force('radial', d3.forceRadial((d: GraphNode) => (d.id === centralNode.id ? 0 : 280), width / 2, height / 2).strength(0.4))
       .force('cluster', (alpha: number) => {
         filteredNodes.forEach((node) => {
-          const project = node.project || 'unknown'
-          const centroid = projectCentroids.get(project)
+          const projectId = node.project?.id || 'unknown'
+          const centroid = projectCentroids.get(projectId)
           if (centroid && node.x !== undefined && node.y !== undefined) {
             const dx = centroid.x - node.x
             const dy = centroid.y - node.y
@@ -737,7 +741,7 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
     if (!simulation.value) return
 
     const nodes = simulation.value.nodes() as GraphNode[]
-    const uniqueProjects = Array.from(new Set(nodes.map((n) => n.project).filter(Boolean)))
+    const uniqueProjects = Array.from(new Set(nodes.map((n) => n.project?.id).filter((id): id is string => Boolean(id))))
     const projectPositions = new Map<string, { x: number; y: number }>()
 
     // Use overrides if provided, otherwise use defaults
@@ -769,8 +773,8 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
         'forceX',
         d3
           .forceX((d: GraphNode) => {
-            const project = d.project || 'unknown'
-            return projectPositions.get(project)?.x || 0
+            const projectId = d.project?.id || 'unknown'
+            return projectPositions.get(projectId)?.x || 0
           })
           .strength(forceStrength),
       )
@@ -778,8 +782,8 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
         'forceY',
         d3
           .forceY((d: GraphNode) => {
-            const project = d.project || 'unknown'
-            return projectPositions.get(project)?.y || 0
+            const projectId = d.project?.id || 'unknown'
+            return projectPositions.get(projectId)?.y || 0
           })
           .strength(forceStrength),
       )

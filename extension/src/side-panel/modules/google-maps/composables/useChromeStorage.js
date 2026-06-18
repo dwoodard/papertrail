@@ -11,8 +11,35 @@ export function useChromeStorage() {
 
   async function load() {
     return new Promise(resolve => {
-      chrome.storage.local.get(['results', 'popupSize', 'panelWidth'], ({ results: stored = [], popupSize: size, panelWidth: width }) => {
-        results.value = stored
+      chrome.storage.local.get(['results', 'popupSize', 'panelWidth', 'pt.activeProjectId', 'pt.projects'], ({ results: stored = [], popupSize: size, panelWidth: width, 'pt.activeProjectId': activeProjectId, 'pt.projects': projectsData = [] }) => {
+        // Convert projects object to array if needed
+        const projects = Array.isArray(projectsData) ? projectsData : Object.values(projectsData || {})
+
+        console.log('[useChromeStorage] All storage keys:', Object.keys({ results: stored, popupSize: size, panelWidth: width, 'pt.activeProjectId': activeProjectId, 'pt.projects': projects }))
+        console.log('[useChromeStorage] Loading data:', {
+          resultsCount: stored.length,
+          activeProjectId,
+          projectsCount: projects.length,
+          projects,
+          storedResults: stored.slice(0, 2) // Show first 2 results
+        })
+
+        // Enrich results with project information
+        const enriched = stored.map(result => {
+          const matchedProject = activeProjectId && projects.length > 0
+            ? projects.find(p => p.id === activeProjectId)
+            : null
+
+          console.log(`[useChromeStorage] Result "${result.name}": projectId=${result.projectId}, activeProjectId=${activeProjectId}, matched=${!!matchedProject}, projectName=${matchedProject?.name || 'N/A'}`)
+
+          return {
+            ...result,
+            projectId: activeProjectId,
+            project: matchedProject
+          }
+        })
+
+        results.value = enriched
         if (size) {
           popupSize.value = size
         }

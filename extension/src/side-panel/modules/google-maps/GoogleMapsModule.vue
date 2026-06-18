@@ -126,15 +126,18 @@ const messaging = useContentMessaging(
         return rPlaceId === placeId
       })
 
-      if (existingIndex !== -1) {
-        // Update existing entry (enrichment in progress)
-        Object.assign(results.value[existingIndex], entry)
-        console.log(`[App] 🔄 Updated in UI: ${entry.name} (${entry.source})`)
-      } else {
-        // Add new entry
-        results.value.push(entry)
-        console.log(`[App] ✅ Added to UI: ${entry.name} (${entry.source})`)
-      }
+      // Enrich entry before adding/updating
+      enrichEntryWithProject(entry).then(enrichedEntry => {
+        if (existingIndex !== -1) {
+          // Update existing entry (enrichment in progress)
+          Object.assign(results.value[existingIndex], enrichedEntry)
+          console.log(`[App] 🔄 Updated in UI: ${enrichedEntry.name} (${enrichedEntry.source})`)
+        } else {
+          // Add new entry
+          results.value.push(enrichedEntry)
+          console.log(`[App] ✅ Added to UI: ${enrichedEntry.name} (${enrichedEntry.source})`)
+        }
+      })
     }
   },
   async (entry) => {
@@ -147,6 +150,25 @@ const messaging = useContentMessaging(
 )
 
 const { isScraping, progress } = messaging
+
+// Enrich entry with project data
+function enrichEntryWithProject(entry) {
+  return new Promise(resolve => {
+    chrome.storage.local.get(['pt.activeProjectId', 'pt.projects'], ({ 'pt.activeProjectId': activeProjectId, 'pt.projects': projectsData = [] }) => {
+      // Convert projects object to array if needed
+      const projects = Array.isArray(projectsData) ? projectsData : Object.values(projectsData || {})
+
+      const enriched = {
+        ...entry,
+        projectId: activeProjectId,
+        project: activeProjectId && projects.length > 0
+          ? projects.find(p => p.id === activeProjectId)
+          : null
+      }
+      resolve(enriched)
+    })
+  })
+}
 
 const scrapingStats = computed(() => {
   // Show stats for current keyword only if selected, otherwise all

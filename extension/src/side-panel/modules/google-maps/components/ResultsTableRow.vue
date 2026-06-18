@@ -6,7 +6,6 @@
       <a
         v-if="isValidUrl"
         :href="entry.website"
-        target="_blank"
         @click.stop
         style="color: #1a73e8; text-decoration: none; font-size: 11px;"
       >

@@ -2,7 +2,7 @@
   <div class="right-panel">
     <div class="panel-header">
       <h3 id="selectedKeywordTitle">{{ selectedKeyword ? `🔍 "${selectedKeyword}"` : 'Select a keyword →' }}</h3>
-      <a v-if="selectedKeyword" :href="googleMapsUrl" target="_blank" class="maps-link" title="Open in Google Maps">
+      <a v-if="selectedKeyword" class="maps-link" title="Open in Google Maps" @click="handleOpenMaps">
         🗺️ Maps
       </a>
     </div>
@@ -277,6 +277,15 @@ watch([statusFilter, sortColumn, sortDirection], () => {
 }, { deep: true })
 
 defineExpose({ getFilteredData, statusFilter })
+
+function handleOpenMaps() {
+  const url = googleMapsUrl.value
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    if (tabs[0]) {
+      chrome.tabs.update(tabs[0].id, { url })
+    }
+  })
+}
 </script>
 
 <style scoped>
@@ -290,6 +299,10 @@ defineExpose({ getFilteredData, statusFilter })
   transition: all 0.2s;
   border-radius: 4px;
   flex-shrink: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font: inherit;
 }
 
 .maps-link:hover {

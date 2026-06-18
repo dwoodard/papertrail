@@ -1,9 +1,5 @@
 <template>
   <div class="default-module">
-    <div class="module-header">
-      <div class="logo"><Paperclip :size="20" /></div>
-      <div class="title">Papertrail</div>
-    </div>
     <div class="module-content">
       <div class="modules-grid">
         <div v-for="module in modules" :key="module.id" class="module-card">
@@ -15,9 +11,9 @@
             <div class="card-description">
               {{ module.description }}
             </div>
-            <a v-if="module.link" :href="module.link" target="_blank" rel="noopener" class="card-link">
+            <button v-if="module.link" class="card-link" @click="handleModuleLink(module.link)">
               Open Module →
-            </a>
+            </button>
             <div v-else class="card-placeholder">Coming Soon</div>
           </div>
         </div>
@@ -215,34 +211,24 @@ const modules = [
     description: 'Validate emails and reduce bounce risk'
   }
 ]
+
+function handleModuleLink(link) {
+  // Open external links in the browser (current tab)
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    if (tabs[0]) {
+      chrome.tabs.update(tabs[0].id, { url: link })
+    }
+  })
+}
 </script>
 
 <style scoped>
 .default-module {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: 100%;
   background: #f5f5f5;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-}
-
-.module-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 16px;
-  border-bottom: 1px solid #e0e0e0;
-  background: white;
-}
-
-.logo {
-  font-size: 20px;
-}
-
-.title {
-  font-weight: 600;
-  font-size: 16px;
-  color: #1a73e8;
 }
 
 .module-content {
@@ -311,6 +297,11 @@ const modules = [
   text-decoration: none;
   font-weight: 500;
   margin-top: 4px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  font: inherit;
 }
 
 .card-link:hover {

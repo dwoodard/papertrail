@@ -1,9 +1,11 @@
 <template>
   <div class="module-layout">
-    <nav class="module-nav">
-      <a :href="mainPageUrl" target="_blank" class="nav-brand">
-        <span class="brand-icon">📎</span>
-        <span class="brand-text">Papertrail</span>
+    <header class="module-header">
+      <a :href="mainPageUrl" class="header-left" @click="handlePapertrailClick">
+        <div class="logo">
+          <Paperclip :size="20" />
+        </div>
+        <span class="title">Papertrail</span>
       </a>
       <div class="nav-separator" v-if="activeModuleId"></div>
       <button
@@ -17,7 +19,7 @@
       <div v-if="activeModuleId" class="nav-breadcrumb">
         <span class="breadcrumb-text">{{ activeModuleLabel }}</span>
       </div>
-    </nav>
+    </header>
     <div class="module-content">
       <component :is="activeModule" />
     </div>
@@ -26,6 +28,7 @@
 
 <script setup>
 import { computed, ref, onMounted } from 'vue'
+import { Paperclip } from '@lucide/vue'
 import GoogleMapsModule from './modules/google-maps/GoogleMapsModule.vue'
 import YelpModule from './modules/yelp/YelpModule.vue'
 import DefaultModule from './modules/DefaultModule.vue'
@@ -42,6 +45,22 @@ const mainPageUrl = ref('')
 onMounted(() => {
   mainPageUrl.value = chrome.runtime.getURL('src/pages/main.html')
 })
+
+function handlePapertrailClick(e) {
+  e.preventDefault()
+
+  // Check if the tab is already open
+  chrome.tabs.query({ url: mainPageUrl.value }, (tabs) => {
+    if (tabs.length > 0) {
+      // Tab exists, focus it
+      chrome.tabs.update(tabs[0].id, { active: true })
+      chrome.windows.update(tabs[0].windowId, { focused: true })
+    } else {
+      // Tab doesn't exist, create a new one
+      chrome.tabs.create({ url: mainPageUrl.value })
+    }
+  })
+}
 
 const moduleLabels = {
   'google-maps': 'Google Maps',
@@ -71,37 +90,48 @@ const activeModuleLabel = computed(() => {
   background: #f5f5f5;
 }
 
-.module-nav {
+.module-header {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 16px;
+  padding: 16px;
   background: white;
   border-bottom: 1px solid #e0e0e0;
-  min-height: 48px;
+  height: auto;
 }
 
-.nav-brand {
+.header-left {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   cursor: pointer;
   text-decoration: none;
+  color: inherit;
   transition: opacity 0.2s;
 }
 
-.nav-brand:hover {
+.header-left:hover {
   opacity: 0.8;
 }
 
-.brand-icon {
-  font-size: 16px;
+.logo {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  text-decoration: none;
+  color: #1a73e8;
+  transition: opacity 0.2s;
 }
 
-.brand-text {
-  font-size: 14px;
+.logo:hover {
+  opacity: 0.8;
+}
+
+.title {
   font-weight: 600;
+  font-size: 16px;
   color: #1a73e8;
+  cursor: pointer;
 }
 
 .nav-separator {

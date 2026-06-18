@@ -1,8 +1,11 @@
 <template>
     <div class="popup">
         <header class="popup__header">
-            <span class="popup__logo">📎 Papertrail</span>
-            <button class="popup__workspace" type="button" @click="openWorkspace">Open workspace ↗</button>
+            <h1 class="popup__logo">Papertrail</h1>
+            <div class="popup__actions">
+                <button class="popup__action-btn" type="button" @click="openMain">Main</button>
+                <button class="popup__action-btn" type="button" @click="openWorkspace">Workspace</button>
+            </div>
         </header>
 
         <main class="popup__body">
@@ -85,10 +88,18 @@ function submit(): void {
     form.startingTarget = ''
 }
 
-async function openWorkspace(): Promise<void> {
+async function openMain(): Promise<void> {
+    const mainUrl = chrome.runtime.getURL('src/pages/main.html')
     const window = await chrome.windows.getCurrent()
     if (window.id != null) {
-        await chrome.sidePanel.open({ windowId: window.id })
+        chrome.tabs.create({ url: mainUrl })
+    }
+}
+
+async function openWorkspace(): Promise<void> {
+    const currentWindow = await chrome.windows.getCurrent()
+    if (currentWindow.id != null) {
+        await chrome.sidePanel.open({ windowId: currentWindow.id })
     }
 }
 </script>
@@ -110,21 +121,34 @@ async function openWorkspace(): Promise<void> {
 }
 
 .popup__logo {
-    font-weight: 600;
+    font-family: 'Playfair Display', serif;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    color: var(--pt-text);
+    margin: 0;
 }
 
-.popup__workspace {
+.popup__actions {
+    display: flex;
+    gap: 8px;
+}
+
+.popup__action-btn {
     background: transparent;
     border: 1px solid var(--pt-border);
     color: var(--pt-text);
     border-radius: 6px;
-    padding: 4px 8px;
+    padding: 6px 12px;
     font-size: 12px;
     cursor: pointer;
+    transition: all 0.2s ease;
 }
 
-.popup__workspace:hover {
+.popup__action-btn:hover {
     border-color: var(--pt-accent);
+    color: var(--pt-accent);
+    background: rgba(74, 144, 226, 0.05);
 }
 
 .popup__body {
