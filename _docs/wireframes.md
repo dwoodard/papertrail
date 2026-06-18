@@ -12,7 +12,7 @@ Full-page extension with unified tabbed workspace. No popups or side panels — 
 
 ---
 
-Frame 0 — Main Papertrail Hub (Overview Tab)
+Frame 0 (f0) — Main Papertrail Hub (Overview Tab)
 
 Main entry point. Shows all projects and their status. Bird's eye view of everything.
 
@@ -50,7 +50,7 @@ Hub shows all projects with key stats. Click [Open] to dive into a project's wor
 
 ---
 
-Frame 0b — Hub Graph Tab
+Frame 0b (f0b) — Hub Graph Tab
 
 All projects visualized as a network. See cross-project entity connections.
 
@@ -82,7 +82,7 @@ All projects visualized as a network. See cross-project entity connections.
 
 ---
 
-Frame 0c — Hub Entities Tab
+Frame 0c (f0c) — Hub Entities Tab
 
 All entities across all projects in one searchable table.
 
@@ -108,7 +108,7 @@ All entities across all projects in one searchable table.
 
 ---
 
-Frame 0d — Hub Timeline Tab
+Frame 0d (f0d) — Hub Timeline Tab
 
 Master timeline of all research activity across all projects.
 
@@ -150,7 +150,7 @@ Unified activity log across all research. See what you've discovered when.
 
 ---
 
-# Frame 1 — Project Workspace
+# Frame 1 (f1) — Project Workspace
 
 Drill into a project from Frame 0. Full workspace with research tools, data views, and module activation.
 
@@ -159,7 +159,7 @@ Drill into a project from Frame 0. Full workspace with research tools, data view
 
 ---
 
-Frame 1a — Overview Tab (Default)
+Frame 1a (f1a) — Overview Tab (Default)
 Project landing. Shows status, stats, next actions, recent activity.
 
 ┌──────────────────────────────────────────────────────────────┐
@@ -194,7 +194,7 @@ Project landing. Shows status, stats, next actions, recent activity.
 
 ---
 
-Frame 1b — Graph Tab
+Frame 1b (f1b) — Graph Tab
 Knowledge graph of this project's entities and relationships. Zoomed into one project (cf. Frame 0b for multi-project graph).
 
 ┌──────────────────────────────────────────────────────────────────────────────────────────┐
@@ -230,7 +230,7 @@ Click any node to populate sidebar with details. Sidebar shows entity metadata, 
 
 ---
 
-Frame 1c — Entities Tab
+Frame 1c (f1c) — Entities Tab
 Table view of all captured entities. Filterable by type. Click to see details.
 
 ┌──────────────────────────────────────────────────────────────┐
@@ -259,7 +259,7 @@ Table view of all captured entities. Filterable by type. Click to see details.
 
 ---
 
-Frame 1d — Suggestions Tab
+Frame 1d (f1d) — Suggestions Tab
 AI-generated suggestions pending review. Relationships, duplicates, next paths, etc.
 
 ┌──────────────────────────────────────────────────────────────┐
@@ -291,7 +291,7 @@ AI-generated suggestions pending review. Relationships, duplicates, next paths, 
 
 ---
 
-Frame 1e — Timeline Tab
+Frame 1e (f1e) — Timeline Tab
 Chronological research journal. What was discovered, when, from where.
 
 ┌──────────────────────────────────────────────────────────────────────┐
@@ -326,7 +326,7 @@ Chronological research journal. What was discovered, when, from where.
 
 ---
 
-Frame 1f — Evidence Tab
+Frame 1f (f1f) — Evidence Tab
 Raw observations, screenshots, notes. Searchable. Links to timeline.
 
 ┌──────────────────────────────────────────────────────────────┐
@@ -361,7 +361,7 @@ Raw observations, screenshots, notes. Searchable. Links to timeline.
 
 ---
 
-Frame 2 — Google Maps Module Tab
+Frame 2 (f2) — Google Maps Module Tab
 User navigates to Google Maps, sees [Google Maps] tab appear. Clicks it to view the module.
 
 ┌────────────────────────────────────────────┐
@@ -391,7 +391,7 @@ User navigates to Google Maps, sees [Google Maps] tab appear. Clicks it to view 
 
 ---
 
-Frame 3 — Timeline Tab (Horizontal Canvas)
+Frame 3 (f3) — Timeline Tab (Horizontal Canvas)
 
 Chronological view of research journey. Shows what was discovered, when, and from where.
 
@@ -432,7 +432,7 @@ Events cascade down showing relationships. Each event is clickable for full deta
 
 ---
 
-Frame 4 — Graph Tab
+Frame 4 (f4) — Graph Tab
 
 Click [Graph] tab to see knowledge graph visualization of the project's entities and relationships.
 
@@ -470,7 +470,7 @@ Graph + sidebar layout: nodes clickable for details, edges clickable for relatio
 
 ---
 
-Frame 5 — Entities Tab
+Frame 5 (f5) — Entities Tab
 
 Click [Entities] tab to see extracted entities as a structured table.
 
@@ -500,7 +500,7 @@ Click [Entities] tab to see extracted entities as a structured table.
 
 ---
 
-Frame 6 — Google Maps Results Captured
+Frame 6 (f6) — Google Maps Results Captured
 
 After Scroll & Collect runs in the [Google Maps] tab.
 
@@ -550,7 +550,7 @@ After Scroll & Collect runs in the [Google Maps] tab.
 
 No “Save” action. The system already captured observations. User actions are now Open, Pin, Ignore, Graph, Review.
 
-Frame 5 — User Opens a Business Website
+Frame 5 (f5a) — User Opens a Business Website
 
 User clicks Open Website for Barlow Masonry. New tab opens. Website Module activates.
 
@@ -599,7 +599,7 @@ User clicks Open Website for Barlow Masonry. New tab opens. Website Module activ
 
 This is not a raw link list. AI helps turn many links into Best Next Paths.
 
-Frame 6 — Website Path Tree
+Frame 6 (f6a) — Website Path Tree
 
 User wants a more visual view of what this page exposes.
 
@@ -639,7 +639,7 @@ User wants a more visual view of what this page exposes.
 
 The Website Module starts at the current site, not at Google Maps. The Google Maps source trail is stored in the background.
 
-Frame 7 — User Explores LinkedIn
+Frame 7 (f7) — User Explores LinkedIn
 
 User clicks LinkedIn. New tab opens. LinkedIn Module activates.
 
@@ -680,7 +680,7 @@ User clicks LinkedIn. New tab opens. LinkedIn Module activates.
 
 Direct facts are captured. AI-created meaning is a suggestion.
 
-Frame 8 — Evidence Paste
+Frame 8 (f8) — Evidence Paste
 
 User sees something on the page that the module did not cleanly capture. They paste a screenshot.
 
@@ -716,7 +716,7 @@ User sees something on the page that the module did not cleanly capture. They pa
 
 The screenshot itself becomes evidence. The extracted meaning stays reviewable.
 
-Frame 9 — Main Workspace: Project Overview
+Frame 9 (f9) — Main Workspace: Project Overview
 
 User clicks Workspace.
 
@@ -795,7 +795,7 @@ Frame 10 — Graph View
 
 Graph supports 10-20+ nodes per row. Click nodes for sidebar details. Confirmed and suggested relationships shown with visual distinction.
 
-Frame 11 — Suggestions Review
+Frame 11 (f11) — Suggestions Review
 ┌──────────────────────────────────────────────────────────────┐
 │ PaperTrail / Suggestions                                     │
 ├──────────────────────────────────────────────────────────────┤
@@ -821,7 +821,7 @@ Frame 11 — Suggestions Review
 
 This protects trust. AI helps, but does not silently decide.
 
-Frame 12 — Report / Export View
+Frame 12 (f12) — Report / Export View
 ┌──────────────────────────────────────────────────────────────┐
 │ PaperTrail / Report & Export                                 │
 ├──────────────────────────────────────────────────────────────┤
