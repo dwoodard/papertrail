@@ -249,7 +249,7 @@
                         v-model.number="graphNodesPerRow"
                         type="range"
                         min="1"
-                        max="10"
+                        max="20"
                         step="1"
                         class="control-slider"
                         title="Adjust nodes per row in Project view"
