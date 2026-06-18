@@ -168,7 +168,7 @@
                           class="control-checkbox"
                           @change="toggleTypeFilter('business')"
                         />
-                        <span>Business</span>
+                        <span :style="{ color: getEntityTypeColor('business') }">Business</span>
                       </label>
                       <label class="control-label" style="margin: 0; font-size: 12px;">
                         <input
@@ -177,7 +177,7 @@
                           class="control-checkbox"
                           @change="toggleTypeFilter('person')"
                         />
-                        <span>Person</span>
+                        <span :style="{ color: getEntityTypeColor('person') }">Person</span>
                       </label>
                       <label class="control-label" style="margin: 0; font-size: 12px;">
                         <input
@@ -186,7 +186,7 @@
                           class="control-checkbox"
                           @change="toggleTypeFilter('location')"
                         />
-                        <span>Location</span>
+                        <span :style="{ color: getEntityTypeColor('location') }">Location</span>
                       </label>
                       <label class="control-label" style="margin: 0; font-size: 12px;">
                         <input
@@ -195,7 +195,7 @@
                           class="control-checkbox"
                           @change="toggleTypeFilter('website')"
                         />
-                        <span>Website</span>
+                        <span :style="{ color: getEntityTypeColor('website') }">Website</span>
                       </label>
                       <label class="control-label" style="margin: 0; font-size: 12px;">
                         <input
@@ -204,7 +204,7 @@
                           class="control-checkbox"
                           @change="toggleTypeFilter('contact')"
                         />
-                        <span>Contact</span>
+                        <span :style="{ color: getEntityTypeColor('contact') }">Contact</span>
                       </label>
                     </div>
                   </div>
@@ -584,6 +584,17 @@ function handleViewModeChange(mode: 'Project' | 'Type' | 'Cluster' | 'Relation')
 function handleSort(sortBy: 'Name' | 'Size') {
   graphSortBy.value = sortBy
   showViewByDropdown.value = false
+}
+
+function getEntityTypeColor(type: string): string {
+  const colors: Record<string, string> = {
+    business: '#3b82f6',
+    person: '#a855f7',
+    website: '#06b6d4',
+    location: '#10b981',
+    contact: '#f59e0b',
+  }
+  return colors[type] || '#6b7280'
 }
 
 function toggleTypeFilter(type: string) {
