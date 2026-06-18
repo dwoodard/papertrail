@@ -14,10 +14,12 @@
     <div v-else class="table-wrapper">
       <div class="search-box">
         <input
+          id="results-table-search"
           v-model="searchQuery"
           type="search"
           placeholder="🔍 Search by name, category, phone, website..."
           class="search-input"
+          name="results-search"
         />
       </div>
 

@@ -92,10 +92,12 @@
               <div class="search-box">
                 <span class="search-icon">🔍</span>
                 <input
+                  id="graph-entity-search"
                   v-model="graphSearch"
                   type="text"
                   placeholder="Search entities..."
                   class="search-input"
+                  name="entity-search"
                 />
                 <button v-if="graphSearch" class="search-clear" @click="graphSearch = ''">✕</button>
               </div>
@@ -117,8 +119,8 @@
               </div>
 
               <div class="filter-group">
-                <span class="filter-label">Filter by Project:</span>
-                <select v-model="selectedGraphProject" class="filter-select">
+                <label for="graph-project-filter" class="filter-label">Filter by Project:</label>
+                <select id="graph-project-filter" v-model="selectedGraphProject" class="filter-select" name="graph-project">
                   <option value="">All Projects</option>
                   <option v-for="projectId in availableProjects" :key="projectId" :value="projectId">
                     {{ projectId }}

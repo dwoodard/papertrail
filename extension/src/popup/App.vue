@@ -30,23 +30,29 @@
 
             <form class="new-project" @submit.prevent="submit">
                 <input
+                    id="project-name"
                     v-model="form.name"
                     class="new-project__input"
                     type="text"
                     placeholder="Project name"
+                    name="project-name"
                     required
                 />
                 <input
+                    id="project-goal"
                     v-model="form.goal"
                     class="new-project__input"
                     type="text"
                     placeholder="Goal (optional)"
+                    name="project-goal"
                 />
                 <input
+                    id="project-target"
                     v-model="form.startingTarget"
                     class="new-project__input"
                     type="text"
                     placeholder="Starting target (optional)"
+                    name="project-target"
                 />
                 <button class="new-project__submit" type="submit" :disabled="!form.name.trim()">
                     Create project
