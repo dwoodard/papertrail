@@ -767,7 +767,7 @@ const recentActivity = [
 
 .entity-node.node-selected .node-circle {
   filter: drop-shadow(0 0 20px rgba(74, 144, 226, 0.8));
-  stroke-width: 3 !important;
+  stroke-width: 3;
 }
 
 .entity-node .node-ring {

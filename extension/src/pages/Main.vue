@@ -108,11 +108,11 @@
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg>
                 </button>
                 <div id="view-by-dropdown" v-if="showViewByDropdown" :style="{ display: 'block', position: 'absolute', top: 'calc(100% + 5px)', left: '0px', background: 'var(--pt-surface)', border: '1px solid var(--pt-border)', borderRadius: '8px', boxShadow: '0 10px 15px rgba(0, 0, 0, 0.3)', minWidth: '220px', zIndex: '10000', padding: '4px' }" @click.stop>
-                  <div v-for="mode in viewModesList" :key="mode.id" class="dropdown-item" :style="{ padding: '10px 12px', fontSize: '13px', color: currentViewMode === mode.id ? 'var(--pt-accent)' : 'var(--pt-text-muted)', cursor: 'pointer', borderRadius: '4px', background: currentViewMode === mode.id ? 'rgba(74, 144, 226, 0.1)' : 'transparent', transition: '0.2s' }" @click="handleViewModeChange(mode.id)">{{ mode.label }}</div>
+                  <div v-for="mode in ['Project', 'Type', 'Cluster']" :key="mode" class="dropdown-item" :style="{ padding: '10px 12px', fontSize: '13px', color: currentViewMode === mode ? 'var(--pt-accent)' : 'var(--pt-text-muted)', cursor: 'pointer', borderRadius: '4px', background: currentViewMode === mode ? 'rgba(74, 144, 226, 0.1)' : 'transparent', transition: '0.2s' }" @click="handleViewModeChange(mode as any)">{{ mode }}</div>
                   <div style="height: 1px; background: var(--pt-border); margin: 4px 0;"></div>
                   <div style="padding: 4px 12px; font-size: 11px; font-weight: 700; color: var(--pt-text-muted); text-transform: uppercase; opacity: 0.6;">Sort By</div>
-                  <div class="dropdown-item" data-sort="Name" style="padding: 10px 12px; font-size: 13px; color: var(--pt-text-muted); cursor: pointer; border-radius: 4px; background: transparent; transition: 0.2s;" @click="handleSort('Name')">Alphabetical</div>
-                  <div class="dropdown-item" data-sort="Size" style="padding: 10px 12px; font-size: 13px; color: var(--pt-text-muted); cursor: pointer; border-radius: 4px; background: transparent; transition: 0.2s;" @click="handleSort('Size')">Node Weight</div>
+                  <div class="dropdown-item" data-sort="Name" :style="{ padding: '10px 12px', fontSize: '13px', color: graphSortBy === 'Name' ? 'var(--pt-accent)' : 'var(--pt-text-muted)', cursor: 'pointer', borderRadius: '4px', background: graphSortBy === 'Name' ? 'rgba(74, 144, 226, 0.1)' : 'transparent', transition: '0.2s' }" @click="handleSort('Name')">Alphabetical</div>
+                  <div class="dropdown-item" data-sort="Size" :style="{ padding: '10px 12px', fontSize: '13px', color: graphSortBy === 'Size' ? 'var(--pt-accent)' : 'var(--pt-text-muted)', cursor: 'pointer', borderRadius: '4px', background: graphSortBy === 'Size' ? 'rgba(74, 144, 226, 0.1)' : 'transparent', transition: '0.2s' }" @click="handleSort('Size')">Node Weight</div>
                 </div>
               </div>
 
@@ -132,7 +132,7 @@
                 <button
                   class="btn-controls"
                   @click.stop="showGraphControls = !showGraphControls"
-                  :class="{ 'controls-active': showGraphControls || graphMinConfidence > 0 || graphRepulsion !== -600 || !graphShowSuggested || graphSelectedNodeRepulsion !== 500 || graphNodesPerRow !== 4 || graphHorizontalGap !== 600 || graphVerticalGap !== 600 || graphGridForceStrength !== 0.25 }"
+                  :class="{ 'controls-active': showGraphControls || graphMinConfidence > 0 || graphRepulsion !== -600 || !graphShowSuggested || graphNodesPerRow !== 4 || graphHorizontalGap !== 600 || graphVerticalGap !== 600 || graphGridForceStrength !== 0.25 || graphVisibleTypes.size < 5 }"
                 >
                   <span class="controls-icon">⚙</span>
                   <span>Controls</span>
@@ -152,6 +152,59 @@
                       />
                       <span>Suggested Links</span>
                     </label>
+                  </div>
+
+                  <div style="height: 1px; background: var(--pt-border); margin: 8px 0;"></div>
+
+                  <div class="control-group">
+                    <label class="control-label" style="margin-bottom: 8px;">Entity Types</label>
+                    <div style="display: flex; flex-direction: column; gap: 6px;">
+                      <label class="control-label" style="margin: 0; font-size: 12px;">
+                        <input
+                          :checked="graphVisibleTypes.has('business')"
+                          type="checkbox"
+                          class="control-checkbox"
+                          @change="toggleTypeFilter('business')"
+                        />
+                        <span>Business</span>
+                      </label>
+                      <label class="control-label" style="margin: 0; font-size: 12px;">
+                        <input
+                          :checked="graphVisibleTypes.has('person')"
+                          type="checkbox"
+                          class="control-checkbox"
+                          @change="toggleTypeFilter('person')"
+                        />
+                        <span>Person</span>
+                      </label>
+                      <label class="control-label" style="margin: 0; font-size: 12px;">
+                        <input
+                          :checked="graphVisibleTypes.has('location')"
+                          type="checkbox"
+                          class="control-checkbox"
+                          @change="toggleTypeFilter('location')"
+                        />
+                        <span>Location</span>
+                      </label>
+                      <label class="control-label" style="margin: 0; font-size: 12px;">
+                        <input
+                          :checked="graphVisibleTypes.has('website')"
+                          type="checkbox"
+                          class="control-checkbox"
+                          @change="toggleTypeFilter('website')"
+                        />
+                        <span>Website</span>
+                      </label>
+                      <label class="control-label" style="margin: 0; font-size: 12px;">
+                        <input
+                          :checked="graphVisibleTypes.has('contact')"
+                          type="checkbox"
+                          class="control-checkbox"
+                          @change="toggleTypeFilter('contact')"
+                        />
+                        <span>Contact</span>
+                      </label>
+                    </div>
                   </div>
 
                   <div class="control-group">
@@ -186,23 +239,6 @@
                     </div>
                   </div>
 
-                  <div class="control-group">
-                    <label class="control-label">Selected Node Repulsion</label>
-                    <div class="slider-container">
-                      <input
-                        v-model.number="graphSelectedNodeRepulsion"
-                        type="range"
-                        min="0"
-                        max="1000"
-                        step="50"
-                        class="control-slider"
-                        title="Adjust how much nodes push away from selected node"
-                      />
-                      <span class="control-value">{{ graphSelectedNodeRepulsion }}</span>
-                    </div>
-                  </div>
-
-                  <div style="height: 1px; background: var(--pt-border); margin: 8px 0;"></div>
 
                   <div class="control-group">
                     <label class="control-label">Grid: Nodes Per Row</label>
@@ -268,7 +304,16 @@
                     </div>
                   </div>
 
-                  <div v-if="graphSearch || selectedGraphProject || graphMinConfidence > 0 || graphRepulsion !== -600 || !graphShowSuggested || graphSelectedNodeRepulsion !== 500 || graphNodesPerRow !== 4 || graphHorizontalGap !== 600 || graphVerticalGap !== 600 || graphGridForceStrength !== 0.25" class="control-group">
+                  <div v-if="lockedNodes.size > 0" class="control-group">
+                    <button
+                      class="btn-reset-dropdown"
+                      @click="resetLockedNodes"
+                    >
+                      Unlock Dragged Nodes ({{ lockedNodes.size }})
+                    </button>
+                  </div>
+
+                  <div v-if="graphSearch || selectedGraphProject || graphMinConfidence > 0 || graphRepulsion !== -600 || !graphShowSuggested || graphNodesPerRow !== 4 || graphHorizontalGap !== 600 || graphVerticalGap !== 600 || graphGridForceStrength !== 0.25 || graphVisibleTypes.size < 5" class="control-group">
                     <button
                       class="btn-reset-dropdown"
                       @click="resetGraphFilters"
@@ -288,14 +333,14 @@
 
             <div :class="['graph-stats', { 'stats-open': selectedGraphNode }]">
               <template v-if="selectedGraphNode">
-                <div class="stats-header">
+                <div class="stats-header" @click="centerStatsPanel">
                   <div class="stats-title">
                     <div class="type-badge" :class="`badge-${selectedGraphNode.type}`">
                       {{ selectedGraphNode.type }}
                     </div>
                     <h4>{{ selectedGraphNode.name }}</h4>
                   </div>
-                  <button class="stats-close" @click="selectedGraphNode = null">✕</button>
+                  <button class="stats-close" @click.stop="selectNodeInGraph(null)">✕</button>
                 </div>
 
                 <div class="stats-body">
@@ -308,6 +353,34 @@
                     <div v-if="selectedGraphNode.confidence" class="info-row">
                       <span class="info-label">Confidence:</span>
                       <span class="info-value">{{ Math.round(selectedGraphNode.confidence * 100) }}%</span>
+                    </div>
+                  </section>
+
+                  <section v-if="selectedNodeRelations.length > 0" class="stats-section">
+                    <h5 class="section-title">Relations</h5>
+                    <div class="relations-list">
+                      <div
+                        v-for="(relation, index) in selectedNodeRelations"
+                        :key="index"
+                        class="relation-item"
+                        @click="(event) => {
+                            console.log(relation.nodeId);
+
+                          selectNodeInGraph(relation.nodeId)
+                        }"
+                        @mouseenter="highlightNodeInGraph(relation.nodeId)"
+                        @mouseleave="clearGraphHighlight"
+                      >
+                        <div class="relation-header">
+                          <div class="relation-type-badge" :class="`badge-${relation.nodeType}`">
+                            {{ relation.nodeType }}
+                          </div>
+                          <span class="relation-arrow">→</span>
+                          <span class="relation-name">{{ relation.nodeName }}</span>
+                          <span class="relation-count">({{ relation.connectionCount }})</span>
+                        </div>
+                        <div class="relation-subtext">{{ relation.relationType }}</div>
+                      </div>
                     </div>
                   </section>
 
@@ -324,7 +397,7 @@
                   <h5 class="section-title">Interface View</h5>
                   <div class="view-switcher-group">
                     <button
-                      v-for="mode in ['Standard', 'K-Means', 'Project']"
+                      v-for="mode in ['Project', 'Type', 'Cluster']"
                       :key="mode"
                       :class="['btn-view', { 'btn-view--active': currentViewMode === mode }]"
                       @click="handleViewModeChange(mode as any)"
@@ -440,7 +513,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import ProjectDetail from './ProjectDetail.vue'
-import { useGraphSimulation, type GraphData, type GraphNode, VIEW_MODES, type ViewModeId } from '../composables/useGraphSimulation'
+import { useGraphSimulation, type GraphData, type GraphNode, type ViewModeId } from '../composables/useGraphSimulation'
 import graphExamples from '../data/examples/graphs.json'
 
 const activeTab = ref('Overview')
@@ -453,26 +526,27 @@ const hubGraphContainer = ref<HTMLElement | null>(null)
 const graphSearch = ref('')
 const selectedGraphProject = ref('')
 const selectedGraphNode = ref<GraphNode | null>(null)
+const graphSortBy = ref<'Name' | 'Size'>('Name')
 const graphMinConfidence = ref(0)
 const graphRepulsion = ref(-600)
 const graphShowSuggested = ref(true)
-const graphSelectedNodeRepulsion = ref(500)
 const graphNodesPerRow = ref(4)
+const graphVisibleTypes = ref<Set<string>>(new Set(['business', 'person', 'location', 'website', 'contact']))
 const graphHorizontalGap = ref(600)
 const graphVerticalGap = ref(600)
 const graphGridForceStrength = ref(0.25)
 const showGraphControls = ref(false)
 const showViewByDropdown = ref(false)
-const currentViewMode = ref<ViewModeId>('K-Means')
-const viewModesList = computed(() => Object.values(VIEW_MODES))
+const currentViewMode = ref<ViewModeId>('Project')
 
 const graphConfig = {
   minConfidence: graphMinConfidence,
   repulsion: graphRepulsion,
   showSuggested: graphShowSuggested,
+  visibleTypes: graphVisibleTypes,
 }
 
-const { initializeGraph, centerNode, setViewMode, updateForces, setGridConfig, setSelectedNodeRepulsion } = useGraphSimulation(hubGraphContainer, graphConfig)
+const { initializeGraph, centerNode, setViewMode, updateForces, setGridConfig, resetLockedNodes, lockedNodes, selectNodeById } = useGraphSimulation(hubGraphContainer, graphConfig)
 
 const availableProjects = computed(() => {
   const projectSet = new Set<string>()
@@ -499,15 +573,33 @@ function closeViewByDropdown() {
   showViewByDropdown.value = false
 }
 
-function handleViewModeChange(mode: 'Standard' | 'K-Means' | 'Density' | 'Hierarchical' | 'Distribution' | 'Project') {
+function handleViewModeChange(mode: 'Project' | 'Type' | 'Cluster' | 'Relation') {
   currentViewMode.value = mode
   setViewMode(mode)
   showViewByDropdown.value = false
 }
 
 function handleSort(sortBy: 'Name' | 'Size') {
-  console.log('Sorting by:', sortBy)
+  graphSortBy.value = sortBy
   showViewByDropdown.value = false
+}
+
+function toggleTypeFilter(type: string) {
+  const newTypes = new Set(graphVisibleTypes.value)
+  if (newTypes.has(type)) {
+    newTypes.delete(type)
+  } else {
+    newTypes.add(type)
+  }
+  graphVisibleTypes.value = newTypes
+}
+
+function toggleAllTypes(show: boolean) {
+  if (show) {
+    graphVisibleTypes.value = new Set(['business', 'person', 'location', 'website', 'contact'])
+  } else {
+    graphVisibleTypes.value = new Set()
+  }
 }
 
 onMounted(() => {
@@ -601,18 +693,68 @@ const totalRelationshipsCount = computed(() => {
   return (graphExamples.examples as any[]).reduce((sum, example) => sum + example.links.length, 0)
 })
 
+const selectedNodeRelations = computed(() => {
+  if (!selectedGraphNode.value) return []
+
+  const relations: Array<{ nodeId: string; nodeName: string; nodeType: string; relationType: string; connectionCount: number }> = []
+  const nodeId = selectedGraphNode.value.id
+  const connectionCounts = new Map<string, number>()
+
+  ;(graphExamples.examples as any[]).forEach((example) => {
+    // Count connections for each node
+    example.links.forEach((link: any) => {
+      const sourceId = typeof link.source === 'string' ? link.source : link.source.id
+      const targetId = typeof link.target === 'string' ? link.target : link.target.id
+      connectionCounts.set(sourceId, (connectionCounts.get(sourceId) || 0) + 1)
+      connectionCounts.set(targetId, (connectionCounts.get(targetId) || 0) + 1)
+    })
+
+    // Build relations list
+    example.links.forEach((link: any) => {
+      const sourceId = typeof link.source === 'string' ? link.source : link.source.id
+      const targetId = typeof link.target === 'string' ? link.target : link.target.id
+
+      if (sourceId === nodeId) {
+        const targetNode = example.nodes.find((n: any) => n.id === targetId)
+        if (targetNode) {
+          relations.push({
+            nodeId: targetId,
+            nodeName: targetNode.name,
+            nodeType: targetNode.type,
+            relationType: link.type,
+            connectionCount: connectionCounts.get(targetId) || 0,
+          })
+        }
+      } else if (targetId === nodeId) {
+        const sourceNode = example.nodes.find((n: any) => n.id === sourceId)
+        if (sourceNode) {
+          relations.push({
+            nodeId: sourceId,
+            nodeName: sourceNode.name,
+            nodeType: sourceNode.type,
+            relationType: link.type,
+            connectionCount: connectionCounts.get(sourceId) || 0,
+          })
+        }
+      }
+    })
+  })
+
+  return relations
+})
+
 function resetGraphFilters(): void {
   graphSearch.value = ''
   selectedGraphProject.value = ''
-  selectedGraphNode.value = null
+  selectNodeInGraph(null)
   graphMinConfidence.value = 0
   graphRepulsion.value = -600
   graphShowSuggested.value = true
-  graphSelectedNodeRepulsion.value = 500
   graphNodesPerRow.value = 4
   graphHorizontalGap.value = 600
   graphVerticalGap.value = 600
   graphGridForceStrength.value = 0.25
+  graphVisibleTypes.value = new Set(['business', 'person', 'location', 'website', 'contact'])
   showGraphControls.value = false
 }
 
@@ -631,11 +773,152 @@ function navigateToProjectGraph(): void {
   }
 }
 
+function selectNodeInGraph(nodeId: string | null): void {
+  console.log(`[selectNodeInGraph] Called with nodeId: ${nodeId}`)
+
+  if (!nodeId) {
+    console.log('[selectNodeInGraph] Clearing selection')
+    selectedGraphNode.value = null
+    // Reset all node styles to default
+    const container = hubGraphContainer.value
+    if (container) {
+      const svg = container.querySelector('svg')
+      if (svg) {
+        const d3 = (window as any).d3
+        if (d3) {
+          d3.select(svg).selectAll('.node')
+            .classed('is-selected', false)
+            .classed('is-connected', false)
+            .style('opacity', (d: any) => d.confidence || 1)
+            .attr('stroke-width', '2')
+            .attr('stroke', '#3a4557')
+            .attr('filter', 'none')
+        }
+      }
+    }
+    return
+  }
+
+  const hubData = buildHubGraphData()
+  const nodeToSelect = hubData.nodes.find((n) => n.id === nodeId)
+
+  if (!nodeToSelect) {
+    console.log(`[selectNodeInGraph] Node not found: ${nodeId}`)
+    return
+  }
+
+  console.log(`[selectNodeInGraph] Selecting node: ${nodeToSelect.id} ${nodeToSelect.name}`)
+  selectedGraphNode.value = nodeToSelect
+
+  // Update all styles in the graph
+  selectNodeById(nodeId, hubData)
+
+  // Center the node with a small delay to ensure DOM is updated
+  setTimeout(() => {
+    console.log(`[selectNodeInGraph] Centering node: ${nodeId}`)
+    centerNode(nodeToSelect.id, hubData)
+  }, 50)
+}
+
+function highlightNodeInGraph(nodeId: string): void {
+  const container = hubGraphContainer.value
+  if (!container) return
+
+  const svg = container.querySelector('svg')
+  if (!svg) return
+
+  // Use D3 to select and highlight the node
+  const d3 = (window as any).d3
+  if (!d3) return
+
+  d3.select(svg).selectAll('.node').style('opacity', (d: any) => {
+    if (d.id === nodeId) {
+      return '1'
+    }
+    return (d.confidence || 1) * 0.4
+  }).attr('stroke-width', (d: any) => {
+    if (d.id === nodeId) return '6'
+    return selectedGraphNode.value?.id === d.id ? '8' : '2'
+  }).attr('fill', (d: any) => {
+     return d.id === nodeId ? '#fbbf24' : selectedGraphNode.value?.id === d.id ? '#06b6d4' : '#3a4557'
+  })
+  .attr('stroke', (d: any) => {
+    if (d.id === nodeId) return '#fbbf24'
+    return selectedGraphNode.value?.id === d.id ? '#06b6d4' : '#3a4557'
+  }).attr('filter', (d: any) => {
+    if (d.id === nodeId) return 'drop-shadow(0 0 12px rgba(251, 191, 36, 0.8))'
+    return selectedGraphNode.value?.id === d.id ? 'drop-shadow(0 0 12px rgba(6, 182, 212, 0.9)) drop-shadow(0 0 20px rgba(6, 182, 212, 0.4))' : 'none'
+  })
+}
+
+function clearGraphHighlight(): void {
+  const container = hubGraphContainer.value
+  if (!container) return
+
+  const svg = container.querySelector('svg')
+  if (!svg) return
+
+  const d3 = (window as any).d3
+  if (!d3) return
+
+  const hubData = buildHubGraphData()
+  const selectedNodeId = selectedGraphNode.value?.id
+  const connectedNodeIds = new Set<string>()
+
+  if (selectedNodeId) {
+    hubData.links.forEach((link) => {
+      const sourceId = typeof link.source === 'string' ? link.source : (link.source as any).id
+      const targetId = typeof link.target === 'string' ? link.target : (link.target as any).id
+
+      if (sourceId === selectedNodeId) {
+        connectedNodeIds.add(targetId)
+      }
+      if (targetId === selectedNodeId) {
+        connectedNodeIds.add(sourceId)
+      }
+    })
+  }
+
+  d3.select(svg).selectAll('.node')
+    .style('opacity', (d: any) => {
+      if (d.id === selectedNodeId) return '1'
+      if (connectedNodeIds.has(d.id)) return (d.confidence || 1) * 0.95
+      return (d.confidence || 1) * 0.5
+    })
+    .attr('stroke-width', (d: any) => {
+      if (d.id === selectedNodeId) return '8'
+      if (connectedNodeIds.has(d.id)) return '5'
+      return '2'
+    })
+    .attr('stroke', (d: any) => {
+      if (d.id === selectedNodeId) return '#06b6d4'
+      if (connectedNodeIds.has(d.id)) return '#fbbf24'
+      return '#3a4557'
+    })
+    .attr('filter', (d: any) => {
+      if (d.id === selectedNodeId) return 'drop-shadow(0 0 12px rgba(6, 182, 212, 0.9)) drop-shadow(0 0 20px rgba(6, 182, 212, 0.4))'
+      if (connectedNodeIds.has(d.id)) return 'drop-shadow(0 0 8px rgba(251, 191, 36, 0.7))'
+      return 'none'
+    })
+}
+
+function centerStatsPanel(): void {
+  const header = document.querySelector('.stats-header')
+  if (header) {
+    header.scrollIntoView({
+      behavior: 'smooth',
+      block: 'center',
+      inline: 'center',
+    })
+  }
+}
+
 function buildHubGraphData(): GraphData {
   // Combine all example graphs into one with project labels, optionally filtered by project
   const allNodes: GraphNode[] = []
   const allLinks: any[] = []
   const nodeMap = new Map<string, GraphNode>()
+  const connectionCounts = new Map<string, number>()
 
   ;(graphExamples.examples as any[]).forEach((example) => {
     example.nodes.forEach((node: any) => {
@@ -663,12 +946,30 @@ function buildHubGraphData(): GraphData {
         }
         allNodes.push(graphNode)
         nodeMap.set(node.id, graphNode)
+        connectionCounts.set(node.id, 0)
       }
     })
 
     example.links.forEach((link: any) => {
       allLinks.push(link)
     })
+  })
+
+  // Count connections for each node
+  allLinks.forEach((link: any) => {
+    const sourceId = typeof link.source === 'string' ? link.source : link.source.id
+    const targetId = typeof link.target === 'string' ? link.target : link.target.id
+    if (connectionCounts.has(sourceId)) {
+      connectionCounts.set(sourceId, (connectionCounts.get(sourceId) || 0) + 1)
+    }
+    if (connectionCounts.has(targetId)) {
+      connectionCounts.set(targetId, (connectionCounts.get(targetId) || 0) + 1)
+    }
+  })
+
+  // Update node values based on connection count
+  allNodes.forEach((node) => {
+    node.value = connectionCounts.get(node.id) || 0
   })
 
   // Filter links to only include those between existing nodes
@@ -678,22 +979,29 @@ function buildHubGraphData(): GraphData {
     return nodeMap.has(sourceId) && nodeMap.has(targetId)
   })
 
-  return { nodes: allNodes, links: validLinks }
+  // Sort nodes based on current sort mode
+  const sortedNodes = [...allNodes]
+  if (graphSortBy.value === 'Name') {
+    sortedNodes.sort((a, b) => a.name.localeCompare(b.name))
+  } else if (graphSortBy.value === 'Size') {
+    sortedNodes.sort((a, b) => (b.value || 0) - (a.value || 0))
+  }
+
+  return { nodes: sortedNodes, links: validLinks }
 }
 
 // Initialize/update hub graph when tab opens or filters change
 watch(
-  [activeTab, selectedGraphProject, graphSearch, graphMinConfidence, graphRepulsion, graphShowSuggested],
+  [activeTab, selectedGraphProject, graphSearch, graphMinConfidence, graphRepulsion, graphShowSuggested, graphSortBy, graphVisibleTypes],
   ([newTab]) => {
     if (newTab === 'Graph' && hubGraphContainer.value) {
       setTimeout(() => {
         const hubData = buildHubGraphData()
         initializeGraph(hubData, (node) => {
-          selectedGraphNode.value = node
-          if (node) {
-            centerNode(node.id, hubData)
-          }
+          console.log('[graph-click-callback] Node selected:', node?.id, node?.name)
+          selectNodeInGraph(node ? node.id : null)
         }, true)
+        setViewMode(currentViewMode.value)
       }, 100)
     }
   },
@@ -723,13 +1031,6 @@ watch(
   }
 )
 
-// Update selected node repulsion when changed
-watch(
-  () => graphSelectedNodeRepulsion.value,
-  (newValue) => {
-    setSelectedNodeRepulsion(newValue)
-  }
-)
 </script>
 
 <style scoped>
@@ -1541,6 +1842,7 @@ body {
   padding: 16px;
   border-bottom: 1px solid var(--pt-border);
   background: linear-gradient(135deg, var(--pt-surface-alt) 0%, var(--pt-bg) 100%);
+  cursor: pointer;
 }
 
 .stats-title {
@@ -1697,6 +1999,103 @@ body {
 .action-btn:hover {
   background: rgba(74, 144, 226, 0.2);
   transform: translateY(-1px);
+}
+
+/* Relations List */
+.relations-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.relation-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  background: rgba(74, 144, 226, 0.05);
+  border: 1px solid rgba(74, 144, 226, 0.2);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.relation-item:hover {
+  background: rgba(74, 144, 226, 0.15);
+  border-color: var(--pt-accent);
+  transform: translateX(4px);
+}
+
+.relation-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.relation-type-badge {
+  flex-shrink: 0;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: white;
+  min-width: fit-content;
+}
+
+.relation-type-badge.badge-business {
+  background: #2563eb;
+}
+
+.relation-type-badge.badge-person {
+  background: #9333ea;
+}
+
+.relation-type-badge.badge-website {
+  background: #0891b2;
+}
+
+.relation-type-badge.badge-location {
+  background: #16a34a;
+}
+
+.relation-type-badge.badge-contact {
+  background: #d97706;
+}
+
+.relation-arrow {
+  color: var(--pt-text-muted);
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.relation-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--pt-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.relation-count {
+  font-size: 11px;
+  color: var(--pt-text-muted);
+  flex-shrink: 0;
+}
+
+.relation-subtext {
+  font-size: 11px;
+  color: var(--pt-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  font-weight: 500;
 }
 
 /* Graph Footer */
@@ -1860,13 +2259,13 @@ body {
 
 /* View By Dropdown */
 .view-dropdown-wrapper #view-by-btn:hover {
-  background: rgba(74, 144, 226, 0.1) !important;
-  border-color: var(--pt-accent) !important;
+  background: rgba(74, 144, 226, 0.1);
+  border-color: var(--pt-accent);
 }
 
 .view-dropdown-wrapper .dropdown-item:hover {
-  background: rgba(74, 144, 226, 0.15) !important;
-  color: var(--pt-accent) !important;
+  background: rgba(74, 144, 226, 0.15);
+  color: var(--pt-accent);
 }
 
 /* View Switcher */
@@ -1908,19 +2307,79 @@ body {
   color: var(--pt-accent);
 }
 
-/* Graph Edge Hover Highlighting */
-:deep(.link-active) {
-  stroke: #fbbf24 !important;
-  stroke-width: 4px !important;
-  opacity: 1 !important;
-  transition: stroke-width 0.15s, stroke 0.15s;
+@keyframes edgeHover {
+  0% {
+    filter: drop-shadow(0 0 4px rgba(251, 191, 36, 0.5));
+  }
+  50% {
+    filter: drop-shadow(0 0 8px rgba(251, 191, 36, 0.8));
+  }
+  100% {
+    filter: drop-shadow(0 0 4px rgba(251, 191, 36, 0.5));
+  }
 }
 
-:deep(.node-connected) {
-  stroke: #fbbf24 !important;
-  stroke-width: 5px !important;
-  opacity: 1 !important;
+/* Graph Edge Hover Highlighting */
+.graph-svg .link.link-active {
+  stroke: #fbbf24;
+  stroke-width: 4px;
+  transition: stroke-width 0.15s, stroke 0.15s;
+  filter: drop-shadow(0 0 6px rgba(251, 191, 36, 0.8));
+}
+
+.graph-svg .node-connected {
+  stroke: #fbbf24;
+  stroke-width: 5px;
   transition: stroke 0.15s, stroke-width 0.15s;
-  filter: drop-shadow(0 0 4px rgba(251, 191, 36, 0.6)) !important;
+  filter: drop-shadow(0 0 8px rgba(251, 191, 36, 0.7));
+  animation: edgeHover 1.2s ease-in-out infinite;
+  paint-order: stroke;
+}
+
+@keyframes nodePulse {
+  0% {
+    filter: drop-shadow(0 0 12px rgba(6, 182, 212, 0.9)) drop-shadow(0 0 20px rgba(6, 182, 212, 0.4));
+  }
+  50% {
+    filter: drop-shadow(0 0 20px rgba(6, 182, 212, 1)) drop-shadow(0 0 28px rgba(6, 182, 212, 0.6));
+  }
+  100% {
+    filter: drop-shadow(0 0 12px rgba(6, 182, 212, 0.9)) drop-shadow(0 0 20px rgba(6, 182, 212, 0.4));
+  }
+}
+
+@keyframes connectedPulse {
+  0% {
+    filter: drop-shadow(0 0 8px rgba(251, 191, 36, 0.7));
+  }
+  50% {
+    filter: drop-shadow(0 0 12px rgba(251, 191, 36, 0.9));
+  }
+  100% {
+    filter: drop-shadow(0 0 8px rgba(251, 191, 36, 0.7));
+  }
+}
+
+/* Node Selection State */
+.graph-svg circle.node.is-selected {
+  /* fill: #0891b2;
+  stroke: #06b6d4; */
+  stroke-width: 8px;
+  opacity: 1;
+  filter: drop-shadow(0 0 16px rgba(6, 182, 212, 1)) drop-shadow(0 0 32px rgba(6, 182, 212, 0.6));
+  animation: nodePulse 2s ease-in-out infinite;
+  transition: stroke 0.2s ease, stroke-width 0.2s ease, opacity 0.2s ease;
+  paint-order: stroke;
+}
+
+/* Connected Nodes Highlighting */
+.graph-svg circle.node.is-connected {
+  stroke: #fbbf24;
+  stroke-width: 5px;
+  opacity: 0.95;
+  filter: drop-shadow(0 0 8px rgba(251, 191, 36, 0.7));
+  animation: connectedPulse 1.5s ease-in-out infinite;
+  transition: stroke 0.2s ease, stroke-width 0.2s ease, opacity 0.2s ease;
+  paint-order: stroke;
 }
 </style>
