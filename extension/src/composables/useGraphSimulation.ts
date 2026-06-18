@@ -600,6 +600,89 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
     simulation.value.alpha(0.3).restart()
   }
 
+  function applyViewModeForces(modeId: ViewModeId, width: number, height: number) {
+    if (!simulation.value) return
+
+    const config = VIEW_MODES[modeId]
+    if (!config) return
+
+    // Clear positioning forces to avoid conflicts
+    simulation.value.force('forceX', null).force('forceY', null)
+
+    if (modeId === 'Hierarchical') {
+      // Hierarchical layout: arrange nodes in levels
+      const nodes = simulation.value.nodes() as GraphNode[]
+      const levelMap = new Map<string, number>()
+      let maxLevel = 0
+
+      // Simple level assignment based on connection depth
+      nodes.forEach((node: GraphNode, idx: number) => {
+        if (!levelMap.has(node.id)) {
+          levelMap.set(node.id, Math.floor(idx / 8)) // Simple grouping
+          maxLevel = Math.max(maxLevel, levelMap.get(node.id) || 0)
+        }
+      })
+
+      simulation.value
+        .force(
+          'forceY',
+          d3
+            .forceY((d: GraphNode) => {
+              const level = levelMap.get(d.id) || 0
+              return 50 + (level / Math.max(maxLevel, 1)) * (height - 100)
+            })
+            .strength(0.5),
+        )
+        .force('forceX', d3.forceX(width / 2).strength(0.15))
+    } else if (modeId === 'Distribution') {
+      // Distribution (GMM) layout: cluster around computed centroids
+      const nodes = simulation.value.nodes() as GraphNode[]
+      const clusterCenters = new Map<string, { x: number; y: number }>()
+
+      // Group nodes by project and compute cluster centers
+      nodes.forEach((node: GraphNode) => {
+        const project = node.project || 'unknown'
+        if (!clusterCenters.has(project)) {
+          const angle = (clusterCenters.size * 2 * Math.PI) / 6
+          clusterCenters.set(project, {
+            x: width / 2 + Math.cos(angle) * (width / 3),
+            y: height / 2 + Math.sin(angle) * (height / 3),
+          })
+        }
+      })
+
+      simulation.value
+        .force(
+          'forceX',
+          d3
+            .forceX((d: GraphNode) => {
+              const center = clusterCenters.get(d.project || 'unknown')
+              return center?.x || width / 2
+            })
+            .strength(0.3),
+        )
+        .force(
+          'forceY',
+          d3
+            .forceY((d: GraphNode) => {
+              const center = clusterCenters.get(d.project || 'unknown')
+              return center?.y || height / 2
+            })
+            .strength(0.3),
+        )
+    } else if (modeId === 'Density') {
+      // Density layout: tighter clustering with reduced repulsion
+      simulation.value
+        .force('charge', d3.forceManyBody().strength(activeConfig.repulsion.value * 0.7))
+    } else {
+      // Standard, K-Means, Project: use center force
+      simulation.value.force('center', d3.forceCenter(width / 2, height / 2))
+    }
+
+    // Re-heat with full alpha for immediate visual feedback
+    simulation.value.alpha(1).restart()
+  }
+
   function setViewMode(modeId: ViewModeId) {
     const config = VIEW_MODES[modeId]
     if (!config) {
@@ -636,9 +719,11 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
       nodes.attr('fill', (d: GraphNode) => getNodeColor(d.type))
     }
 
-    // Re-heat simulation when view mode changes for smooth transition
-    if (simulation.value) {
-      simulation.value.alpha(0.3).restart()
+    // Apply view-mode-specific force configurations
+    if (container.value && simulation.value) {
+      const width = container.value.clientWidth || 800
+      const height = container.value.clientHeight || 600
+      applyViewModeForces(modeId, width, height)
     }
   }
 
@@ -650,5 +735,6 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
     centerNode,
     setViewMode,
     updateForces,
+    applyViewModeForces,
   }
 }
