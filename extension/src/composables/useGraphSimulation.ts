@@ -49,6 +49,13 @@ export interface ViewModeConfig {
 }
 
 export const VIEW_MODES: Record<ViewModeId, ViewModeConfig> = {
+  Cluster: {
+    id: 'Cluster',
+    label: 'View by Cluster',
+    description: 'Connection-based grouping',
+    showClusters: true,
+    colorBy: 'cluster',
+  },
   Project: {
     id: 'Project',
     label: 'Project View',
@@ -62,13 +69,6 @@ export const VIEW_MODES: Record<ViewModeId, ViewModeConfig> = {
     description: 'Organized by entity type',
     showClusters: false,
     colorBy: 'type',
-  },
-  Cluster: {
-    id: 'Cluster',
-    label: 'View by Cluster',
-    description: 'Connection-based grouping',
-    showClusters: true,
-    colorBy: 'cluster',
   },
 }
 
@@ -97,8 +97,9 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
   const highlightedNodes = ref<Set<string>>(new Set())
   const lockedNodes = ref<Set<string>>(new Set())
   const simulation = ref<d3.Simulation<GraphNode, GraphLink> | null>(null)
-  const viewState = ref<GraphViewState>({ zoom: { k: 1, x: 0, y: 0 }, selectedNodeId: null, viewMode: 'Project' })
+  const viewState = ref<GraphViewState>({ zoom: { k: 1, x: 0, y: 0 }, selectedNodeId: null, viewMode: 'Cluster' })
   const gridConfigOverride = ref<GridConfigOverride>({})
+  const zoomBehavior = ref<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null)
 
   const defaultConfig: GraphConfig = {
     minConfidence: ref(0),
@@ -204,7 +205,7 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
 
     // Add zoom behavior
     const g = svg.append('g')
-    const zoomBehavior = d3
+    const localZoomBehavior = d3
       .zoom<SVGSVGElement, unknown>()
       .on('zoom', (event) => {
         g.attr('transform', event.transform)
@@ -212,7 +213,8 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
         viewState.value.zoom = { k: event.transform.k, x: event.transform.x, y: event.transform.y }
       })
 
-    svg.call(zoomBehavior)
+    zoomBehavior.value = localZoomBehavior
+    svg.call(localZoomBehavior)
 
     // Restore previous zoom state if available
     if (viewState.value.zoom.k !== 1 || viewState.value.zoom.x !== 0 || viewState.value.zoom.y !== 0) {
@@ -1022,6 +1024,68 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
     }
   }
 
+  function fitToView() {
+    if (!container.value || !zoomBehavior.value) {
+      return
+    }
+
+    // Find the SVG with actual nodes (in case there are multiple)
+    let targetSvg: d3.Selection<SVGSVGElement, unknown, null, undefined> | null = null
+    let maxNodes = 0
+
+    d3.select(container.value)
+      .selectAll<SVGSVGElement, unknown>('svg')
+      .each(function (this: SVGSVGElement) {
+        const svgSelection = d3.select(this)
+        const nodeCount = svgSelection.selectAll('.node').size()
+        if (nodeCount > maxNodes) {
+          maxNodes = nodeCount
+          targetSvg = svgSelection
+        }
+      })
+
+    if (!targetSvg || targetSvg.empty()) {
+      return
+    }
+
+    const svg = targetSvg
+    const nodes = svg.selectAll<SVGCircleElement, GraphNode>('.node')
+
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+    let hasNodes = false
+
+    nodes.each((d: GraphNode) => {
+      if (d.x !== undefined && d.y !== undefined) {
+        minX = Math.min(minX, d.x)
+        minY = Math.min(minY, d.y)
+        maxX = Math.max(maxX, d.x)
+        maxY = Math.max(maxY, d.y)
+        hasNodes = true
+      }
+    })
+
+    if (!hasNodes) { return }
+
+    const width = container.value.clientWidth || 800
+    const height = container.value.clientHeight || 600
+    const padding = 60
+
+    const fullWidth = maxX - minX
+    const fullHeight = maxY - minY
+
+    const scale = Math.min(
+      (width - padding * 2) / fullWidth,
+      (height - padding * 2) / fullHeight,
+      2
+    )
+
+    const tx = (width / 2) - (minX + fullWidth / 2) * scale
+    const ty = (height / 2) - (minY + fullHeight / 2) * scale
+
+    const transform = d3.zoomIdentity.translate(tx, ty).scale(scale)
+    zoomBehavior.value.transform(svg, transform)
+  }
+
   return {
     selectedNode,
     highlightedNodes,
@@ -1036,5 +1100,6 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
     setGridConfig,
     resetLockedNodes,
     selectNodeById,
+    fitToView,
   }
 }

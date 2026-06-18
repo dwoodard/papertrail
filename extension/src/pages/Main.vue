@@ -333,23 +333,32 @@
           </div>
 
           <div class="graph-container-wrapper">
+
             <div class="graph-canvas" ref="hubGraphContainer">
-              <!-- Hub graph renders here -->
+
+                <!-- Hub graph renders here -->
+                <div>
+                    <button v-if="lockedNodes.size > 0" class="btn-unlock-nodes" @click="resetLockedNodes" :title="`Unlock ${lockedNodes.size} dragged node${lockedNodes.size !== 1 ? 's' : ''}`">
+                        <component :is="LockOpen"   />
+                    </button>
+
+                    <button class="btn-fit-to-view" @click="fitToView" title="Fit all nodes in view">
+                        <component :is="FlipHorizontal"   />
+                    </button>
+                </div>
             </div>
 
             <div :class="['graph-stats', { 'stats-open': selectedGraphNode }]">
               <template v-if="selectedGraphNode">
                 <div class="stats-header" @click="centerStatsPanel">
-
-                    <div class="stats-title">
+                  <div class="stats-header-top">
+                    <button class="stats-close" @click.stop="selectNodeInGraph(null)">✕</button>
+                  </div>
+                  <div class="stats-header-bottom">
                     <div class="type-badge" :class="`badge-${selectedGraphNode.type}`">
                       {{ selectedGraphNode.type }}
                     </div>
-                    <h4>{{ selectedGraphNode.name }}</h4>
-                  </div>
-
-                  <div>
-                    <button class="stats-close" @click.stop="selectNodeInGraph(null)">✕</button>
+                    <h4 class="stats-node-title">{{ selectedGraphNode.name }}</h4>
                   </div>
                 </div>
 
@@ -432,22 +441,7 @@
             </div>
           </div>
 
-          <div class="graph-footer">
-            <div class="graph-stats-summary">
-              <div class="stat-item">
-                <span class="stat-label">Total Entities</span>
-                <span class="stat-value">{{ totalEntitiesCount }}</span>
-              </div>
-              <div class="stat-item">
-                <span class="stat-label">Total Projects</span>
-                <span class="stat-value">{{ projects.length }}</span>
-              </div>
-              <div class="stat-item">
-                <span class="stat-label">Total Relationships</span>
-                <span class="stat-value">{{ totalRelationshipsCount }}</span>
-              </div>
-            </div>
-          </div>
+
         </div>
 
         <!-- Entities Tab -->
@@ -529,6 +523,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { FlipHorizontal, LockOpen } from '@lucide/vue'
 import ProjectDetail from './ProjectDetail.vue'
 import { useGraphSimulation, type GraphData, type GraphNode, type ViewModeId } from '../composables/useGraphSimulation'
 import graphExamples from '../data/examples/graphs.json'
@@ -554,7 +549,7 @@ const graphVerticalGap = ref(600)
 const graphGridForceStrength = ref(0.25)
 const showGraphControls = ref(false)
 const showViewByDropdown = ref(false)
-const currentViewMode = ref<ViewModeId>('Project')
+const currentViewMode = ref<ViewModeId>('Cluster')
 
 const graphConfig = {
   minConfidence: graphMinConfidence,
@@ -563,7 +558,7 @@ const graphConfig = {
   visibleTypes: graphVisibleTypes,
 }
 
-const { initializeGraph, centerNode, setViewMode, updateForces, setGridConfig, resetLockedNodes, lockedNodes, selectNodeById } = useGraphSimulation(hubGraphContainer, graphConfig)
+const { initializeGraph, centerNode, setViewMode, updateForces, setGridConfig, resetLockedNodes, lockedNodes, selectNodeById, fitToView } = useGraphSimulation(hubGraphContainer, graphConfig)
 
 const availableProjects = computed(() => {
   const projectSet = new Set<string>()
@@ -590,7 +585,7 @@ function closeViewByDropdown() {
   showViewByDropdown.value = false
 }
 
-function handleViewModeChange(mode: 'Project' | 'Type' | 'Cluster' | 'Relation') {
+function handleViewModeChange(mode: 'Project' | 'Type' | 'Cluster') {
   currentViewMode.value = mode
   setViewMode(mode)
   showViewByDropdown.value = false
@@ -1021,9 +1016,7 @@ function buildHubGraphData(): GraphData {
         const graphNode: GraphNode = {
           ...node,
           project: projectObj,
-          name: selectedGraphProject.value
-            ? node.name // Don't add project label when filtering to single project
-            : `${node.name}\n(${projectObj.name})`, // Add project label when showing all
+          name: node.name,
         }
         allNodes.push(graphNode)
         nodeMap.set(node.id, graphNode)
@@ -1913,6 +1906,71 @@ body {
   height: 100%;
 }
 
+.btn-unlock-nodes {
+  position: absolute;
+  bottom: 16px;
+  left: 64px;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background: rgba(239, 68, 68, 0.2);
+  border: 1px solid rgba(239, 68, 68, 0.5);
+  color: #ef4444;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(8px);
+  z-index: 100;
+  animation: slideUp 0.3s ease;
+}
+
+.btn-unlock-nodes:hover {
+  background: rgba(239, 68, 68, 0.3);
+  border-color: #ef4444;
+  transform: scale(1.05);
+}
+
+.btn-unlock-nodes:active {
+  transform: scale(0.95);
+}
+
+.btn-fit-to-view {
+  position: absolute;
+  bottom: 16px;
+  left: 16px;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(74, 144, 226, 0.3);
+  color: var(--pt-text);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  z-index: 100;
+}
+
+.btn-fit-to-view svg {
+  stroke: currentColor;
+  fill: none;
+}
+
+.btn-fit-to-view:hover {
+  background: rgba(74, 144, 226, 0.2);
+  border-color: var(--pt-accent);
+  color: var(--pt-accent);
+  transform: scale(1.05);
+}
+
+.btn-fit-to-view:active {
+  transform: scale(0.95);
+}
+
 /* Graph Stats Panel */
 .graph-stats {
   background: linear-gradient(135deg, var(--pt-surface) 0%, var(--pt-surface-alt) 100%);
@@ -1939,26 +1997,27 @@ body {
 
 .stats-header {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  flex-direction: column;
+  gap: 8px;
   padding: 16px;
   border-bottom: 1px solid var(--pt-border);
   background: linear-gradient(135deg, var(--pt-surface-alt) 0%, var(--pt-bg) 100%);
   cursor: pointer;
 }
 
-.stats-title {
+.stats-header-top {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 10px;
-  flex: 1;
-  min-width: 0;
-  font-size: 8px;
+  align-items: center;
+  gap: 12px;
 }
 
-.stats-title h4 {
+.stats-header-bottom {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.stats-node-title {
   font-size: 13px;
   font-weight: 700;
   color: var(--pt-text);
@@ -2008,7 +2067,7 @@ body {
   color: var(--pt-text-muted);
   font-size: 18px;
   cursor: pointer;
-  padding: 4px;
+  padding: 0;
   width: 28px;
   height: 28px;
   display: flex;
@@ -2016,12 +2075,14 @@ body {
   justify-content: center;
   border-radius: 6px;
   transition: all 0.2s ease;
+  flex-shrink: 0;
 }
 
 .stats-close:hover {
   background: rgba(74, 144, 226, 0.1);
   color: var(--pt-accent);
 }
+
 
 .stats-body {
   flex: 1;
