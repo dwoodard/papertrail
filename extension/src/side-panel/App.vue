@@ -1,20 +1,30 @@
 <template>
-  <component :is="activeModule" />
+  <ModuleLayout :active-module-id="activeModuleId" :current-url="currentUrl" @navigate-home="handleNavigateHome" />
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import GoogleMapsModule from './modules/google-maps/GoogleMapsModule.vue'
-import DefaultModule from './modules/DefaultModule.vue'
+import ModuleLayout from './ModuleLayout.vue'
 
 const currentUrl = ref('')
+const forceHomeModule = ref(false)
 
-const activeModule = computed(() => {
-  if (currentUrl.value.includes('google.com/maps')) {
-    return GoogleMapsModule
+const activeModuleId = computed(() => {
+  if (forceHomeModule.value) {
+    return null
   }
-  return DefaultModule
+  if (currentUrl.value.includes('google.com/maps')) {
+    return 'google-maps'
+  }
+  if (currentUrl.value.includes('yelp.com')) {
+    return 'yelp'
+  }
+  return null
 })
+
+function handleNavigateHome() {
+  forceHomeModule.value = true
+}
 
 onMounted(async () => {
   const tab = (await chrome.tabs.query({ active: true, currentWindow: true }))[0]
@@ -26,11 +36,13 @@ onMounted(async () => {
   chrome.tabs.onActivated.addListener(async (activeInfo) => {
     const tab = await chrome.tabs.get(activeInfo.tabId)
     currentUrl.value = tab.url || ''
+    forceHomeModule.value = false
   })
 
   chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     if (changeInfo.status === 'complete' && tab.active) {
       currentUrl.value = tab.url || ''
+      forceHomeModule.value = false
     }
   })
 })
