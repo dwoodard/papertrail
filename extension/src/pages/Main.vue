@@ -120,8 +120,8 @@
                 <span class="filter-label">Filter by Project:</span>
                 <select v-model="selectedGraphProject" class="filter-select">
                   <option value="">All Projects</option>
-                  <option v-for="project in projects" :key="project.id" :value="project.id">
-                    {{ project.name }}
+                  <option v-for="projectId in availableProjects" :key="projectId" :value="projectId">
+                    {{ projectId }}
                   </option>
                 </select>
               </div>
@@ -132,7 +132,7 @@
                 <button
                   class="btn-controls"
                   @click.stop="showGraphControls = !showGraphControls"
-                  :class="{ 'controls-active': showGraphControls || graphMinConfidence > 0 || graphRepulsion !== -600 || !graphShowSuggested }"
+                  :class="{ 'controls-active': showGraphControls || graphMinConfidence > 0 || graphRepulsion !== -600 || !graphShowSuggested || graphSelectedNodeRepulsion !== 500 || graphNodesPerRow !== 4 || graphHorizontalGap !== 600 || graphVerticalGap !== 600 || graphGridForceStrength !== 0.25 }"
                 >
                   <span class="controls-icon">⚙</span>
                   <span>Controls</span>
@@ -186,7 +186,89 @@
                     </div>
                   </div>
 
-                  <div v-if="graphSearch || selectedGraphProject || graphMinConfidence > 0 || graphRepulsion !== -600 || !graphShowSuggested" class="control-group">
+                  <div class="control-group">
+                    <label class="control-label">Selected Node Repulsion</label>
+                    <div class="slider-container">
+                      <input
+                        v-model.number="graphSelectedNodeRepulsion"
+                        type="range"
+                        min="0"
+                        max="1000"
+                        step="50"
+                        class="control-slider"
+                        title="Adjust how much nodes push away from selected node"
+                      />
+                      <span class="control-value">{{ graphSelectedNodeRepulsion }}</span>
+                    </div>
+                  </div>
+
+                  <div style="height: 1px; background: var(--pt-border); margin: 8px 0;"></div>
+
+                  <div class="control-group">
+                    <label class="control-label">Grid: Nodes Per Row</label>
+                    <div class="slider-container">
+                      <input
+                        v-model.number="graphNodesPerRow"
+                        type="range"
+                        min="1"
+                        max="10"
+                        step="1"
+                        class="control-slider"
+                        title="Adjust nodes per row in Project view"
+                      />
+                      <span class="control-value">{{ graphNodesPerRow }}</span>
+                    </div>
+                  </div>
+
+                  <div class="control-group">
+                    <label class="control-label">Grid: Horizontal Gap</label>
+                    <div class="slider-container">
+                      <input
+                        v-model.number="graphHorizontalGap"
+                        type="range"
+                        min="200"
+                        max="1000"
+                        step="50"
+                        class="control-slider"
+                        title="Adjust horizontal spacing between columns"
+                      />
+                      <span class="control-value">{{ graphHorizontalGap }}</span>
+                    </div>
+                  </div>
+
+                  <div class="control-group">
+                    <label class="control-label">Grid: Vertical Gap</label>
+                    <div class="slider-container">
+                      <input
+                        v-model.number="graphVerticalGap"
+                        type="range"
+                        min="200"
+                        max="1000"
+                        step="50"
+                        class="control-slider"
+                        title="Adjust vertical spacing between rows"
+                      />
+                      <span class="control-value">{{ graphVerticalGap }}</span>
+                    </div>
+                  </div>
+
+                  <div class="control-group">
+                    <label class="control-label">Grid: Force Strength</label>
+                    <div class="slider-container">
+                      <input
+                        v-model.number="graphGridForceStrength"
+                        type="range"
+                        min="0.05"
+                        max="0.5"
+                        step="0.05"
+                        class="control-slider"
+                        title="Adjust force strength for grid positioning"
+                      />
+                      <span class="control-value">{{ graphGridForceStrength.toFixed(2) }}</span>
+                    </div>
+                  </div>
+
+                  <div v-if="graphSearch || selectedGraphProject || graphMinConfidence > 0 || graphRepulsion !== -600 || !graphShowSuggested || graphSelectedNodeRepulsion !== 500 || graphNodesPerRow !== 4 || graphHorizontalGap !== 600 || graphVerticalGap !== 600 || graphGridForceStrength !== 0.25" class="control-group">
                     <button
                       class="btn-reset-dropdown"
                       @click="resetGraphFilters"
@@ -374,6 +456,11 @@ const selectedGraphNode = ref<GraphNode | null>(null)
 const graphMinConfidence = ref(0)
 const graphRepulsion = ref(-600)
 const graphShowSuggested = ref(true)
+const graphSelectedNodeRepulsion = ref(500)
+const graphNodesPerRow = ref(4)
+const graphHorizontalGap = ref(600)
+const graphVerticalGap = ref(600)
+const graphGridForceStrength = ref(0.25)
 const showGraphControls = ref(false)
 const showViewByDropdown = ref(false)
 const currentViewMode = ref<ViewModeId>('K-Means')
@@ -385,7 +472,24 @@ const graphConfig = {
   showSuggested: graphShowSuggested,
 }
 
-const { initializeGraph, centerNode, setViewMode, updateForces, viewState } = useGraphSimulation(hubGraphContainer, graphConfig)
+const { initializeGraph, centerNode, setViewMode, updateForces, setGridConfig, setSelectedNodeRepulsion } = useGraphSimulation(hubGraphContainer, graphConfig)
+
+const availableProjects = computed(() => {
+  const projectSet = new Set<string>()
+
+  // Add example IDs
+  ;(graphExamples.examples as any[]).forEach((example) => {
+    projectSet.add(example.id)
+    // Also add node-level projects
+    example.nodes.forEach((node: any) => {
+      if (node.project) {
+        projectSet.add(node.project)
+      }
+    })
+  })
+
+  return Array.from(projectSet).sort()
+})
 
 function closeGraphControls() {
   showGraphControls.value = false
@@ -504,6 +608,11 @@ function resetGraphFilters(): void {
   graphMinConfidence.value = 0
   graphRepulsion.value = -600
   graphShowSuggested.value = true
+  graphSelectedNodeRepulsion.value = 500
+  graphNodesPerRow.value = 4
+  graphHorizontalGap.value = 600
+  graphVerticalGap.value = 600
+  graphGridForceStrength.value = 0.25
   showGraphControls.value = false
 }
 
@@ -529,12 +638,15 @@ function buildHubGraphData(): GraphData {
   const nodeMap = new Map<string, GraphNode>()
 
   ;(graphExamples.examples as any[]).forEach((example) => {
-    // Skip this project if a specific project is selected
-    if (selectedGraphProject.value && selectedGraphProject.value !== example.id) {
-      return
-    }
-
     example.nodes.forEach((node: any) => {
+      // Determine the project for this node (node-level or example-level)
+      const nodeProject = node.project || example.id
+
+      // Filter by selected project (can be example ID or node-level project)
+      if (selectedGraphProject.value && selectedGraphProject.value !== example.id && selectedGraphProject.value !== nodeProject) {
+        return
+      }
+
       // Filter by search query (case-insensitive)
       const matchesSearch = !graphSearch.value ||
         node.name.toLowerCase().includes(graphSearch.value.toLowerCase())
@@ -544,10 +656,10 @@ function buildHubGraphData(): GraphData {
       if (!nodeMap.has(node.id)) {
         const graphNode: GraphNode = {
           ...node,
-          project: example.id,
+          project: nodeProject,
           name: selectedGraphProject.value
             ? node.name // Don't add project label when filtering to single project
-            : `${node.name}\n(${example.id})`, // Add project label when showing all
+            : `${node.name}\n(${nodeProject})`, // Add project label when showing all
         }
         allNodes.push(graphNode)
         nodeMap.set(node.id, graphNode)
@@ -593,6 +705,29 @@ watch(
   () => graphRepulsion.value,
   () => {
     updateForces()
+  }
+)
+
+// Update grid config when grid settings change
+watch(
+  [graphNodesPerRow, graphHorizontalGap, graphVerticalGap, graphGridForceStrength],
+  () => {
+    setGridConfig({
+      nodesPerRow: graphNodesPerRow.value,
+      horizontalGap: graphHorizontalGap.value,
+      verticalGap: graphVerticalGap.value,
+      forceStrength: graphGridForceStrength.value,
+    })
+    // Reapply the current view mode to update the grid
+    setViewMode(currentViewMode.value)
+  }
+)
+
+// Update selected node repulsion when changed
+watch(
+  () => graphSelectedNodeRepulsion.value,
+  (newValue) => {
+    setSelectedNodeRepulsion(newValue)
   }
 )
 </script>
@@ -1771,5 +1906,21 @@ body {
   background: rgba(74, 144, 226, 0.15);
   border-color: var(--pt-accent);
   color: var(--pt-accent);
+}
+
+/* Graph Edge Hover Highlighting */
+:deep(.link-active) {
+  stroke: #fbbf24 !important;
+  stroke-width: 4px !important;
+  opacity: 1 !important;
+  transition: stroke-width 0.15s, stroke 0.15s;
+}
+
+:deep(.node-connected) {
+  stroke: #fbbf24 !important;
+  stroke-width: 5px !important;
+  opacity: 1 !important;
+  transition: stroke 0.15s, stroke-width 0.15s;
+  filter: drop-shadow(0 0 4px rgba(251, 191, 36, 0.6)) !important;
 }
 </style>

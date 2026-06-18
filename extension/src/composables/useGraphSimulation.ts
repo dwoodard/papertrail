@@ -29,6 +29,13 @@ export interface GraphData {
 
 export type ViewModeId = 'Standard' | 'K-Means' | 'Density' | 'Hierarchical' | 'Distribution' | 'Project'
 
+export const GRID_CONFIG = {
+  nodesPerRow: 4,
+  horizontalGap: 600,
+  verticalGap: 600,
+  forceStrength: 0.25,
+}
+
 export interface ViewModeConfig {
   id: ViewModeId
   label: string
@@ -94,11 +101,20 @@ export interface GraphConfig {
   showSuggested: Ref<boolean>
 }
 
+export interface GridConfigOverride {
+  nodesPerRow?: number
+  horizontalGap?: number
+  verticalGap?: number
+  forceStrength?: number
+}
+
 export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: GraphConfig) {
   const selectedNode = ref<GraphNode | null>(null)
   const highlightedNodes = ref<Set<string>>(new Set())
   const simulation = ref<d3.Simulation<GraphNode, GraphLink> | null>(null)
   const viewState = ref<GraphViewState>({ zoom: { k: 1, x: 0, y: 0 }, selectedNodeId: null, viewMode: 'K-Means' })
+  const gridConfigOverride = ref<GridConfigOverride>({})
+  const selectedNodeRepulsionStrength = ref(500)
 
   const defaultConfig: GraphConfig = {
     minConfidence: ref(0),
@@ -304,6 +320,49 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
       .attr('marker-end', (d: GraphLink) =>
         d.status === 'confirmed' ? 'url(#arrow-confirmed)' : 'url(#arrow-suggested)',
       )
+      .style('cursor', 'pointer')
+      .on('click', (event: any, d: GraphLink) => {
+        event.stopPropagation()
+        // Store link info for display
+        const sourceId = typeof d.source === 'string' ? d.source : (d.source as any).id
+        const targetId = typeof d.target === 'string' ? d.target : (d.target as any).id
+        const sourceNode = nodeById.get(sourceId)
+        const targetNode = nodeById.get(targetId)
+        console.log('Link clicked:', {
+          source: sourceNode?.name,
+          target: targetNode?.name,
+          type: d.type,
+          status: d.status,
+          evidence: d.evidence,
+        })
+      })
+      .on('mouseenter', function (this: SVGLineElement, _event: any, d: GraphLink) {
+        d3.select(this).attr('stroke-width', d.status === 'confirmed' ? 4 : 3).attr('class', (link: GraphLink) => `link link-${link.status} link-active`)
+
+        // Highlight connected nodes
+        const sourceId = typeof d.source === 'string' ? d.source : (d.source as any).id
+        const targetId = typeof d.target === 'string' ? d.target : (d.target as any).id
+
+        node
+          .classed('node-connected', (n: GraphNode) => n.id === sourceId || n.id === targetId)
+          .attr('stroke-width', (n: GraphNode) => {
+            if (n.id === sourceId || n.id === targetId) return 5
+            return n.id === selectedNode.value?.id ? 4 : 2
+          })
+          .attr('stroke', (n: GraphNode) => {
+            if (n.id === sourceId || n.id === targetId) return '#fbbf24'
+            return n.id === selectedNode.value?.id ? '#06b6d4' : '#3a4557'
+          })
+      })
+      .on('mouseleave', function (this: SVGLineElement, _event: any, d: GraphLink) {
+        d3.select(this).attr('stroke-width', d.status === 'confirmed' ? 2.5 : 2).attr('class', (link: GraphLink) => `link link-${link.status}`)
+
+        // Remove highlight from nodes
+        node
+          .classed('node-connected', false)
+          .attr('stroke-width', (n: GraphNode) => (n.id === selectedNode.value?.id ? 4 : 2))
+          .attr('stroke', (n: GraphNode) => (n.id === selectedNode.value?.id ? '#06b6d4' : '#3a4557'))
+      })
 
     console.log(`Created ${link.size()} links`)
 
@@ -471,6 +530,26 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
 
     // Update positions on simulation tick
     sim.on('tick', () => {
+      // Apply repulsion from selected node
+      const selected = selectedNode.value
+      if (selected && selected.x !== undefined && selected.y !== undefined) {
+        const selectedX = selected.x
+        const selectedY = selected.y
+        filteredNodes.forEach((node) => {
+          if (node.id !== selected.id && node.x !== undefined && node.y !== undefined) {
+            const dx = node.x - selectedX
+            const dy = node.y - selectedY
+            const distance = Math.sqrt(dx * dx + dy * dy)
+            const minDistance = 100
+            if (distance < minDistance && distance > 0) {
+              const strength = selectedNodeRepulsionStrength.value / (distance * distance)
+              node.x += (dx / distance) * strength
+              node.y += (dy / distance) * strength
+            }
+          }
+        })
+      }
+
       // Update cluster centroids based on current node positions
       projectGroups.forEach((nodes, project) => {
         const centroid = projectCentroids.get(project)
@@ -683,6 +762,70 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
     simulation.value.alpha(1).restart()
   }
 
+  function setGridConfig(override: GridConfigOverride) {
+    gridConfigOverride.value = override
+  }
+
+  function setSelectedNodeRepulsion(strength: number) {
+    selectedNodeRepulsionStrength.value = strength
+  }
+
+  function applyProjectRowLayout() {
+    if (!simulation.value) return
+
+    const nodes = simulation.value.nodes() as GraphNode[]
+    const uniqueProjects = Array.from(new Set(nodes.map((n) => n.project).filter(Boolean)))
+    const projectPositions = new Map<string, { x: number; y: number }>()
+
+    // Use overrides if provided, otherwise use defaults
+    const nodesPerRow = gridConfigOverride.value.nodesPerRow ?? GRID_CONFIG.nodesPerRow
+    const horizontalGap = gridConfigOverride.value.horizontalGap ?? GRID_CONFIG.horizontalGap
+    const verticalGap = gridConfigOverride.value.verticalGap ?? GRID_CONFIG.verticalGap
+    const forceStrength = gridConfigOverride.value.forceStrength ?? GRID_CONFIG.forceStrength
+
+    uniqueProjects.forEach((projectId, index) => {
+      const row = Math.floor(index / nodesPerRow)
+      const col = index % nodesPerRow
+      projectPositions.set(projectId, {
+        x: col * horizontalGap,
+        y: row * verticalGap,
+      })
+    })
+
+    // Clear all conflicting forces
+    simulation.value
+      .force('center', null)
+      .force('radial', null)
+      .force('link', null)
+      .force('charge', null)
+      .force('collision', null)
+
+    // Apply grid forces
+    simulation.value
+      .force(
+        'forceX',
+        d3
+          .forceX((d: GraphNode) => {
+            const project = d.project || 'unknown'
+            return projectPositions.get(project)?.x || 0
+          })
+          .strength(forceStrength),
+      )
+      .force(
+        'forceY',
+        d3
+          .forceY((d: GraphNode) => {
+            const project = d.project || 'unknown'
+            return projectPositions.get(project)?.y || 0
+          })
+          .strength(forceStrength),
+      )
+      .force('charge', d3.forceManyBody().strength(-100))
+      .force('collision', d3.forceCollide().radius(50).strength(0.8))
+
+    simulation.value.alpha(1).restart()
+  }
+
   function setViewMode(modeId: ViewModeId) {
     const config = VIEW_MODES[modeId]
     if (!config) {
@@ -723,7 +866,11 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
     if (container.value && simulation.value) {
       const width = container.value.clientWidth || 800
       const height = container.value.clientHeight || 600
-      applyViewModeForces(modeId, width, height)
+      if (modeId === 'Project') {
+        applyProjectRowLayout()
+      } else {
+        applyViewModeForces(modeId, width, height)
+      }
     }
   }
 
@@ -736,5 +883,8 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
     setViewMode,
     updateForces,
     applyViewModeForces,
+    applyProjectRowLayout,
+    setGridConfig,
+    setSelectedNodeRepulsion,
   }
 }
