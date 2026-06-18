@@ -78,13 +78,16 @@ export function useContentMessaging(onProgressCallback, onEntryCapture) {
     }
   }
 
+  let cleanup
+
   onMounted(() => {
-    setupListener()
+    cleanup = setupListener()
   })
 
   onUnmounted(() => {
-    const cleanup = setupListener()
-    cleanup()
+    if (cleanup) {
+      cleanup()
+    }
   })
 
   return {
