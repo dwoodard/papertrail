@@ -31,17 +31,46 @@ export interface GraphViewState {
   selectedNodeId: string | null
 }
 
-export function useGraphSimulation(container: Ref<HTMLElement | null>) {
+export interface GraphConfig {
+  minConfidence: Ref<number>
+  repulsion: Ref<number>
+  showSuggested: Ref<boolean>
+}
+
+export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: GraphConfig) {
   const selectedNode = ref<GraphNode | null>(null)
   const highlightedNodes = ref<Set<string>>(new Set())
   const simulation = ref<d3.Simulation<GraphNode, GraphLink> | null>(null)
   const viewState = ref<GraphViewState>({ zoom: { k: 1, x: 0, y: 0 }, selectedNodeId: null })
+
+  const defaultConfig: GraphConfig = {
+    minConfidence: ref(0),
+    repulsion: ref(-600),
+    showSuggested: ref(true),
+  }
+
+  const activeConfig = config || defaultConfig
 
   function initializeGraph(data: GraphData, onNodeSelect: (node: GraphNode | null) => void, isHubView = false) {
     if (!container.value) {
       console.error('Container not available')
       return
     }
+
+    // Filter nodes by confidence threshold
+    const filteredNodes = data.nodes.filter(n =>
+      (n.confidence || 1) >= activeConfig.minConfidence.value
+    )
+
+    const nodeIds = new Set(filteredNodes.map(n => n.id))
+
+    // Filter links based on visibility toggles and active nodes
+    const filteredLinks = data.links.filter(l => {
+      const sId = typeof l.source === 'string' ? l.source : (l.source as any).id
+      const tId = typeof l.target === 'string' ? l.target : (l.target as any).id
+      const isVisibleStatus = activeConfig.showSuggested.value || l.status === 'confirmed'
+      return nodeIds.has(sId) && nodeIds.has(tId) && isVisibleStatus
+    })
 
     const width = container.value.clientWidth || 800
     const height = container.value.clientHeight || 600
@@ -133,16 +162,16 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>) {
 
     // Find central node (most connected node, prefer person or business type)
     const connectionCounts = new Map<string, number>()
-    data.links.forEach((link) => {
+    filteredLinks.forEach((link) => {
       const sourceId = typeof link.source === 'string' ? link.source : (link.source as any).id
       const targetId = typeof link.target === 'string' ? link.target : (link.target as any).id
       connectionCounts.set(sourceId, (connectionCounts.get(sourceId) || 0) + 1)
       connectionCounts.set(targetId, (connectionCounts.get(targetId) || 0) + 1)
     })
 
-    let centralNode = data.nodes[0]
+    let centralNode = filteredNodes[0]
     let maxConnections = 0
-    data.nodes.forEach((node) => {
+    filteredNodes.forEach((node) => {
       const connections = connectionCounts.get(node.id) || 0
       if (connections > maxConnections || (connections === maxConnections && (node.type === 'business' || node.type === 'person'))) {
         maxConnections = connections
@@ -152,16 +181,16 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>) {
 
     // Create force simulation with radial layout
     const sim = d3
-      .forceSimulation<GraphNode, GraphLink>(data.nodes)
+      .forceSimulation<GraphNode, GraphLink>(filteredNodes)
       .force(
         'link',
         d3
-          .forceLink<GraphNode, GraphLink>(data.links)
+          .forceLink<GraphNode, GraphLink>(filteredLinks)
           .id((d: GraphNode) => d.id)
           .distance((d: GraphLink) => (centralNode && (d.source as GraphNode).id === centralNode.id ? 220 : 160))
           .strength(0.5),
       )
-      .force('charge', d3.forceManyBody().strength(-600))
+      .force('charge', d3.forceManyBody().strength(activeConfig.repulsion.value))
       .force('center', d3.forceCenter(width / 2, height / 2))
       .force('collision', d3.forceCollide().radius(70))
       .force('radial', d3.forceRadial((d: GraphNode) => (d.id === centralNode.id ? 0 : 280), width / 2, height / 2).strength(0.4))
@@ -172,7 +201,7 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>) {
     const linksGroup = g.append('g').attr('class', 'links-layer')
     const link = linksGroup
       .selectAll('line')
-      .data(data.links)
+      .data(filteredLinks)
       .enter()
       .append('line')
       .attr('class', (d) => `link link-${d.status}`)
@@ -190,7 +219,7 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>) {
       .append('g')
       .attr('class', 'edge-labels-layer')
       .selectAll('text')
-      .data(data.links)
+      .data(filteredLinks)
       .enter()
       .append('text')
       .attr('class', 'edge-label')
@@ -205,7 +234,7 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>) {
     const nodesGroup = g.append('g').attr('class', 'nodes-layer')
     const node = nodesGroup
       .selectAll('circle')
-      .data(data.nodes)
+      .data(filteredNodes)
       .enter()
       .append('circle')
       .attr('r', (d: GraphNode) => {
@@ -234,7 +263,7 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>) {
         updateNodeStyle()
       })
       .on('mouseenter', (event, d) => {
-        highlightNeighbors(d.id, data.links)
+        highlightNeighbors(d.id, filteredLinks)
         updateLinkOpacity()
         updateLabelOpacity()
       })
@@ -251,7 +280,7 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>) {
       .append('g')
       .attr('class', 'labels-layer')
       .selectAll('text')
-      .data(data.nodes)
+      .data(filteredNodes)
       .enter()
       .append('text')
       .attr('class', (d: GraphNode) => `node-label${d.id === centralNode.id ? ' node-label-central' : ''}`)
@@ -328,7 +357,7 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>) {
     }
 
     // Create a map of nodes by ID for link resolution in tick
-    const nodeById = new Map(data.nodes.map((n) => [n.id, n]))
+    const nodeById = new Map(filteredNodes.map((n) => [n.id, n]))
 
     // Update positions on simulation tick
     sim.on('tick', () => {
@@ -396,10 +425,42 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>) {
     if (simulation.value) simulation.value.stop()
   })
 
+  function centerNode(nodeId: string, data: GraphData) {
+    if (!container.value || !simulation.value) return
+
+    const node = data.nodes.find(n => n.id === nodeId)
+    if (!node || node.x === undefined || node.y === undefined) return
+
+    const width = container.value.clientWidth || 800
+    const height = container.value.clientHeight || 600
+
+    const svg = d3.select(container.value).select('svg')
+
+    // Calculate the translation needed to center the node
+    const dx = width / 2 - node.x
+    const dy = height / 2 - node.y
+
+    // Get current transform
+    const currentTransform = d3.zoomTransform(svg.node() as SVGSVGElement)
+
+    // Create new transform that centers the node
+    const newTransform = currentTransform.translate(dx * currentTransform.k, dy * currentTransform.k)
+
+    // Animate to the new transform
+    svg
+      .transition()
+      .duration(500)
+      .call(
+        d3.zoom<SVGSVGElement, unknown>().transform as any,
+        newTransform
+      )
+  }
+
   return {
     selectedNode,
     highlightedNodes,
     viewState,
     initializeGraph,
+    centerNode,
   }
 }

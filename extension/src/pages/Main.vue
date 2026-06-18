@@ -114,13 +114,74 @@
             </div>
 
             <div class="header-right">
-              <button
-                v-if="graphSearch || selectedGraphProject"
-                class="btn-reset-header"
-                @click="resetGraphView"
-              >
-                Reset
-              </button>
+              <div class="dropdown-wrapper">
+                <button
+                  class="btn-controls"
+                  @click.stop="showGraphControls = !showGraphControls"
+                  :class="{ 'controls-active': showGraphControls || graphMinConfidence > 0 || graphRepulsion !== -600 || !graphShowSuggested }"
+                >
+                  <span class="controls-icon">⚙</span>
+                  <span>Controls</span>
+                </button>
+
+                <div
+                  v-if="showGraphControls"
+                  class="dropdown-menu"
+                  @click.stop
+                >
+                  <div class="control-group">
+                    <label class="control-label">
+                      <input
+                        v-model="graphShowSuggested"
+                        type="checkbox"
+                        class="control-checkbox"
+                      />
+                      <span>Suggested Links</span>
+                    </label>
+                  </div>
+
+                  <div class="control-group">
+                    <label class="control-label">Confidence</label>
+                    <div class="slider-container">
+                      <input
+                        v-model.number="graphMinConfidence"
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.1"
+                        class="control-slider"
+                        title="Filter nodes by confidence level"
+                      />
+                      <span class="control-value">{{ Math.round(graphMinConfidence * 100) }}%</span>
+                    </div>
+                  </div>
+
+                  <div class="control-group">
+                    <label class="control-label">Spacing</label>
+                    <div class="slider-container">
+                      <input
+                        v-model.number="graphRepulsion"
+                        type="range"
+                        min="-2000"
+                        max="-100"
+                        step="100"
+                        class="control-slider"
+                        title="Adjust node spacing (repulsion)"
+                      />
+                      <span class="control-value">{{ Math.abs(graphRepulsion) }}</span>
+                    </div>
+                  </div>
+
+                  <div v-if="graphSearch || selectedGraphProject || graphMinConfidence > 0 || graphRepulsion !== -600 || !graphShowSuggested" class="control-group">
+                    <button
+                      class="btn-reset-dropdown"
+                      @click="resetGraphFilters"
+                    >
+                      Reset Filters
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -267,7 +328,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import ProjectDetail from './ProjectDetail.vue'
 import { useGraphSimulation, type GraphData, type GraphNode } from '../composables/useGraphSimulation'
 import graphExamples from '../data/examples/graphs.json'
@@ -282,7 +343,30 @@ const hubGraphContainer = ref<HTMLElement | null>(null)
 const graphSearch = ref('')
 const selectedGraphProject = ref('')
 const selectedGraphNode = ref<GraphNode | null>(null)
-const { initializeGraph } = useGraphSimulation(hubGraphContainer)
+const graphMinConfidence = ref(0)
+const graphRepulsion = ref(-600)
+const graphShowSuggested = ref(true)
+const showGraphControls = ref(false)
+
+const graphConfig = {
+  minConfidence: graphMinConfidence,
+  repulsion: graphRepulsion,
+  showSuggested: graphShowSuggested,
+}
+
+const { initializeGraph, centerNode } = useGraphSimulation(hubGraphContainer, graphConfig)
+
+function closeGraphControls() {
+  showGraphControls.value = false
+}
+
+onMounted(() => {
+  document.addEventListener('click', closeGraphControls)
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('click', closeGraphControls)
+})
 
 const form = reactive({
   name: '',
@@ -365,10 +449,14 @@ const totalRelationshipsCount = computed(() => {
   return (graphExamples.examples as any[]).reduce((sum, example) => sum + example.links.length, 0)
 })
 
-function resetGraphView(): void {
+function resetGraphFilters(): void {
   graphSearch.value = ''
   selectedGraphProject.value = ''
   selectedGraphNode.value = null
+  graphMinConfidence.value = 0
+  graphRepulsion.value = -600
+  graphShowSuggested.value = true
+  showGraphControls.value = false
 }
 
 function navigateToProjectGraph(): void {
@@ -432,15 +520,18 @@ function buildHubGraphData(): GraphData {
   return { nodes: allNodes, links: validLinks }
 }
 
-// Initialize/update hub graph when tab opens or project filter changes
+// Initialize/update hub graph when tab opens or filters change
 watch(
-  [activeTab, selectedGraphProject, graphSearch],
+  [activeTab, selectedGraphProject, graphSearch, graphMinConfidence, graphRepulsion, graphShowSuggested],
   ([newTab]) => {
     if (newTab === 'Graph' && hubGraphContainer.value) {
       setTimeout(() => {
         const hubData = buildHubGraphData()
         initializeGraph(hubData, (node) => {
           selectedGraphNode.value = node
+          if (node) {
+            centerNode(node.id, hubData)
+          }
         }, true)
       }, 100)
     }
@@ -1075,6 +1166,7 @@ body {
   border-bottom: 1px solid var(--pt-border);
   background: linear-gradient(135deg, var(--pt-surface) 0%, var(--pt-bg) 100%);
   animation: slideDown 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  overflow: visible;
 }
 
 .header-left {
@@ -1174,6 +1266,7 @@ body {
 .header-right {
   display: flex;
   gap: 12px;
+  overflow: visible;
 }
 
 .btn-reset-header {
@@ -1197,8 +1290,7 @@ body {
 
 /* Graph Container Layout */
 .graph-container-wrapper {
-  display: grid;
-  grid-template-columns: 1fr 340px;
+  display: flex;
   gap: 20px;
   padding: 20px 24px;
   flex: 1;
@@ -1220,10 +1312,9 @@ body {
   position: relative;
   overflow: hidden;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-  min-height: 600px;
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   height: 100%;
-  aspect-ratio: 1206 / 599;
 }
 
 /* Graph Stats Panel */
@@ -1234,17 +1325,20 @@ body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  width: 340px;
+  height: 100%;
+  flex-shrink: 0;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  transition: margin-right 0.3s ease, opacity 0.3s ease;
+  margin-right: -360px;
   opacity: 0;
   pointer-events: none;
-  transform: translateX(20px);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
 }
 
 .graph-stats.stats-open {
+  margin-right: 0;
   opacity: 1;
   pointer-events: auto;
-  transform: translateX(0);
 }
 
 .stats-header {
@@ -1448,5 +1542,127 @@ body {
   color: var(--pt-accent);
   font-weight: 700;
   font-family: 'Courier New', monospace;
+}
+
+/* Controls Dropdown */
+.dropdown-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.btn-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: transparent;
+  border: 1px solid var(--pt-border);
+  color: var(--pt-text-muted);
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  position: relative;
+  z-index: 9998;
+}
+
+.btn-controls:hover {
+  border-color: var(--pt-accent);
+  color: var(--pt-text);
+}
+
+.btn-controls.controls-active {
+  background: rgba(74, 144, 226, 0.1);
+  border-color: var(--pt-accent);
+  color: var(--pt-accent);
+}
+
+.controls-icon {
+  font-size: 14px;
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  background: var(--pt-surface);
+  border: 2px solid var(--pt-accent);
+  border-radius: 8px;
+  padding: 16px;
+  min-width: 280px;
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.4);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  z-index: 9999;
+  animation: slideDown 0.2s ease;
+}
+
+.control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.control-label {
+  font-size: 11px;
+  color: var(--pt-text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.control-checkbox {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: var(--pt-accent);
+}
+
+.slider-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.control-slider {
+  flex: 1;
+  height: 4px;
+  cursor: pointer;
+  accent-color: var(--pt-accent);
+}
+
+.control-value {
+  font-size: 12px;
+  color: var(--pt-text);
+  font-weight: 600;
+  min-width: 40px;
+  text-align: right;
+}
+
+.btn-reset-dropdown {
+  width: 100%;
+  padding: 10px;
+  margin-top: 4px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid #ef4444;
+  color: #ef4444;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.btn-reset-dropdown:hover {
+  background: rgba(239, 68, 68, 0.2);
+  transform: translateY(-1px);
 }
 </style>
