@@ -11,6 +11,7 @@ export interface GraphNode {
   y?: number
   fx?: number | null
   fy?: number | null
+  project?: string
 }
 
 export interface GraphLink {
@@ -26,9 +27,65 @@ export interface GraphData {
   links: GraphLink[]
 }
 
+export type ViewModeId = 'Standard' | 'K-Means' | 'Density' | 'Hierarchical' | 'Distribution' | 'Project'
+
+export interface ViewModeConfig {
+  id: ViewModeId
+  label: string
+  description: string
+  showClusters: boolean
+  colorBy: 'type' | 'project' | 'cluster' | 'custom'
+}
+
+export const VIEW_MODES: Record<ViewModeId, ViewModeConfig> = {
+  Standard: {
+    id: 'Standard',
+    label: 'Standard Map',
+    description: 'Type-based colors without clusters',
+    showClusters: false,
+    colorBy: 'type',
+  },
+  'K-Means': {
+    id: 'K-Means',
+    label: 'K-Means (Centroid)',
+    description: 'Centroid-based clustering',
+    showClusters: true,
+    colorBy: 'type',
+  },
+  Density: {
+    id: 'Density',
+    label: 'Density (DBSCAN)',
+    description: 'Density-based clustering',
+    showClusters: true,
+    colorBy: 'cluster',
+  },
+  Hierarchical: {
+    id: 'Hierarchical',
+    label: 'Hierarchical',
+    description: 'Hierarchical clustering',
+    showClusters: true,
+    colorBy: 'cluster',
+  },
+  Distribution: {
+    id: 'Distribution',
+    label: 'Distribution (GMM)',
+    description: 'Gaussian Mixture Model',
+    showClusters: true,
+    colorBy: 'cluster',
+  },
+  Project: {
+    id: 'Project',
+    label: 'Project View',
+    description: 'Color by project',
+    showClusters: true,
+    colorBy: 'project',
+  },
+}
+
 export interface GraphViewState {
   zoom: { k: number; x: number; y: number }
   selectedNodeId: string | null
+  viewMode: ViewModeId
 }
 
 export interface GraphConfig {
@@ -41,7 +98,7 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
   const selectedNode = ref<GraphNode | null>(null)
   const highlightedNodes = ref<Set<string>>(new Set())
   const simulation = ref<d3.Simulation<GraphNode, GraphLink> | null>(null)
-  const viewState = ref<GraphViewState>({ zoom: { k: 1, x: 0, y: 0 }, selectedNodeId: null })
+  const viewState = ref<GraphViewState>({ zoom: { k: 1, x: 0, y: 0 }, selectedNodeId: null, viewMode: 'K-Means' })
 
   const defaultConfig: GraphConfig = {
     minConfidence: ref(0),
@@ -179,6 +236,26 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
       }
     })
 
+    // Calculate project centroids for clustering visualization
+    const projectGroups = new Map<string, GraphNode[]>()
+    filteredNodes.forEach((node) => {
+      const project = node.project || 'unknown'
+      if (!projectGroups.has(project)) {
+        projectGroups.set(project, [])
+      }
+      projectGroups.get(project)!.push(node)
+    })
+
+    const projectCentroids = new Map<string, { x: number; y: number; color: string }>()
+    const projectColors = ['#3b82f6', '#06b6d4', '#f59e0b', '#10b981', '#a855f7']
+    let colorIndex = 0
+
+    projectGroups.forEach((_, project) => {
+      const color = projectColors[colorIndex % projectColors.length]
+      projectCentroids.set(project, { x: width / 2, y: height / 2, color })
+      colorIndex++
+    })
+
     // Create force simulation with radial layout
     const sim = d3
       .forceSimulation<GraphNode, GraphLink>(filteredNodes)
@@ -194,6 +271,22 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
       .force('center', d3.forceCenter(width / 2, height / 2))
       .force('collision', d3.forceCollide().radius(70))
       .force('radial', d3.forceRadial((d: GraphNode) => (d.id === centralNode.id ? 0 : 280), width / 2, height / 2).strength(0.4))
+      .force('cluster', (alpha: number) => {
+        filteredNodes.forEach((node) => {
+          const project = node.project || 'unknown'
+          const centroid = projectCentroids.get(project)
+          if (centroid && node.x !== undefined && node.y !== undefined) {
+            const dx = centroid.x - node.x
+            const dy = centroid.y - node.y
+            const distance = Math.sqrt(dx * dx + dy * dy)
+            if (distance > 0) {
+              const strength = 0.2 * alpha
+              node.x += (dx / distance) * strength * 30
+              node.y += (dy / distance) * strength * 30
+            }
+          }
+        })
+      })
 
     simulation.value = sim
 
@@ -213,6 +306,23 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
       )
 
     console.log(`Created ${link.size()} links`)
+
+    // Create cluster hull circles for visual grouping
+    const clusterHulls = g
+      .append('g')
+      .attr('class', 'cluster-hulls')
+      .selectAll('circle')
+      .data(Array.from(projectCentroids.entries()))
+      .enter()
+      .append('circle')
+      .attr('class', 'cluster-hull')
+      .attr('fill', (d: [string, { x: number; y: number; color: string }]) => d[1].color)
+      .attr('fill-opacity', 0.05)
+      .attr('stroke', (d: [string, { x: number; y: number; color: string }]) => d[1].color)
+      .attr('stroke-dasharray', '4,4')
+      .attr('stroke-opacity', 0.3)
+      .attr('r', 120)
+      .attr('pointer-events', 'none')
 
     // Create edge labels
     const edgeLabels = g
@@ -361,6 +471,28 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
 
     // Update positions on simulation tick
     sim.on('tick', () => {
+      // Update cluster centroids based on current node positions
+      projectGroups.forEach((nodes, project) => {
+        const centroid = projectCentroids.get(project)
+        if (centroid) {
+          let sumX = 0
+          let sumY = 0
+          nodes.forEach((node) => {
+            if (node.x !== undefined && node.y !== undefined) {
+              sumX += node.x
+              sumY += node.y
+            }
+          })
+          centroid.x = sumX / nodes.length
+          centroid.y = sumY / nodes.length
+        }
+      })
+
+      // Update cluster hulls
+      clusterHulls
+        .attr('cx', (d: [string, { x: number; y: number; color: string }]) => d[1].x)
+        .attr('cy', (d: [string, { x: number; y: number; color: string }]) => d[1].y)
+
       link
         .attr('x1', (d: any) => {
           const sourceId = typeof d.source === 'string' ? d.source : (d.source as GraphNode).id
@@ -456,11 +588,67 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
       )
   }
 
+  function updateForces() {
+    if (!simulation.value) return
+
+    const chargeForce = simulation.value.force('charge') as d3.ForceManyBody<GraphNode>
+    if (chargeForce) {
+      chargeForce.strength(activeConfig.repulsion.value)
+    }
+
+    // Re-heat the simulation for smooth transition
+    simulation.value.alpha(0.3).restart()
+  }
+
+  function setViewMode(modeId: ViewModeId) {
+    const config = VIEW_MODES[modeId]
+    if (!config) {
+      console.warn(`Unknown view mode: ${modeId}`)
+      return
+    }
+
+    viewState.value.viewMode = modeId
+
+    const svg = d3.select(container.value).select('svg')
+    const nodes = svg.selectAll('.node')
+    const clusterHulls = svg.selectAll('.cluster-hull')
+
+    // Handle cluster visibility
+    clusterHulls.style('display', config.showClusters ? 'block' : 'none')
+
+    // Handle node coloring based on config
+    if (config.colorBy === 'type') {
+      nodes.attr('fill', (d: GraphNode) => getNodeColor(d.type))
+    } else if (config.colorBy === 'project') {
+      const projectList = Array.from(new Set(nodes.data().map((n: GraphNode) => n.project || 'unknown')))
+      const projectColors = ['#3b82f6', '#06b6d4', '#f59e0b', '#10b981', '#a855f7']
+
+      nodes.attr('fill', (d: GraphNode) => {
+        const project = d.project || 'unknown'
+        const colorIndex = projectList.indexOf(project)
+        return projectColors[colorIndex % projectColors.length]
+      })
+    } else if (config.colorBy === 'cluster') {
+      // Placeholder for cluster coloring - will be implemented per algorithm
+      nodes.attr('fill', (d: GraphNode) => getNodeColor(d.type))
+    } else if (config.colorBy === 'custom') {
+      // For custom implementations, use type coloring as default
+      nodes.attr('fill', (d: GraphNode) => getNodeColor(d.type))
+    }
+
+    // Re-heat simulation when view mode changes for smooth transition
+    if (simulation.value) {
+      simulation.value.alpha(0.3).restart()
+    }
+  }
+
   return {
     selectedNode,
     highlightedNodes,
     viewState,
     initializeGraph,
     centerNode,
+    setViewMode,
+    updateForces,
   }
 }

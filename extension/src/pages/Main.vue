@@ -102,6 +102,20 @@
             </div>
 
             <div class="header-center">
+              <div class="view-dropdown-wrapper" style="position: relative; display: inline-block; margin-right: 20px;">
+                <button id="view-by-btn" :style="{ padding: '8px 16px', fontSize: '13px', fontWeight: '600', color: showViewByDropdown ? 'var(--pt-accent)' : 'var(--pt-text-muted)', background: 'transparent', border: showViewByDropdown ? '1px solid var(--pt-accent)' : '1px solid var(--pt-border)', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', transition: '0.2s' }" @click.stop="showViewByDropdown = !showViewByDropdown">
+                  View By: {{ currentViewMode }}
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg>
+                </button>
+                <div id="view-by-dropdown" v-if="showViewByDropdown" :style="{ display: 'block', position: 'absolute', top: 'calc(100% + 5px)', left: '0px', background: 'var(--pt-surface)', border: '1px solid var(--pt-border)', borderRadius: '8px', boxShadow: '0 10px 15px rgba(0, 0, 0, 0.3)', minWidth: '220px', zIndex: '10000', padding: '4px' }" @click.stop>
+                  <div v-for="mode in viewModesList" :key="mode.id" class="dropdown-item" :style="{ padding: '10px 12px', fontSize: '13px', color: currentViewMode === mode.id ? 'var(--pt-accent)' : 'var(--pt-text-muted)', cursor: 'pointer', borderRadius: '4px', background: currentViewMode === mode.id ? 'rgba(74, 144, 226, 0.1)' : 'transparent', transition: '0.2s' }" @click="handleViewModeChange(mode.id)">{{ mode.label }}</div>
+                  <div style="height: 1px; background: var(--pt-border); margin: 4px 0;"></div>
+                  <div style="padding: 4px 12px; font-size: 11px; font-weight: 700; color: var(--pt-text-muted); text-transform: uppercase; opacity: 0.6;">Sort By</div>
+                  <div class="dropdown-item" data-sort="Name" style="padding: 10px 12px; font-size: 13px; color: var(--pt-text-muted); cursor: pointer; border-radius: 4px; background: transparent; transition: 0.2s;" @click="handleSort('Name')">Alphabetical</div>
+                  <div class="dropdown-item" data-sort="Size" style="padding: 10px 12px; font-size: 13px; color: var(--pt-text-muted); cursor: pointer; border-radius: 4px; background: transparent; transition: 0.2s;" @click="handleSort('Size')">Node Weight</div>
+                </div>
+              </div>
+
               <div class="filter-group">
                 <span class="filter-label">Filter by Project:</span>
                 <select v-model="selectedGraphProject" class="filter-select">
@@ -224,6 +238,20 @@
               </template>
 
               <template v-else>
+                <div class="view-switcher-section">
+                  <h5 class="section-title">Interface View</h5>
+                  <div class="view-switcher-group">
+                    <button
+                      v-for="mode in ['Standard', 'K-Means', 'Project']"
+                      :key="mode"
+                      :class="['btn-view', { 'btn-view--active': currentViewMode === mode }]"
+                      @click="handleViewModeChange(mode as any)"
+                    >
+                      {{ mode }}
+                    </button>
+                  </div>
+                </div>
+
                 <div class="stats-empty">
                   <div class="empty-icon">◯</div>
                   <p>Click an entity to view details</p>
@@ -330,7 +358,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import ProjectDetail from './ProjectDetail.vue'
-import { useGraphSimulation, type GraphData, type GraphNode } from '../composables/useGraphSimulation'
+import { useGraphSimulation, type GraphData, type GraphNode, VIEW_MODES, type ViewModeId } from '../composables/useGraphSimulation'
 import graphExamples from '../data/examples/graphs.json'
 
 const activeTab = ref('Overview')
@@ -347,6 +375,9 @@ const graphMinConfidence = ref(0)
 const graphRepulsion = ref(-600)
 const graphShowSuggested = ref(true)
 const showGraphControls = ref(false)
+const showViewByDropdown = ref(false)
+const currentViewMode = ref<ViewModeId>('K-Means')
+const viewModesList = computed(() => Object.values(VIEW_MODES))
 
 const graphConfig = {
   minConfidence: graphMinConfidence,
@@ -354,18 +385,35 @@ const graphConfig = {
   showSuggested: graphShowSuggested,
 }
 
-const { initializeGraph, centerNode } = useGraphSimulation(hubGraphContainer, graphConfig)
+const { initializeGraph, centerNode, setViewMode, updateForces, viewState } = useGraphSimulation(hubGraphContainer, graphConfig)
 
 function closeGraphControls() {
   showGraphControls.value = false
 }
 
+function closeViewByDropdown() {
+  showViewByDropdown.value = false
+}
+
+function handleViewModeChange(mode: 'Standard' | 'K-Means' | 'Density' | 'Hierarchical' | 'Distribution' | 'Project') {
+  currentViewMode.value = mode
+  setViewMode(mode)
+  showViewByDropdown.value = false
+}
+
+function handleSort(sortBy: 'Name' | 'Size') {
+  console.log('Sorting by:', sortBy)
+  showViewByDropdown.value = false
+}
+
 onMounted(() => {
   document.addEventListener('click', closeGraphControls)
+  document.addEventListener('click', closeViewByDropdown)
 })
 
 onBeforeUnmount(() => {
   document.removeEventListener('click', closeGraphControls)
+  document.removeEventListener('click', closeViewByDropdown)
 })
 
 const form = reactive({
@@ -496,6 +544,7 @@ function buildHubGraphData(): GraphData {
       if (!nodeMap.has(node.id)) {
         const graphNode: GraphNode = {
           ...node,
+          project: example.id,
           name: selectedGraphProject.value
             ? node.name // Don't add project label when filtering to single project
             : `${node.name}\n(${example.id})`, // Add project label when showing all
@@ -537,6 +586,14 @@ watch(
     }
   },
   { immediate: false }
+)
+
+// Update forces when repulsion changes
+watch(
+  () => graphRepulsion.value,
+  () => {
+    updateForces()
+  }
 )
 </script>
 
@@ -1664,5 +1721,55 @@ body {
 .btn-reset-dropdown:hover {
   background: rgba(239, 68, 68, 0.2);
   transform: translateY(-1px);
+}
+
+/* View By Dropdown */
+.view-dropdown-wrapper #view-by-btn:hover {
+  background: rgba(74, 144, 226, 0.1) !important;
+  border-color: var(--pt-accent) !important;
+}
+
+.view-dropdown-wrapper .dropdown-item:hover {
+  background: rgba(74, 144, 226, 0.15) !important;
+  color: var(--pt-accent) !important;
+}
+
+/* View Switcher */
+.view-switcher-section {
+  padding: 16px;
+  border-bottom: 1px solid var(--pt-border);
+}
+
+.view-switcher-group {
+  display: flex;
+  gap: 6px;
+}
+
+.btn-view {
+  flex: 1;
+  padding: 8px 10px;
+  background: rgba(74, 144, 226, 0.05);
+  border: 1px solid var(--pt-border);
+  color: var(--pt-text-muted);
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: all 0.2s ease;
+}
+
+.btn-view:hover {
+  border-color: var(--pt-accent);
+  color: var(--pt-text);
+  background: rgba(74, 144, 226, 0.1);
+}
+
+.btn-view--active {
+  background: rgba(74, 144, 226, 0.15);
+  border-color: var(--pt-accent);
+  color: var(--pt-accent);
 }
 </style>
