@@ -197,34 +197,36 @@ Project landing. Shows status, stats, next actions, recent activity.
 Frame 1b — Graph Tab
 Knowledge graph of this project's entities and relationships. Zoomed into one project (cf. Frame 0b for multi-project graph).
 
-┌──────────────────────────────────────────────────────────────┐
-│ ← Papertrail / Davis County Contractors                      │
-├──────────────────────────────────────────────────────────────┤
-│ [Overview] [Graph] [Entities] [Suggestions] [Timeline]       │
-│ [Evidence]                                                    │
-├──────────────────────────────────────────────────────────────┤
-│                                                              │
-│  Confirmed + Suggested Relations                             │
-│  [Show Suggestions] [Confirmed Only]                         │
-│                                                              │
-│        Google Maps Listing                                   │
-│                │                                             │
-│                ▼                                             │
-│        Barlow Masonry ─────┐                                 │
-│          │       │       │  │                                │
-│          │       │       │  └─ Website: .com                 │
-│          │       │       │         │                         │
-│          │       │       │         ├─ About                  │
-│          │       │       │         └─ Contact                │
-│          │       │       │                                   │
-│    Phone │    Address │  LinkedIn Link                      │
-│         │       │       │          │                         │
-│         │       │       │          ▼                         │
-│         └───────┴───────┴─ Mark Barlow (suggested)           │
-│                                                              │
-│ Click any node or edge for details and confirmation.         │
-│                                                              │
-└──────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────────────────┐
+│ Papertrail / Davis County Contractors                                                    │
+├──────────────────────────────────────────────────────────────────────────────────────────┤
+│ [Overview] [Graph] [Entities] [Timeline] [Evidence]                                      │
+├──────────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                          │
+│ [🔍 Search entities...] [View By: Type ▾] [FILTER BY PROJECT: All Projects ▾] [Controls]│
+│                                                                                          │
+│ ┌────────────────────────────────────────────────────────────────────┬───────────────────┤
+│ │                                                                    │                   │
+│ │     ●  ●  ●     (force-directed graph visualization)             │ [CONTACT]         │
+│ │    ● ◉ ●  ●     ● = entity nodes (tan/brown circles)             │ angela.brooks@... │
+│ │   ●  ●  ●  ●    ◉ = selected node (purple)                       │ X                 │
+│ │  ●  ●  ●  ●     lines = relationships                            │                   │
+│ │     ●  ●  ●     labels = entity types (EMAIL, PHONE, etc.)       │ ABOUT             │
+│ │                                                                    │ Connections: 1    │
+│ │  [node selection updates sidebar →]                              │ Confidence: 87%   │
+│ │                                                                    │                   │
+│ │                                                                    │ RELATIONS         │
+│ │  [pan & zoom enabled]                                            │ [PERSON]          │
+│ │                                                                    │ Angela Brooks     │
+│ │                                                                    │ → (10)            │
+│ │                                                                    │                   │
+│ │                                                                    │ [View in Project] │
+│ │                                                                    │                   │
+│ └────────────────────────────────────────────────────────────────────┴───────────────────┘
+│                                                                                          │
+└──────────────────────────────────────────────────────────────────────────────────────────┘
+
+Click any node to populate sidebar with details. Sidebar shows entity metadata, relationships, and actions.
 
 ---
 
@@ -434,34 +436,37 @@ Frame 4 — Graph Tab
 
 Click [Graph] tab to see knowledge graph visualization of the project's entities and relationships.
 
-┌──────────────────────────────────────────────────────┐
-│ PaperTrail / Davis County Contractors               │
-├──────────────────────────────────────────────────────┤
-│ [Overview] [Graph] [Entities] [Suggestions]          │
-│ [Timeline] [Evidence]                                │
-├──────────────────────────────────────────────────────┤
-│                                                      │
-│  Confirmed + Suggested Relations                     │
-│  [Show Suggestions] [Confirmed Only]                 │
-│                                                      │
-│        Google Maps Listing                           │
-│                │                                     │
-│                ▼                                     │
-│        Barlow Masonry ─────┐                         │
-│          │       │       │  │                        │
-│          │       │       │  └─ Website: .com         │
-│          │       │       │         │                 │
-│          │       │       │         ├─ About          │
-│          │       │       │         └─ Contact        │
-│          │       │       │                           │
-│    Phone │    Address │  LinkedIn Link              │
-│         │       │       │          │                 │
-│         │       │       │          ▼                 │
-│         └───────┴───────┴─ Mark Barlow (suggested)   │
-│                                                      │
-│ Click edge for evidence and confirmation controls   │
-│                                                      │
-└──────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────────────────┐
+│ ← Papertrail / Davis County Contractors                                                  │
+│    Goal: Find decision makers for contractor businesses                                  │
+├──────────────────────────────────────────────────────────────────────────────────────────┤
+│ [Overview] [Graph] [Entities] [Suggestions] [Timeline] [Evidence]                        │
+├──────────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                          │
+│ [🔍 Search entities...] [View By: Type ▾] [FILTER BY PROJECT: All Projects ▾] [Controls]│
+│                                                                                          │
+│ ┌────────────────────────────────────────────────────────────────────┬───────────────────┤
+│ │                                                                    │                   │
+│ │     ●  ●  ●     (force-directed graph visualization)             │ [CONTACT]         │
+│ │    ● ◉ ●  ●     ● = entity nodes (tan/brown circles)             │ angela.brooks@... │
+│ │   ●  ●  ●  ●    ◉ = selected node (purple)                       │ X                 │
+│ │  ●  ●  ●  ●     lines = relationships                            │                   │
+│ │     ●  ●  ●     labels = entity types (EMAIL, PHONE, etc.)       │ ABOUT             │
+│ │                                                                    │ Connections: 1    │
+│ │  [click node → sidebar updates]                                  │ Confidence: 87%   │
+│ │                                                                    │                   │
+│ │                                                                    │ RELATIONS         │
+│ │  [click edge → show relationship evidence]                        │ [PERSON]          │
+│ │                                                                    │ Angela Brooks     │
+│ │  [pan & zoom enabled]                                            │ WORKS_AT (10)     │
+│ │                                                                    │                   │
+│ │                                                                    │ [View in Project] │
+│ │                                                                    │                   │
+│ └────────────────────────────────────────────────────────────────────┴───────────────────┘
+│                                                                                          │
+└──────────────────────────────────────────────────────────────────────────────────────────┘
+
+Graph + sidebar layout: nodes clickable for details, edges clickable for relationship evidence.
 
 ---
 
@@ -754,46 +759,41 @@ User clicks Workspace.
 This is the bridge between live collection and serious review.
 
 Frame 10 — Graph View
-┌──────────────────────────────────────────────────────────────┐
-│ PaperTrail / Graph View                                      │
-├──────────────────────────────────────────────────────────────┤
-│ Project Layer: Davis County Contractors                      │
-│ View: Confirmed + Suggested                                  │
-│                                                              │
-│ [Confirmed Only] [Show Suggestions] [Cross-Project Links]    │
-├──────────────────────────────────────────────────────────────┤
-│                                                              │
-│        Google Maps Listing                                   │
-│                │                                             │
-│                ▼                                             │
-│        Barlow Masonry                                        │
-│          │       │       │                                   │
-│          │       │       └──── Phone                         │
-│          │       │                                           │
-│          │       └──────────── Address                       │
-│          │                                                   │
-│          └──────── Website: barlowmasonry.com                │
-│                         │                                    │
-│                         ├── About Page                       │
-│                         ├── Contact Page                     │
-│                         └── LinkedIn Company Profile         │
-│                                      │                       │
-│                                      ▼                       │
-│                         Suggested Person: Mark Barlow        │
-│                         Status: AI suggestion                │
-│                                                              │
-├──────────────────────────────────────────────────────────────┤
-│ Selected Edge                                                │
-│                                                              │
-│ Mark Barlow → POSSIBLY_CONNECTED_TO → Barlow Masonry         │
-│ Status: suggested                                            │
-│ Evidence: LinkedIn screenshot + visible page text            │
-│ Confidence: medium                                           │
-│                                                              │
-│ [Confirm] [Reject] [Open Evidence]                           │
-└──────────────────────────────────────────────────────────────┘
 
-The graph shows both confirmed relationships and suggested ones, but visually separates them.
+┌──────────────────────────────────────────────────────────────────────────────────────────┐
+│ ← Papertrail / Davis County Contractors                                                  │
+├──────────────────────────────────────────────────────────────────────────────────────────┤
+│ [Overview] [Graph] [Entities] [Suggestions] [Timeline] [Evidence]                        │
+├──────────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                          │
+│ [🔍 Search entities...] [View By: Type ▾] [FILTER BY PROJECT: All Projects ▾] [Controls]│
+│                                                                                          │
+│ ┌────────────────────────────────────────────────────────────────────┬───────────────────┤
+│ │                                                                    │                   │
+│ │    ●  ●  ●  ●  ●  ●  ●  ●  ●  ●  ●  ●  (dense force-directed   │ [CONTACT]         │
+│ │   ● ●● ● ●● ● ●● ●●● ●  ●  ●  ●  ●  ●   graph with 20+ nodes │ angela.brooks@... │
+│ │  ● ● ◉ ● ● ● ● ● ● ● ● ● ● ● ● ● ● ●   ◉ = selected entity     │ X                 │
+│ │   ●● ●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●     colored by type        │                   │
+│ │    ●  ●  ●  ●  ●  ●  ●  ●  ●  ●  ●  ●                           │ ABOUT             │
+│ │                                            confirmed + suggested │ Connections: 14   │
+│ │                                            relationships shown   │ Confidence: 87%   │
+│ │                                                                    │                   │
+│ │                                                                    │ RELATIONS         │
+│ │  [pan, zoom, drag enabled]                                       │ PERSON             │
+│ │                                                                    │ Angela Brooks     │
+│ │                                                                    │ WORKS_AT (10)     │
+│ │                                                                    │                   │
+│ │                                                                    │ EMAIL             │
+│ │                                                                    │ angela@tech.co    │
+│ │                                                                    │ → (5)             │
+│ │                                                                    │                   │
+│ │                                                                    │ [View in Project] │
+│ │                                                                    │                   │
+│ └────────────────────────────────────────────────────────────────────┴───────────────────┘
+│                                                                                          │
+└──────────────────────────────────────────────────────────────────────────────────────────┘
+
+Graph supports 10-20+ nodes per row. Click nodes for sidebar details. Confirmed and suggested relationships shown with visual distinction.
 
 Frame 11 — Suggestions Review
 ┌──────────────────────────────────────────────────────────────┐
