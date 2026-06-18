@@ -399,6 +399,12 @@ function buildHubGraphData(): GraphData {
     }
 
     example.nodes.forEach((node: any) => {
+      // Filter by search query (case-insensitive)
+      const matchesSearch = !graphSearch.value ||
+        node.name.toLowerCase().includes(graphSearch.value.toLowerCase())
+
+      if (!matchesSearch) return
+
       if (!nodeMap.has(node.id)) {
         const graphNode: GraphNode = {
           ...node,
@@ -428,7 +434,7 @@ function buildHubGraphData(): GraphData {
 
 // Initialize/update hub graph when tab opens or project filter changes
 watch(
-  [activeTab, selectedGraphProject],
+  [activeTab, selectedGraphProject, graphSearch],
   ([newTab]) => {
     if (newTab === 'Graph' && hubGraphContainer.value) {
       setTimeout(() => {
