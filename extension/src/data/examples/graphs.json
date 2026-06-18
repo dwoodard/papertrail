@@ -38,7 +38,7 @@
           "name": "Mark Barlow",
           "type": "person",
           "value": 2,
-          "confidence": 0.7
+          "confidence": 0.9
         },
         {
           "id": "linkedin_111",
@@ -73,14 +73,14 @@
         {
           "source": "biz_123",
           "target": "person_654",
-          "type": "WORKS_AT",
-          "status": "suggested",
-          "evidence": "LinkedIn connection identified"
+          "type": "DIRECTOR",
+          "status": "confirmed",
+          "evidence": "Business registration records"
         },
         {
           "source": "person_654",
           "target": "linkedin_111",
-          "type": "HAS_PROFILE",
+          "type": "PROFILE",
           "status": "confirmed",
           "evidence": "Profile URL found"
         }
@@ -103,14 +103,14 @@
           "name": "Sarah Chen",
           "type": "person",
           "value": 3,
-          "confidence": 0.9
+          "confidence": 0.95
         },
         {
           "id": "person_002",
           "name": "James Wilson",
           "type": "person",
           "value": 2,
-          "confidence": 0.75
+          "confidence": 0.85
         },
         {
           "id": "company_002",
@@ -125,13 +125,20 @@
           "type": "location",
           "value": 1,
           "confidence": 1
+        },
+        {
+          "id": "website_001",
+          "name": "techstart.ventures",
+          "type": "website",
+          "value": 1,
+          "confidence": 1
         }
       ],
       "links": [
         {
           "source": "person_001",
           "target": "company_001",
-          "type": "FOUNDED",
+          "type": "FOUNDER",
           "status": "confirmed",
           "evidence": "Public record"
         },
@@ -146,8 +153,8 @@
           "source": "company_001",
           "target": "company_002",
           "type": "INVESTED_IN",
-          "status": "suggested",
-          "evidence": "Crunchbase data"
+          "status": "confirmed",
+          "evidence": "SEC filing"
         },
         {
           "source": "company_001",
@@ -155,6 +162,227 @@
           "type": "HEADQUARTERS",
           "status": "confirmed",
           "evidence": "Business registration"
+        },
+        {
+          "source": "company_001",
+          "target": "website_001",
+          "type": "WEBSITE",
+          "status": "confirmed",
+          "evidence": "Domain registration"
+        }
+      ]
+    },
+    {
+      "id": "nonprofit-network",
+      "name": "Nonprofit Network Study",
+      "description": "Understand funding patterns in nonprofit sector",
+      "nodes": [
+        {
+          "id": "org_101",
+          "name": "Global Relief Foundation",
+          "type": "business",
+          "value": 4,
+          "confidence": 1
+        },
+        {
+          "id": "person_101",
+          "name": "Dr. Elizabeth Harper",
+          "type": "person",
+          "value": 3,
+          "confidence": 0.92
+        },
+        {
+          "id": "person_102",
+          "name": "Michael Torres",
+          "type": "person",
+          "value": 2,
+          "confidence": 0.88
+        },
+        {
+          "id": "org_102",
+          "name": "Community Action Network",
+          "type": "business",
+          "value": 2,
+          "confidence": 0.95
+        },
+        {
+          "id": "location_101",
+          "name": "Washington, DC",
+          "type": "location",
+          "value": 1,
+          "confidence": 1
+        },
+        {
+          "id": "contact_101",
+          "name": "(202) 555-0147",
+          "type": "contact",
+          "value": 1,
+          "confidence": 1
+        },
+        {
+          "id": "website_101",
+          "name": "globalrelief.org",
+          "type": "website",
+          "value": 1,
+          "confidence": 1
+        }
+      ],
+      "links": [
+        {
+          "source": "org_101",
+          "target": "person_101",
+          "type": "EXECUTIVE_DIRECTOR",
+          "status": "confirmed",
+          "evidence": "Organization website"
+        },
+        {
+          "source": "org_101",
+          "target": "person_102",
+          "type": "BOARD_MEMBER",
+          "status": "confirmed",
+          "evidence": "990 Form filing"
+        },
+        {
+          "source": "org_101",
+          "target": "org_102",
+          "type": "PARTNERS_WITH",
+          "status": "confirmed",
+          "evidence": "Grant database"
+        },
+        {
+          "source": "org_101",
+          "target": "location_101",
+          "type": "HEADQUARTERS",
+          "status": "confirmed",
+          "evidence": "Tax records"
+        },
+        {
+          "source": "org_101",
+          "target": "contact_101",
+          "type": "PHONE",
+          "status": "confirmed",
+          "evidence": "Directory listing"
+        },
+        {
+          "source": "org_101",
+          "target": "website_101",
+          "type": "WEBSITE",
+          "status": "confirmed",
+          "evidence": "WHOIS lookup"
+        }
+      ]
+    },
+    {
+      "id": "real-estate-connections",
+      "name": "Real Estate Investment Group",
+      "description": "Track commercial property ownership chains",
+      "nodes": [
+        {
+          "id": "corp_201",
+          "name": "Metropolitan Properties LLC",
+          "type": "business",
+          "value": 5,
+          "confidence": 1
+        },
+        {
+          "id": "person_201",
+          "name": "David Mitchell",
+          "type": "person",
+          "value": 3,
+          "confidence": 0.93
+        },
+        {
+          "id": "person_202",
+          "name": "Jennifer Lopez",
+          "type": "person",
+          "value": 2,
+          "confidence": 0.87
+        },
+        {
+          "id": "corp_202",
+          "name": "Capital Investment Group",
+          "type": "business",
+          "value": 3,
+          "confidence": 0.98
+        },
+        {
+          "id": "property_201",
+          "name": "Downtown Commercial Complex",
+          "type": "location",
+          "value": 2,
+          "confidence": 1
+        },
+        {
+          "id": "contact_201",
+          "name": "(415) 555-0198",
+          "type": "contact",
+          "value": 1,
+          "confidence": 1
+        },
+        {
+          "id": "website_201",
+          "name": "metropolproperties.com",
+          "type": "website",
+          "value": 1,
+          "confidence": 0.99
+        },
+        {
+          "id": "person_203",
+          "name": "Robert Chang",
+          "type": "person",
+          "value": 2,
+          "confidence": 0.85
+        }
+      ],
+      "links": [
+        {
+          "source": "corp_201",
+          "target": "person_201",
+          "type": "MANAGING_MEMBER",
+          "status": "confirmed",
+          "evidence": "LLC formation documents"
+        },
+        {
+          "source": "corp_201",
+          "target": "person_202",
+          "type": "MEMBER",
+          "status": "confirmed",
+          "evidence": "Operating agreement"
+        },
+        {
+          "source": "corp_201",
+          "target": "corp_202",
+          "type": "OWNED_BY",
+          "status": "suggested",
+          "evidence": "Financial records"
+        },
+        {
+          "source": "corp_201",
+          "target": "property_201",
+          "type": "OWNS",
+          "status": "confirmed",
+          "evidence": "Deed recording"
+        },
+        {
+          "source": "corp_201",
+          "target": "contact_201",
+          "type": "PHONE",
+          "status": "confirmed",
+          "evidence": "Business listing"
+        },
+        {
+          "source": "corp_201",
+          "target": "website_201",
+          "type": "WEBSITE",
+          "status": "confirmed",
+          "evidence": "Domain registration"
+        },
+        {
+          "source": "corp_202",
+          "target": "person_203",
+          "type": "PRINCIPAL",
+          "status": "confirmed",
+          "evidence": "Corporate filings"
         }
       ]
     }

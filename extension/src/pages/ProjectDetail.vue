@@ -1,5 +1,16 @@
 <template>
   <div class="project-detail">
+    <!-- Breadcrumb Navigation -->
+    <nav class="breadcrumb-nav">
+      <button class="breadcrumb-item" @click="$emit('back')">Papertrail</button>
+      <span class="breadcrumb-separator">›</span>
+      <button class="breadcrumb-item" @click="$emit('back')">Graph</button>
+      <span class="breadcrumb-separator">›</span>
+      <span class="breadcrumb-item breadcrumb-item--current">{{ project.name }}</span>
+      <span class="breadcrumb-separator">›</span>
+      <span class="breadcrumb-item breadcrumb-item--current">Project Graph</span>
+    </nav>
+
     <!-- Header -->
     <header class="detail-header">
       <div class="detail-header__left">
@@ -82,131 +93,6 @@
         </section>
       </div>
 
-      <!-- Graph Tab -->
-      <div v-show="activeTab === 'Graph'" class="tab-pane graph-tab">
-        <!-- Premium Header with Search & Filters -->
-        <div class="graph-header">
-          <div class="header-left">
-            <div class="search-box">
-              <span class="search-icon">🔍</span>
-              <input
-                v-model="searchQuery"
-                type="text"
-                placeholder="Search entities..."
-                class="search-input"
-              />
-              <button v-if="searchQuery" class="search-clear" @click="searchQuery = ''">✕</button>
-            </div>
-          </div>
-
-          <div class="header-center">
-            <div class="filter-group">
-              <span class="filter-label">Type:</span>
-              <select v-model="selectedRelationType" class="filter-select">
-                <option value="">All Types</option>
-                <option value="business">Business</option>
-                <option value="person">Person</option>
-                <option value="website">Website</option>
-                <option value="location">Location</option>
-                <option value="contact">Contact</option>
-              </select>
-            </div>
-
-            <div class="filter-group">
-              <span class="filter-label">Status:</span>
-              <button
-                :class="['status-btn', { 'status-btn--active': showSuggestions }]"
-                @click="showSuggestions = !showSuggestions"
-                title="Toggle suggested relationships"
-              >
-                <span class="status-dot"></span>
-                All
-              </button>
-              <button
-                :class="['status-btn', { 'status-btn--active': !showSuggestions }]"
-                @click="showSuggestions = false"
-                title="Show confirmed only"
-              >
-                <span class="status-dot"></span>
-                Confirmed
-              </button>
-            </div>
-          </div>
-
-          <div class="header-right">
-            <button
-              v-if="searchQuery || selectedRelationType || !showSuggestions"
-              class="btn-reset-header"
-              @click="resetGraphView"
-            >
-              Reset
-            </button>
-          </div>
-        </div>
-
-        <!-- Graph Container -->
-        <div class="graph-container-wrapper">
-          <div class="graph-canvas" id="graph-canvas" ref="graphContainer">
-            <!-- D3 Interactive Force-Directed Graph renders here -->
-          </div>
-
-          <!-- Inspector Panel -->
-          <div :class="['inspector-panel', { 'panel-open': selectedNode }]">
-            <template v-if="selectedNode">
-              <div class="panel-header">
-                <div class="panel-title-group">
-                  <div :class="['type-badge', `badge-${selectedNode.type}`]">
-                    {{ selectedNode.type }}
-                  </div>
-                  <h3 class="panel-title">{{ selectedNode.name }}</h3>
-                </div>
-                <button class="panel-close" @click="selectedNode = null">✕</button>
-              </div>
-
-              <div class="panel-content">
-                <section class="panel-section">
-                  <h4 class="section-title">About</h4>
-                  <div class="section-info">
-                    <div v-if="selectedNode.value" class="info-row">
-                      <span class="info-label">Connectivity:</span>
-                      <span class="info-value">{{ selectedNode.value }} connections</span>
-                    </div>
-                    <div v-if="selectedNode.confidence" class="info-row">
-                      <span class="info-label">Confidence:</span>
-                      <div class="confidence-bar">
-                        <div
-                          class="confidence-fill"
-                          :style="{ width: `${selectedNode.confidence * 100}%` }"
-                        ></div>
-                      </div>
-                      <span class="info-value">{{ Math.round(selectedNode.confidence * 100) }}%</span>
-                    </div>
-                  </div>
-                </section>
-
-                <section class="panel-section">
-                  <h4 class="section-title">Connections</h4>
-                  <p style="color: var(--pt-text-muted); font-size: 12px; margin: 0;">
-                    Connected in the graph — click relationship edges for details
-                  </p>
-                </section>
-
-                <section class="panel-section">
-                  <button class="action-btn">View Evidence</button>
-                  <button class="action-btn">View Timeline</button>
-                </section>
-              </div>
-            </template>
-
-            <template v-else>
-              <div class="panel-empty">
-                <div class="empty-icon">◯</div>
-                <p>Click an entity to inspect</p>
-              </div>
-            </template>
-          </div>
-        </div>
-      </div>
 
       <!-- Entities Tab -->
       <div v-show="activeTab === 'Entities'" class="tab-pane">
@@ -252,9 +138,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { useGraphSimulation, type GraphData, type GraphNode } from '../composables/useGraphSimulation'
-import graphExamples from '../data/examples/graphs.json'
+import { ref } from 'vue'
 
 interface ProjectDetailProps {
   project: {
@@ -272,34 +156,8 @@ defineProps<ProjectDetailProps>()
 defineEmits(['back'])
 
 const activeTab = ref('Overview')
-const projectTabs = ['Overview', 'Graph', 'Entities', 'Suggestions', 'Timeline', 'Evidence']
-const showSuggestions = ref(true)
-const selectedRelationType = ref('')
-const searchQuery = ref('')
-const selectedNode = ref<GraphNode | null>(null)
-const graphContainer = ref<HTMLElement | null>(null)
+const projectTabs = ['Overview', 'Entities', 'Suggestions', 'Timeline', 'Evidence']
 
-const { initializeGraph } = useGraphSimulation(graphContainer)
-
-// Load graph data from JSON (first example by default)
-const mockGraphData: GraphData = graphExamples.examples[0] as unknown as GraphData
-
-function resetGraphView(): void {
-  selectedNode.value = null
-  selectedRelationType.value = ''
-  searchQuery.value = ''
-  showSuggestions.value = true
-}
-
-onMounted(() => {
-  if (activeTab.value === 'Graph' && graphContainer.value) {
-    setTimeout(() => {
-      initializeGraph(mockGraphData, (node) => {
-        selectedNode.value = node
-      })
-    }, 100)
-  }
-})
 
 const recentActivity = [
   { time: '2h ago', text: 'Captured Barlow Masonry from Google Maps' },
@@ -624,6 +482,8 @@ const recentActivity = [
   flex-direction: column;
   gap: 0;
   height: 100%;
+  min-height: 700px;
+  overflow: hidden;
 }
 
 /* Graph Header - Premium Search & Filters */
@@ -799,6 +659,8 @@ const recentActivity = [
   flex: 1;
   overflow: hidden;
   animation: fadeIn 0.4s ease 0.1s both;
+  min-height: 600px;
+  height: 100%;
 }
 
 .graph-canvas {
@@ -813,6 +675,9 @@ const recentActivity = [
   position: relative;
   overflow: hidden;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  min-height: 600px;
+  width: 100%;
+  height: 100%;
 }
 
 /* Constellation Graph SVG */
@@ -1586,6 +1451,61 @@ const recentActivity = [
 
   .graph-controls {
     flex-wrap: wrap;
+  }
+}
+
+/* Breadcrumb Navigation */
+.breadcrumb-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 48px;
+  border-bottom: 1px solid var(--pt-border);
+  background: var(--pt-bg);
+  font-size: 12px;
+  animation: slideDown 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.breadcrumb-item {
+  background: none;
+  border: none;
+  color: var(--pt-text-muted);
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  font-family: var(--font-body);
+  font-size: 12px;
+}
+
+.breadcrumb-item:hover:not(.breadcrumb-item--current) {
+  color: var(--pt-accent);
+  background: rgba(74, 144, 226, 0.1);
+}
+
+.breadcrumb-item--current {
+  color: var(--pt-text);
+  cursor: default;
+  font-weight: 500;
+}
+
+.breadcrumb-item--current:hover {
+  background: transparent;
+}
+
+.breadcrumb-separator {
+  color: var(--pt-text-muted);
+  opacity: 0.5;
+}
+
+@media (max-width: 768px) {
+  .breadcrumb-nav {
+    padding: 12px 24px;
+    font-size: 11px;
+  }
+
+  .breadcrumb-item {
+    padding: 2px 6px;
   }
 }
 </style>

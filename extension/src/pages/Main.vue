@@ -86,13 +86,107 @@
         </div>
 
         <!-- Graph Tab -->
-        <div v-show="activeTab === 'Graph'" class="tab-pane">
-          <section class="placeholder-section">
-            <div class="placeholder">
-              <h2>Knowledge Graph</h2>
-              <p>Multi-project entity relationships visualization</p>
+        <div v-show="activeTab === 'Graph'" class="tab-pane graph-tab">
+          <div class="graph-header">
+            <div class="header-left">
+              <div class="search-box">
+                <span class="search-icon">🔍</span>
+                <input
+                  v-model="graphSearch"
+                  type="text"
+                  placeholder="Search entities..."
+                  class="search-input"
+                />
+                <button v-if="graphSearch" class="search-clear" @click="graphSearch = ''">✕</button>
+              </div>
             </div>
-          </section>
+
+            <div class="header-center">
+              <div class="filter-group">
+                <span class="filter-label">Filter by Project:</span>
+                <select v-model="selectedGraphProject" class="filter-select">
+                  <option value="">All Projects</option>
+                  <option v-for="project in projects" :key="project.id" :value="project.id">
+                    {{ project.name }}
+                  </option>
+                </select>
+              </div>
+            </div>
+
+            <div class="header-right">
+              <button
+                v-if="graphSearch || selectedGraphProject"
+                class="btn-reset-header"
+                @click="resetGraphView"
+              >
+                Reset
+              </button>
+            </div>
+          </div>
+
+          <div class="graph-container-wrapper">
+            <div class="graph-canvas" ref="hubGraphContainer">
+              <!-- Hub graph renders here -->
+            </div>
+
+            <div :class="['graph-stats', { 'stats-open': selectedGraphNode }]">
+              <template v-if="selectedGraphNode">
+                <div class="stats-header">
+                  <div class="stats-title">
+                    <div class="type-badge" :class="`badge-${selectedGraphNode.type}`">
+                      {{ selectedGraphNode.type }}
+                    </div>
+                    <h4>{{ selectedGraphNode.name }}</h4>
+                  </div>
+                  <button class="stats-close" @click="selectedGraphNode = null">✕</button>
+                </div>
+
+                <div class="stats-body">
+                  <section class="stats-section">
+                    <h5 class="section-title">About</h5>
+                    <div v-if="selectedGraphNode.value" class="info-row">
+                      <span class="info-label">Connections:</span>
+                      <span class="info-value">{{ selectedGraphNode.value }}</span>
+                    </div>
+                    <div v-if="selectedGraphNode.confidence" class="info-row">
+                      <span class="info-label">Confidence:</span>
+                      <span class="info-value">{{ Math.round(selectedGraphNode.confidence * 100) }}%</span>
+                    </div>
+                  </section>
+
+                  <section class="stats-section">
+                    <button class="action-btn" @click="navigateToProjectGraph">
+                      View in Project →
+                    </button>
+                  </section>
+                </div>
+              </template>
+
+              <template v-else>
+                <div class="stats-empty">
+                  <div class="empty-icon">◯</div>
+                  <p>Click an entity to view details</p>
+                </div>
+              </template>
+            </div>
+          </div>
+
+          <div class="graph-footer">
+            <div class="graph-stats-summary">
+              <div class="stat-item">
+                <span class="stat-label">Total Entities</span>
+                <span class="stat-value">{{ totalEntitiesCount }}</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">Total Projects</span>
+                <span class="stat-value">{{ projects.length }}</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">Total Relationships</span>
+                <span class="stat-value">{{ totalRelationshipsCount }}</span>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- Entities Tab -->
@@ -173,13 +267,22 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import ProjectDetail from './ProjectDetail.vue'
+import { useGraphSimulation, type GraphData, type GraphNode } from '../composables/useGraphSimulation'
+import graphExamples from '../data/examples/graphs.json'
 
 const activeTab = ref('Overview')
 const tabs = ['Overview', 'Graph', 'Entities', 'Timeline']
 const showCreateModal = ref(false)
 const selectedProject = ref<any>(null)
+
+// Graph view state
+const hubGraphContainer = ref<HTMLElement | null>(null)
+const graphSearch = ref('')
+const selectedGraphProject = ref('')
+const selectedGraphNode = ref<GraphNode | null>(null)
+const { initializeGraph } = useGraphSimulation(hubGraphContainer)
 
 const form = reactive({
   name: '',
@@ -189,7 +292,7 @@ const form = reactive({
 
 const projects = ref([
   {
-    id: '1',
+    id: 'davis-county-contractors',
     name: 'Davis County Contractors',
     goal: 'Find decision makers for contractor businesses',
     observations: 48,
@@ -198,13 +301,31 @@ const projects = ref([
     lastActivity: '2 hours ago',
   },
   {
-    id: '2',
+    id: 'tech-research',
     name: 'Tech Sector Analysis',
     goal: 'Map key players and funding connections',
     observations: 124,
     entities: 35,
     suggestions: 8,
     lastActivity: '1 hour ago',
+  },
+  {
+    id: 'nonprofit-network',
+    name: 'Nonprofit Network Study',
+    goal: 'Understand funding patterns in nonprofit sector',
+    observations: 87,
+    entities: 28,
+    suggestions: 9,
+    lastActivity: '45 minutes ago',
+  },
+  {
+    id: 'real-estate-connections',
+    name: 'Real Estate Investment Group',
+    goal: 'Track commercial property ownership chains',
+    observations: 156,
+    entities: 42,
+    suggestions: 12,
+    lastActivity: '30 minutes ago',
   },
 ])
 
@@ -234,6 +355,92 @@ function createProject(): void {
 
   closeCreateModal()
 }
+
+// Graph view functions
+const totalEntitiesCount = computed(() => {
+  return (graphExamples.examples as any[]).reduce((sum, example) => sum + example.nodes.length, 0)
+})
+
+const totalRelationshipsCount = computed(() => {
+  return (graphExamples.examples as any[]).reduce((sum, example) => sum + example.links.length, 0)
+})
+
+function resetGraphView(): void {
+  graphSearch.value = ''
+  selectedGraphProject.value = ''
+  selectedGraphNode.value = null
+}
+
+function navigateToProjectGraph(): void {
+  if (!selectedGraphNode.value) return
+
+  // Find which project contains this node
+  const project = projects.value.find((p) => {
+    const exampleProject = (graphExamples.examples as any[]).find((ex) => ex.id === p.id)
+    if (!exampleProject) return false
+    return exampleProject.nodes.some((n: any) => n.id === selectedGraphNode.value!.id)
+  })
+
+  if (project) {
+    selectedProject.value = project
+  }
+}
+
+function buildHubGraphData(): GraphData {
+  // Combine all example graphs into one with project labels, optionally filtered by project
+  const allNodes: GraphNode[] = []
+  const allLinks: any[] = []
+  const nodeMap = new Map<string, GraphNode>()
+
+  ;(graphExamples.examples as any[]).forEach((example) => {
+    // Skip this project if a specific project is selected
+    if (selectedGraphProject.value && selectedGraphProject.value !== example.id) {
+      return
+    }
+
+    example.nodes.forEach((node: any) => {
+      if (!nodeMap.has(node.id)) {
+        const graphNode: GraphNode = {
+          ...node,
+          name: selectedGraphProject.value
+            ? node.name // Don't add project label when filtering to single project
+            : `${node.name}\n(${example.id})`, // Add project label when showing all
+        }
+        allNodes.push(graphNode)
+        nodeMap.set(node.id, graphNode)
+      }
+    })
+
+    example.links.forEach((link: any) => {
+      allLinks.push(link)
+    })
+  })
+
+  // Filter links to only include those between existing nodes
+  const validLinks = allLinks.filter((link: any) => {
+    const sourceId = typeof link.source === 'string' ? link.source : link.source.id
+    const targetId = typeof link.target === 'string' ? link.target : link.target.id
+    return nodeMap.has(sourceId) && nodeMap.has(targetId)
+  })
+
+  return { nodes: allNodes, links: validLinks }
+}
+
+// Initialize/update hub graph when tab opens or project filter changes
+watch(
+  [activeTab, selectedGraphProject],
+  ([newTab]) => {
+    if (newTab === 'Graph' && hubGraphContainer.value) {
+      setTimeout(() => {
+        const hubData = buildHubGraphData()
+        initializeGraph(hubData, (node) => {
+          selectedGraphNode.value = node
+        }, true)
+      }, 100)
+    }
+  },
+  { immediate: false }
+)
 </script>
 
 <style scoped>
@@ -842,5 +1049,398 @@ body {
   .modal {
     margin: 20px;
   }
+}
+
+/* Graph Tab Styles */
+.graph-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  height: 100%;
+  min-height: 700px;
+  overflow: hidden;
+}
+
+.graph-header {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--pt-border);
+  background: linear-gradient(135deg, var(--pt-surface) 0%, var(--pt-bg) 100%);
+  animation: slideDown 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.header-left {
+  flex: 1;
+  min-width: 300px;
+}
+
+.search-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--pt-bg);
+  border: 1.5px solid var(--pt-border);
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.search-box:focus-within {
+  border-color: var(--pt-accent);
+  background: var(--pt-surface-alt);
+  box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
+}
+
+.search-icon {
+  font-size: 14px;
+  opacity: 0.6;
+}
+
+.search-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--pt-text);
+  font-family: var(--font-body);
+  font-size: 13px;
+  outline: none;
+}
+
+.search-input::placeholder {
+  color: var(--pt-text-muted);
+}
+
+.search-clear {
+  background: transparent;
+  border: none;
+  color: var(--pt-text-muted);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 4px;
+  transition: color 0.2s ease;
+}
+
+.search-clear:hover {
+  color: var(--pt-text);
+}
+
+.header-center {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.filter-label {
+  font-size: 11px;
+  color: var(--pt-text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+.filter-select {
+  padding: 8px 12px;
+  background: var(--pt-bg);
+  border: 1px solid var(--pt-border);
+  color: var(--pt-text);
+  border-radius: 6px;
+  font-family: var(--font-body);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.filter-select:hover,
+.filter-select:focus {
+  border-color: var(--pt-accent);
+  background: var(--pt-surface-alt);
+  outline: none;
+}
+
+.header-right {
+  display: flex;
+  gap: 12px;
+}
+
+.btn-reset-header {
+  padding: 8px 14px;
+  background: transparent;
+  border: 1px solid var(--pt-border);
+  color: var(--pt-text-muted);
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.btn-reset-header:hover {
+  border-color: var(--pt-accent);
+  color: var(--pt-accent);
+  background: rgba(74, 144, 226, 0.05);
+}
+
+/* Graph Container Layout */
+.graph-container-wrapper {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 20px;
+  padding: 20px 24px;
+  flex: 1;
+  overflow: hidden;
+  animation: fadeIn 0.4s ease 0.1s both;
+  min-height: 600px;
+  height: 100%;
+}
+
+.graph-canvas {
+  background: radial-gradient(circle at 50% 40%, rgba(74, 144, 226, 0.05) 0%, transparent 70%),
+    linear-gradient(135deg, var(--pt-surface) 0%, var(--pt-bg) 100%);
+  border: 1px solid var(--pt-border);
+  border-radius: 12px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  min-height: 600px;
+  width: 100%;
+  height: 100%;
+  aspect-ratio: 1206 / 599;
+}
+
+/* Graph Stats Panel */
+.graph-stats {
+  background: linear-gradient(135deg, var(--pt-surface) 0%, var(--pt-surface-alt) 100%);
+  border: 1px solid var(--pt-border);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(20px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+
+.graph-stats.stats-open {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(0);
+}
+
+.stats-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px;
+  border-bottom: 1px solid var(--pt-border);
+  background: linear-gradient(135deg, var(--pt-surface-alt) 0%, var(--pt-bg) 100%);
+}
+
+.stats-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+.stats-title h4 {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--pt-text);
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.type-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: white;
+  flex-shrink: 0;
+}
+
+.badge-business {
+  background: #2563eb;
+}
+
+.badge-person {
+  background: #9333ea;
+}
+
+.badge-website {
+  background: #0891b2;
+}
+
+.badge-location {
+  background: #16a34a;
+}
+
+.badge-contact {
+  background: #d97706;
+}
+
+.stats-close {
+  background: transparent;
+  border: none;
+  color: var(--pt-text-muted);
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.stats-close:hover {
+  background: rgba(74, 144, 226, 0.1);
+  color: var(--pt-accent);
+}
+
+.stats-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.stats-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--pt-text-muted);
+}
+
+.empty-icon {
+  font-size: 36px;
+  margin-bottom: 12px;
+  opacity: 0.3;
+}
+
+.stats-section {
+  padding: 16px;
+  border-bottom: 1px solid var(--pt-border);
+}
+
+.stats-section:last-child {
+  border-bottom: none;
+  margin-top: auto;
+}
+
+.stats-section .section-title {
+  font-size: 11px;
+  color: var(--pt-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0 0 12px;
+  font-weight: 700;
+}
+
+.info-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+
+.info-label {
+  color: var(--pt-text-muted);
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+.info-value {
+  color: var(--pt-text);
+  font-weight: 600;
+  flex: 1;
+}
+
+.action-btn {
+  width: 100%;
+  padding: 10px;
+  background: rgba(74, 144, 226, 0.1);
+  border: 1px solid var(--pt-accent);
+  color: var(--pt-accent);
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.action-btn:hover {
+  background: rgba(74, 144, 226, 0.2);
+  transform: translateY(-1px);
+}
+
+/* Graph Footer */
+.graph-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 16px 24px;
+  border-top: 1px solid var(--pt-border);
+  background: var(--pt-surface);
+}
+
+.graph-stats-summary {
+  display: flex;
+  gap: 32px;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: center;
+}
+
+.stat-label {
+  font-size: 10px;
+  color: var(--pt-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+}
+
+.stat-value {
+  font-size: 16px;
+  color: var(--pt-accent);
+  font-weight: 700;
+  font-family: 'Courier New', monospace;
 }
 </style>
