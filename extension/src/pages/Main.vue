@@ -636,11 +636,18 @@ onMounted(async () => {
 
   // Fetch graph projects from new API
   try {
+    console.log('[Main.vue] Starting to fetch projects...')
     graphProjectsLoading.value = true
-    allGraphProjects.value = await graphApiClient.getProjects()
-    console.log('[Main.vue] Graph projects loaded:', allGraphProjects.value.length)
-  } catch (err) {
+    const projects = await graphApiClient.getProjects()
+    console.log('[Main.vue] API returned:', projects)
+    allGraphProjects.value = projects
+    console.log('[Main.vue] Graph projects loaded:', allGraphProjects.value.length, 'projects')
+    console.log('[Main.vue] First project:', allGraphProjects.value[0])
+  } catch (err: unknown) {
     console.error('[Main.vue] Failed to load graph projects:', err)
+    if (err instanceof Error) {
+      console.error('[Main.vue] Error details:', err.message, err.stack)
+    }
   } finally {
     graphProjectsLoading.value = false
   }
@@ -670,6 +677,14 @@ onBeforeUnmount(() => {
 watch(selectedProject, (newProject) => {
   if (newProject) {
     chrome.storage.local.set({ 'pt.activeProjectId': newProject.id })
+  }
+})
+
+// Debug: Log when projects load
+watch(allGraphProjects, (newProjects) => {
+  console.log('[Main.vue] allGraphProjects updated:', newProjects.length, 'projects')
+  if (newProjects.length > 0) {
+    console.log('[Main.vue] First project:', newProjects[0].name, '- Nodes:', newProjects[0].nodeCount)
   }
 })
 

@@ -59,7 +59,7 @@ export const graphApiClient = {
    * Create a new project
    */
   async createProject(id: string, name: string, goal?: string): Promise<GraphProject> {
-    const response = await fetch(`${API_BASE}/projects`, {
+    const response = await fetch(`${API_BASE}/api/projects`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id, name, goal }),
@@ -72,7 +72,7 @@ export const graphApiClient = {
    * Get all projects with graph statistics
    */
   async getProjects(): Promise<GraphProject[]> {
-    const response = await fetch(`${API_BASE}/graph/projects`)
+    const response = await fetch(`${API_BASE}/api/graph/projects`)
     if (!response.ok) throw new Error('Failed to fetch projects')
     const data = await response.json()
     return data.projects
@@ -99,7 +99,7 @@ export const graphApiClient = {
     }
 
     const query = params.toString() ? `?${params}` : ''
-    const response = await fetch(`${API_BASE}/graph/project/${projectId}${query}`)
+    const response = await fetch(`${API_BASE}/api/graph/project/${projectId}${query}`)
     if (!response.ok) throw new Error('Failed to fetch project graph')
     return response.json()
   },
@@ -108,7 +108,7 @@ export const graphApiClient = {
    * Get all relations for a specific node
    */
   async getNodeRelations(nodeId: string): Promise<NodeRelation[]> {
-    const response = await fetch(`${API_BASE}/graph/node/${nodeId}/relations`)
+    const response = await fetch(`${API_BASE}/api/graph/node/${nodeId}/relations`)
     if (!response.ok) throw new Error('Failed to fetch node relations')
     const data = await response.json()
     return data.relations
@@ -118,7 +118,7 @@ export const graphApiClient = {
    * Get nodes shared across multiple projects
    */
   async getSharedNodes() {
-    const response = await fetch(`${API_BASE}/graph/shared-nodes`)
+    const response = await fetch(`${API_BASE}/api/graph/shared-nodes`)
     if (!response.ok) throw new Error('Failed to fetch shared nodes')
     const data = await response.json()
     return data.sharedNodes
