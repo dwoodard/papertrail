@@ -13,6 +13,7 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
+import { STORAGE_KEYS } from '@/stores/keys'
 
 const emit = defineEmits(['clean-done'])
 
@@ -31,12 +32,12 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
 async function cleanDuplicates() {
   try {
     const result = await new Promise((resolve) => {
-      chrome.storage.local.get(['results'], ({ results = [] }) => {
+      chrome.storage.local.get([STORAGE_KEYS.observations], ({ [STORAGE_KEYS.observations]: observations = [] }) => {
         const seen = new Map()
 
         // Find unique Place IDs, keeping most recent for each
-        results.forEach(entry => {
-          const placeId = entry.placeId || `unknown-${entry.name}`
+        observations.forEach(entry => {
+          const placeId = entry.data?.placeId || `unknown-${entry.data?.name}`
 
           if (!seen.has(placeId)) {
             seen.set(placeId, entry)
@@ -50,10 +51,10 @@ async function cleanDuplicates() {
         })
 
         const cleaned = Array.from(seen.values())
-        const removed = results.length - cleaned.length
+        const removed = observations.length - cleaned.length
 
         if (removed > 0) {
-          chrome.storage.local.set({ results: cleaned }, () => {
+          chrome.storage.local.set({ [STORAGE_KEYS.observations]: cleaned }, () => {
             resolve(removed)
           })
         } else {

@@ -1,7 +1,8 @@
 import { ref, computed, onMounted } from 'vue'
 import { fetchProjects, type Project } from '@/api/projects'
+import { STORAGE_KEYS } from '@/stores/keys'
 
-const STORAGE_KEY = 'papertrail_active_project_id'
+const STORAGE_KEY = STORAGE_KEYS.activeProjectId
 
 export function useProjectSelection() {
   const projects = ref<Project[]>([])
