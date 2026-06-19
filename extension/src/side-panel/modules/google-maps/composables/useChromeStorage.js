@@ -4,6 +4,25 @@ function toPlain(value) {
   return JSON.parse(JSON.stringify(value))
 }
 
+/**
+ * Convert observation to result format for display
+ */
+function observationToResult(observation) {
+  return {
+    id: observation.id,
+    name: observation.data?.name || 'N/A',
+    placeId: observation.data?.placeId,
+    phone: observation.data?.phone,
+    website: observation.data?.website,
+    address: observation.data?.address,
+    keyword: observation.data?.keyword || 'unknown',
+    captureMode: observation.captureMode,
+    capturedAt: observation.capturedAt,
+    projectId: observation.projectId,
+    source: observation.captureMode === 'bulk' ? 'bulk' : 'passive'
+  }
+}
+
 export function useChromeStorage() {
   const results = ref([])
   const popupSize = ref({ width: 500, height: 600 })
@@ -11,35 +30,20 @@ export function useChromeStorage() {
 
   async function load() {
     return new Promise(resolve => {
-      chrome.storage.local.get(['results', 'popupSize', 'panelWidth', 'pt.activeProjectId', 'pt.projects'], ({ results: stored = [], popupSize: size, panelWidth: width, 'pt.activeProjectId': activeProjectId, 'pt.projects': projectsData = [] }) => {
+      chrome.storage.local.get(['pt.observations', 'popupSize', 'panelWidth', 'pt.activeProjectId', 'pt.projects'], ({ 'pt.observations': observations = [], popupSize: size, panelWidth: width, 'pt.activeProjectId': activeProjectId, 'pt.projects': projectsData = [] }) => {
         // Convert projects object to array if needed
         const projects = Array.isArray(projectsData) ? projectsData : Object.values(projectsData || {})
 
-        console.log('[useChromeStorage] All storage keys:', Object.keys({ results: stored, popupSize: size, panelWidth: width, 'pt.activeProjectId': activeProjectId, 'pt.projects': projects }))
-        console.log('[useChromeStorage] Loading data:', {
-          resultsCount: stored.length,
+        console.log('[useChromeStorage] Loading observations:', {
+          observationsCount: observations.length,
           activeProjectId,
-          projectsCount: projects.length,
-          projects,
-          storedResults: stored.slice(0, 2) // Show first 2 results
+          projectsCount: projects.length
         })
 
-        // Enrich results with project information
-        const enriched = stored.map(result => {
-          const matchedProject = activeProjectId && projects.length > 0
-            ? projects.find(p => p.id === activeProjectId)
-            : null
+        // Convert observations to results format
+        const converted = observations.map(obs => observationToResult(obs))
 
-          console.log(`[useChromeStorage] Result "${result.name}": projectId=${result.projectId}, activeProjectId=${activeProjectId}, matched=${!!matchedProject}, projectName=${matchedProject?.name || 'N/A'}`)
-
-          return {
-            ...result,
-            projectId: activeProjectId,
-            project: matchedProject
-          }
-        })
-
-        results.value = enriched
+        results.value = converted
         if (size) {
           popupSize.value = size
         }
@@ -53,7 +57,8 @@ export function useChromeStorage() {
 
   function setAll(newResults) {
     return new Promise(resolve => {
-      chrome.storage.local.set({ results: toPlain(newResults) }, () => {
+      // Store as observations in the observations key
+      chrome.storage.local.set({ 'pt.observations': toPlain(newResults) }, () => {
         results.value = newResults
         resolve()
       })

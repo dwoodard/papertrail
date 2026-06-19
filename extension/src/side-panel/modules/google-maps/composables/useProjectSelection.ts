@@ -20,29 +20,43 @@ export function useProjectSelection() {
     try {
       projects.value = await fetchProjects()
 
-      // Restore last selected project from localStorage
-      const saved = localStorage.getItem(STORAGE_KEY)
-      if (saved && projects.value.some(p => p.id === saved)) {
-        selectedProjectId.value = saved
-      } else if (projects.value.length > 0) {
-        // Default to first project if no saved selection
-        selectedProjectId.value = projects.value[0].id
-      }
+      // Restore last selected project from chrome.storage.local (syncs across all contexts)
+      return new Promise<void>((resolve) => {
+        chrome.storage.local.get([STORAGE_KEY], (result) => {
+          const saved = result[STORAGE_KEY]
+          if (saved && projects.value.some(p => p.id === saved)) {
+            selectedProjectId.value = saved
+          } else if (projects.value.length > 0) {
+            // Default to first project if no saved selection
+            selectedProjectId.value = projects.value[0].id
+            chrome.storage.local.set({ [STORAGE_KEY]: projects.value[0].id })
+          }
+          isLoading.value = false
+          resolve()
+        })
+      })
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to load projects'
       console.error('Error loading projects:', err)
-    } finally {
       isLoading.value = false
     }
   }
 
   function selectProject(projectId: string) {
     selectedProjectId.value = projectId
-    localStorage.setItem(STORAGE_KEY, projectId)
+    chrome.storage.local.set({ [STORAGE_KEY]: projectId })
   }
 
   onMounted(() => {
     loadProjects()
+  })
+
+  // Listen for project changes from other contexts (popup, etc)
+  chrome.storage.local.onChanged.addListener((changes) => {
+    if (changes[STORAGE_KEY]) {
+      selectedProjectId.value = changes[STORAGE_KEY].newValue || null
+      console.log(`[useProjectSelection] Project changed to: ${selectedProjectId.value}`)
+    }
   })
 
   return {

@@ -250,6 +250,8 @@ const exportData = computed(() => {
 
 onMounted(async () => {
   await storage.load()
+  await projectSelection.loadProjects()
+
   const tab = (await chrome.tabs.query({ active: true, currentWindow: true }))[0]
   if (tab) {
     messaging.loadCaptured()
@@ -257,18 +259,6 @@ onMounted(async () => {
   // Auto-Capture is always on — enable passive listening by default
   activeToggle.value = true
   await messaging.activate(true)
-
-  // Load active project from Chrome storage
-  chrome.storage.local.get(['pt.activeProjectId', 'pt.projects'], ({ 'pt.activeProjectId': activeProjectSlug, 'pt.projects': projectsData = [] }) => {
-    if (activeProjectSlug && projectsData.length > 0) {
-      // Find project by slug (pt.activeProjectId)
-      const project = projectsData.find(p => p.slug === activeProjectSlug)
-      if (project) {
-        activeProject.value = project
-        console.log(`[GoogleMapsModule] Active project loaded: ${project.name} (UUID: ${project.id})`)
-      }
-    }
-  })
 
   // Initialize panel width and layout
   if (contentArea.value) {
