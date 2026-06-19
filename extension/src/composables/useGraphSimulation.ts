@@ -119,8 +119,13 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
       return meetsConfidence && isVisibleType
     })
 
-    // Use all links - D3 will naturally handle missing nodes
-    const filteredLinks = data.links
+    // Filter links to only include those between visible nodes
+    const visibleNodeIds = new Set(filteredNodes.map(n => String(n.id)))
+    const filteredLinks = data.links.filter(link => {
+      const sourceId = typeof link.source === 'string' ? link.source : (link.source as any).id
+      const targetId = typeof link.target === 'string' ? link.target : (link.target as any).id
+      return visibleNodeIds.has(String(sourceId)) && visibleNodeIds.has(String(targetId))
+    })
 
     const width = container.value.clientWidth || 800
     const height = container.value.clientHeight || 600

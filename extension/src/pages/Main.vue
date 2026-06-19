@@ -138,7 +138,7 @@
                 <button
                   class="btn-controls"
                   @click.stop="showGraphControls = !showGraphControls"
-                  :class="{ 'controls-active': showGraphControls || graphMinConfidence > 0 || graphRepulsion !== -600 || graphNodesPerRow !== 4 || graphHorizontalGap !== 600 || graphVerticalGap !== 600 || graphGridForceStrength !== 0.25 || graphVisibleTypes.size < 5 }"
+                  :class="{ 'controls-active': showGraphControls || graphMinConfidence > 0 || graphRepulsion !== -1200 || graphNodesPerRow !== 4 || graphHorizontalGap !== 600 || graphVerticalGap !== 600 || graphGridForceStrength !== 0.25 || graphVisibleTypes.size < 5 }"
                 >
                   <span class="controls-icon">⚙</span>
                   <span>Controls</span>
@@ -257,7 +257,7 @@
                         v-model.number="graphHorizontalGap"
                         type="range"
                         min="200"
-                        max="1000"
+                        max="2000"
                         step="50"
                         class="control-slider"
                         title="Adjust horizontal spacing between columns"
@@ -273,7 +273,7 @@
                         v-model.number="graphVerticalGap"
                         type="range"
                         min="200"
-                        max="1000"
+                        max="2000"
                         step="50"
                         class="control-slider"
                         title="Adjust vertical spacing between rows"
@@ -307,7 +307,7 @@
                     </button>
                   </div>
 
-                  <div v-if="graphSearch || selectedGraphProject || graphMinConfidence > 0 || graphRepulsion !== -600 || graphNodesPerRow !== 4 || graphHorizontalGap !== 600 || graphVerticalGap !== 600 || graphGridForceStrength !== 0.25 || graphVisibleTypes.size < 5" class="control-group">
+                  <div v-if="graphSearch || selectedGraphProject || graphMinConfidence > 0 || graphRepulsion !== -1200 || graphNodesPerRow !== 4 || graphHorizontalGap !== 600 || graphVerticalGap !== 600 || graphGridForceStrength !== 0.25 || graphVisibleTypes.size < 5" class="control-group">
                     <button
                       class="btn-reset-dropdown"
                       @click="resetGraphFilters"
@@ -529,7 +529,7 @@ const selectedGraphProject = ref('')
 const selectedGraphNode = ref<GraphNode | null>(null)
 const graphSortBy = ref<'Name' | 'Size'>('Name')
 const graphMinConfidence = ref(0)
-const graphRepulsion = ref(-600)
+const graphRepulsion = ref(-1200)
 const graphNodesPerRow = ref(4)
 const graphVisibleTypes = ref<Set<string>>(new Set(['business', 'person', 'location', 'website', 'contact']))
 const graphHorizontalGap = ref(600)
@@ -801,7 +801,7 @@ async function resetGraphFilters(): Promise<void> {
   selectedGraphProject.value = ''
   await selectNodeInGraph(null)
   graphMinConfidence.value = 0
-  graphRepulsion.value = -600
+  graphRepulsion.value = -1200
   graphNodesPerRow.value = 4
   graphHorizontalGap.value = 600
   graphVerticalGap.value = 600
@@ -1042,7 +1042,13 @@ async function buildHubGraphData(): Promise<GraphData> {
         sortedNodes.sort((a, b) => (b.value || 0) - (a.value || 0))
       }
 
-      return { nodes: sortedNodes, links: allLinks }
+      // Filter links to only include those between visible nodes
+      const visibleNodeIds = new Set(sortedNodes.map(n => String(n.id)))
+      const filteredLinks = allLinks.filter((link: any) =>
+        visibleNodeIds.has(String(link.source)) && visibleNodeIds.has(String(link.target))
+      )
+
+      return { nodes: sortedNodes, links: filteredLinks }
     } else {
       // Single project selected
       const cacheKey = `${selectedGraphProject.value}:${graphSearch.value}`
@@ -1072,7 +1078,13 @@ async function buildHubGraphData(): Promise<GraphData> {
         nodes.sort((a, b) => (b.value || 0) - (a.value || 0))
       }
 
-      return { nodes, links: projectData.links }
+      // Filter links to only include those between visible nodes
+      const visibleNodeIds = new Set(nodes.map((n: any) => String(n.id)))
+      const filteredLinks = projectData.links.filter((link: any) =>
+        visibleNodeIds.has(String(link.source)) && visibleNodeIds.has(String(link.target))
+      )
+
+      return { nodes, links: filteredLinks }
     }
   } catch (error) {
     console.error('Failed to build hub graph data:', error)
@@ -1083,15 +1095,27 @@ async function buildHubGraphData(): Promise<GraphData> {
 // Initialize/update hub graph when tab opens or filters change
 watch(
   [activeTab, selectedGraphProject, graphSearch, graphMinConfidence, graphRepulsion, graphSortBy, graphVisibleTypes],
-  async ([newTab]) => {
-    if (newTab === 'Graph' && hubGraphContainer.value) {
+  async () => {
+    if (activeTab.value === 'Graph' && hubGraphContainer.value) {
       setTimeout(async () => {
         const hubData = await buildHubGraphData()
-        initializeGraph(hubData, async (node) => {
+        // Always initialize graph (even with empty data) to properly clean up D3 state
+        console.log('[watch] Reinitializing graph with', hubData.nodes.length, 'nodes')
+
+        // Create a non-async click handler wrapper
+        const clickHandler = (node: any) => {
           console.log('[graph-click-callback] Node selected:', node?.id, node?.name)
-          await selectNodeInGraph(node ? node.id : null)
-        }, true)
-        setViewMode(currentViewMode.value)
+          selectNodeInGraph(node ? node.id : null).catch(err => console.error('[clickHandler] Error:', err))
+        }
+
+        try {
+          initializeGraph(hubData, clickHandler, true)
+          if (hubData.nodes.length > 0) {
+            setViewMode(currentViewMode.value)
+          }
+        } catch (error) {
+          console.error('[watch] Error initializing graph:', error)
+        }
       }, 100)
     }
   },
