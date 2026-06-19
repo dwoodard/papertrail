@@ -119,14 +119,8 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
       return meetsConfidence && isVisibleType
     })
 
-    const nodeIds = new Set(filteredNodes.map(n => n.id))
-
-    // Filter links based on active nodes
-    const filteredLinks = data.links.filter(l => {
-      const sId = typeof l.source === 'string' ? l.source : (l.source as any).id
-      const tId = typeof l.target === 'string' ? l.target : (l.target as any).id
-      return nodeIds.has(sId) && nodeIds.has(tId)
-    })
+    // Use all links - D3 will naturally handle missing nodes
+    const filteredLinks = data.links
 
     const width = container.value.clientWidth || 800
     const height = container.value.clientHeight || 600
@@ -139,6 +133,14 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
     }
 
     console.log(`Initializing graph with dimensions: ${width}x${height}`)
+    console.log('[useGraphSimulation] Input data:', {
+      totalNodes: data.nodes.length,
+      totalLinks: data.links.length,
+      filteredNodesCount: filteredNodes.length,
+      filteredLinksCount: filteredLinks.length,
+      nodeIdSample: filteredNodes.slice(0, 3).map(n => n.id),
+      linkSample: filteredLinks.slice(0, 3),
+    })
 
     // Clear previous
     d3.select(container.value).selectAll('svg').remove()
@@ -344,7 +346,9 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
           .attr('stroke', (n: GraphNode) => (n.id === selectedNode.value?.id ? '#06b6d4' : '#3a4557'))
       })
 
-    console.log(`Created ${link.size()} links`)
+    const linkCount = link.size()
+    console.log(`[useGraphSimulation] Created ${linkCount} link elements in SVG`)
+    console.log('[useGraphSimulation] Link data sample:', filteredLinks.slice(0, 3))
 
     // Create cluster hull circles for visual grouping
     const clusterHulls = g
