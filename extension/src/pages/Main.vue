@@ -37,11 +37,11 @@
       <main class="content">
         <!-- Overview Tab -->
         <div v-show="activeTab === 'Overview'" class="tab-pane">
-          <section v-if="projects.length > 0" class="projects-section">
+          <section v-if="allGraphProjects.length > 0" class="projects-section">
             <h2 class="section-title">Active Projects</h2>
             <div class="projects-grid">
               <article
-                v-for="project in projects"
+                v-for="project in allGraphProjects"
                 :key="project.id"
                 class="project-card"
                 @click="selectedProject = project"
@@ -55,21 +55,21 @@
 
                 <div class="project-card__stats">
                   <div class="stat">
-                    <span class="stat__value">{{ project.observations }}</span>
-                    <span class="stat__label">observations</span>
+                    <span class="stat__value">{{ project.placeCount }}</span>
+                    <span class="stat__label">places</span>
                   </div>
                   <div class="stat">
-                    <span class="stat__value">{{ project.entities }}</span>
-                    <span class="stat__label">entities</span>
+                    <span class="stat__value">{{ project.nodeCount }}</span>
+                    <span class="stat__label">nodes</span>
                   </div>
                   <div class="stat">
-                    <span class="stat__value">{{ project.suggestions }}</span>
-                    <span class="stat__label">suggestions</span>
+                    <span class="stat__value">{{ project.edgeCount }}</span>
+                    <span class="stat__label">edges</span>
                   </div>
                 </div>
 
                 <div class="project-card__footer">
-                  <time class="project-card__time">{{ project.lastActivity }}</time>
+                  <time class="project-card__time">{{ new Date().toLocaleDateString() }}</time>
                   <div class="project-card__actions">
                     <button class="btn-action" title="Open project">
                       <span>→</span>
