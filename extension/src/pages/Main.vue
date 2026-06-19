@@ -377,11 +377,7 @@
                         v-for="(relation, index) in selectedNodeRelations"
                         :key="index"
                         class="relation-item"
-                        @click="(event) => {
-                            console.log(relation.nodeId);
-
-                          selectNodeInGraph(relation.nodeId)
-                        }"
+                        @click="() => selectRelationNode(relation)"
                         @mouseenter="highlightNodeInGraph(relation.nodeId)"
                         @mouseleave="clearGraphHighlight"
                       >
@@ -768,6 +764,17 @@ const totalRelationshipsCount = computed(() => {
 
 const selectedNodeRelations = ref<any[]>([])
 
+function normalizeNodeType(dbType: string): string {
+  const typeMap: Record<string, string> = {
+    'phone': 'contact',
+    'domain': 'website',
+    'address': 'location',
+    'city': 'location',
+    'category': 'business',
+  }
+  return typeMap[dbType] || dbType
+}
+
 const loadNodeRelations = async () => {
   if (!selectedGraphNode.value) {
     selectedNodeRelations.value = []
@@ -779,7 +786,7 @@ const loadNodeRelations = async () => {
     selectedNodeRelations.value = relations.map(r => ({
       nodeId: r.nodeId,
       nodeName: r.nodeName,
-      nodeType: r.nodeType,
+      nodeType: normalizeNodeType(r.nodeType),
       relationType: r.relationType,
       connectionCount: r.connectionCount,
     }))
@@ -789,10 +796,10 @@ const loadNodeRelations = async () => {
   }
 }
 
-function resetGraphFilters(): void {
+async function resetGraphFilters(): Promise<void> {
   graphSearch.value = ''
   selectedGraphProject.value = ''
-  selectNodeInGraph(null)
+  await selectNodeInGraph(null)
   graphMinConfidence.value = 0
   graphRepulsion.value = -600
   graphNodesPerRow.value = 4
@@ -811,7 +818,22 @@ function navigateToProjectGraph(): void {
   activeTab.value = 'Graph'
 }
 
-function selectNodeInGraph(nodeId: string | null): void {
+async function selectRelationNode(relation: any): Promise<void> {
+  console.log('[selectRelationNode] Selecting relation:', relation.nodeId, relation.nodeType)
+
+  // Ensure the node type is visible
+  if (!graphVisibleTypes.value.has(relation.nodeType)) {
+    const newTypes = new Set(graphVisibleTypes.value)
+    newTypes.add(relation.nodeType)
+    graphVisibleTypes.value = newTypes
+    console.log('[selectRelationNode] Unhid type:', relation.nodeType)
+  }
+
+  // Select the node
+  await selectNodeInGraph(relation.nodeId)
+}
+
+async function selectNodeInGraph(nodeId: string | null): Promise<void> {
   console.log(`[selectNodeInGraph] Called with nodeId: ${nodeId}`)
 
   if (!nodeId) {
@@ -837,11 +859,34 @@ function selectNodeInGraph(nodeId: string | null): void {
     return
   }
 
-  const hubData = buildHubGraphData()
-  const nodeToSelect = hubData.nodes.find((n) => n.id === nodeId)
+  let hubData = await buildHubGraphData()
+  let nodeToSelect = hubData.nodes.find((n) => String(n.id) === String(nodeId))
 
   if (!nodeToSelect) {
-    console.log(`[selectNodeInGraph] Node not found: ${nodeId}`)
+    console.log(`[selectNodeInGraph] Node not found in current view: ${nodeId}, searching all projects...`)
+    // Node might be from a different project. Load all projects without filters
+    const allNodes: GraphNode[] = []
+    for (const project of allGraphProjects.value) {
+      try {
+        const projectData = await graphApiClient.getProjectGraph(project.id, { types: [] })
+        projectData.nodes.forEach((node: any) => {
+          if (!allNodes.find(n => String(n.id) === String(node.id))) {
+            allNodes.push({
+              ...node,
+              project: { id: project.id, name: project.name },
+              name: node.label,
+            } as GraphNode)
+          }
+        })
+      } catch (error) {
+        console.error(`[selectNodeInGraph] Failed to load project ${project.id}:`, error)
+      }
+    }
+    nodeToSelect = allNodes.find((n) => String(n.id) === String(nodeId))
+  }
+
+  if (!nodeToSelect) {
+    console.log(`[selectNodeInGraph] Node not found in any project: ${nodeId}`)
     return
   }
 
@@ -1042,9 +1087,9 @@ watch(
     if (newTab === 'Graph' && hubGraphContainer.value) {
       setTimeout(async () => {
         const hubData = await buildHubGraphData()
-        initializeGraph(hubData, (node) => {
+        initializeGraph(hubData, async (node) => {
           console.log('[graph-click-callback] Node selected:', node?.id, node?.name)
-          selectNodeInGraph(node ? node.id : null)
+          await selectNodeInGraph(node ? node.id : null)
         }, true)
         setViewMode(currentViewMode.value)
       }, 100)
