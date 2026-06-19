@@ -22,6 +22,11 @@ class ProjectSeeder extends Seeder
         // Create sample projects
         $projects = [
             [
+                // salt rock company
+                'name' => 'Salt Rock Company',
+                'goal' => 'Find leads that relate to Salt Rock Company for partnerships',
+            ],
+            [
                 'name' => 'Tech Startup Network',
                 'goal' => 'Map relationships between tech startups and founders',
             ],
