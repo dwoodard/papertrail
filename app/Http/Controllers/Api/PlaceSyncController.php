@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Actions\Graph\PlaceToGraphImporter;
 use App\Http\Controllers\Controller;
 use App\Models\Place;
 use App\Models\Project;
-use App\Services\PlaceGraphSyncService;
 use App\Services\PlaceNormalizer;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
@@ -17,7 +17,7 @@ class PlaceSyncController extends Controller
     use AuthorizesRequests;
 
     public function __construct(
-        private PlaceGraphSyncService $graphSync,
+        private PlaceToGraphImporter $graphImporter,
     ) {}
 
     public function sync(Request $request): JsonResponse
@@ -48,8 +48,8 @@ class PlaceSyncController extends Controller
                 $normalized
             );
 
-            // Sync place to graph
-            $this->graphSync->syncPlace($result);
+            // Create graph nodes and edges
+            $this->graphImporter->execute($result);
 
             if ($result->wasRecentlyCreated) {
                 $created++;

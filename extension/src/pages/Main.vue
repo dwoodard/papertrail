@@ -526,12 +526,17 @@ import { ref, reactive, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { FlipHorizontal, LockOpen } from '@lucide/vue'
 import ProjectDetail from './ProjectDetail.vue'
 import { useGraphSimulation, type GraphData, type GraphNode, type ViewModeId } from '../composables/useGraphSimulation'
-import graphExamples from '../data/examples/graphs.json'
+import { graphApiClient } from '../services/graphApiClient'
 
 const activeTab = ref('Overview')
 const tabs = ['Overview', 'Graph', 'Entities', 'Timeline']
 const showCreateModal = ref(false)
 const selectedProject = ref<any>(null)
+
+// Graph API state
+const allGraphProjects = ref<any[]>([])
+const graphProjectsLoading = ref(false)
+const graphDataCache = new Map<string, any>()
 
 // Graph view state
 const hubGraphContainer = ref<HTMLElement | null>(null)
@@ -561,20 +566,7 @@ const graphConfig = {
 const { initializeGraph, centerNode, setViewMode, updateForces, setGridConfig, resetLockedNodes, lockedNodes, selectNodeById, fitToView } = useGraphSimulation(hubGraphContainer, graphConfig)
 
 const availableProjects = computed(() => {
-  const projectSet = new Set<string>()
-
-  // Add example IDs
-  ;(graphExamples.examples as any[]).forEach((example) => {
-    projectSet.add(example.id)
-    // Also add node-level projects
-    example.nodes.forEach((node: any) => {
-      if (node.project) {
-        projectSet.add(node.project)
-      }
-    })
-  })
-
-  return Array.from(projectSet).sort()
+  return allGraphProjects.value.map(p => p.id).sort()
 })
 
 function closeGraphControls() {
@@ -646,6 +638,17 @@ onMounted(async () => {
     console.error('[Main.vue] Failed to load projects from API:', err)
   }
 
+  // Fetch graph projects from new API
+  try {
+    graphProjectsLoading.value = true
+    allGraphProjects.value = await graphApiClient.getProjects()
+    console.log('[Main.vue] Graph projects loaded:', allGraphProjects.value.length)
+  } catch (err) {
+    console.error('[Main.vue] Failed to load graph projects:', err)
+  } finally {
+    graphProjectsLoading.value = false
+  }
+
   // Save projects to storage on mount
   saveProjectsToStorage()
 
@@ -672,6 +675,11 @@ watch(selectedProject, (newProject) => {
   if (newProject) {
     chrome.storage.local.set({ 'pt.activeProjectId': newProject.id })
   }
+})
+
+// Load node relations when node is selected
+watch(selectedGraphNode, () => {
+  loadNodeRelations()
 })
 
 const form = reactive({
@@ -739,62 +747,35 @@ function createProject(): void {
 
 // Graph view functions
 const totalEntitiesCount = computed(() => {
-  return (graphExamples.examples as any[]).reduce((sum, example) => sum + example.nodes.length, 0)
+  return allGraphProjects.value.reduce((sum, project) => sum + (project.nodeCount || 0), 0)
 })
 
 const totalRelationshipsCount = computed(() => {
-  return (graphExamples.examples as any[]).reduce((sum, example) => sum + example.links.length, 0)
+  return allGraphProjects.value.reduce((sum, project) => sum + (project.edgeCount || 0), 0)
 })
 
-const selectedNodeRelations = computed(() => {
-  if (!selectedGraphNode.value) return []
+const selectedNodeRelations = ref<any[]>([])
 
-  const relations: Array<{ nodeId: string; nodeName: string; nodeType: string; relationType: string; connectionCount: number }> = []
-  const nodeId = selectedGraphNode.value.id
-  const connectionCounts = new Map<string, number>()
+const loadNodeRelations = async () => {
+  if (!selectedGraphNode.value) {
+    selectedNodeRelations.value = []
+    return
+  }
 
-  ;(graphExamples.examples as any[]).forEach((example) => {
-    // Count connections for each node
-    example.links.forEach((link: any) => {
-      const sourceId = typeof link.source === 'string' ? link.source : link.source.id
-      const targetId = typeof link.target === 'string' ? link.target : link.target.id
-      connectionCounts.set(sourceId, (connectionCounts.get(sourceId) || 0) + 1)
-      connectionCounts.set(targetId, (connectionCounts.get(targetId) || 0) + 1)
-    })
-
-    // Build relations list
-    example.links.forEach((link: any) => {
-      const sourceId = typeof link.source === 'string' ? link.source : link.source.id
-      const targetId = typeof link.target === 'string' ? link.target : link.target.id
-
-      if (sourceId === nodeId) {
-        const targetNode = example.nodes.find((n: any) => n.id === targetId)
-        if (targetNode) {
-          relations.push({
-            nodeId: targetId,
-            nodeName: targetNode.name,
-            nodeType: targetNode.type,
-            relationType: link.type,
-            connectionCount: connectionCounts.get(targetId) || 0,
-          })
-        }
-      } else if (targetId === nodeId) {
-        const sourceNode = example.nodes.find((n: any) => n.id === sourceId)
-        if (sourceNode) {
-          relations.push({
-            nodeId: sourceId,
-            nodeName: sourceNode.name,
-            nodeType: sourceNode.type,
-            relationType: link.type,
-            connectionCount: connectionCounts.get(sourceId) || 0,
-          })
-        }
-      }
-    })
-  })
-
-  return relations
-})
+  try {
+    const relations = await graphApiClient.getNodeRelations(selectedGraphNode.value.id)
+    selectedNodeRelations.value = relations.map(r => ({
+      nodeId: r.nodeId,
+      nodeName: r.nodeName,
+      nodeType: r.nodeType,
+      relationType: r.relationType,
+      connectionCount: r.connectionCount,
+    }))
+  } catch (error) {
+    console.error('Failed to load node relations:', error)
+    selectedNodeRelations.value = []
+  }
+}
 
 function resetGraphFilters(): void {
   graphSearch.value = ''
@@ -814,16 +795,9 @@ function resetGraphFilters(): void {
 function navigateToProjectGraph(): void {
   if (!selectedGraphNode.value) return
 
-  // Find which project contains this node
-  const project = projects.value.find((p) => {
-    const exampleProject = (graphExamples.examples as any[]).find((ex) => ex.id === p.id)
-    if (!exampleProject) return false
-    return exampleProject.nodes.some((n: any) => n.id === selectedGraphNode.value!.id)
-  })
-
-  if (project) {
-    selectedProject.value = project
-  }
+  // Set selected graph project and switch to graph tab
+  selectedGraphProject.value = selectedGraphNode.value.project?.id || ''
+  activeTab.value = 'Graph'
 }
 
 function selectNodeInGraph(nodeId: string | null): void {
@@ -904,7 +878,7 @@ function highlightNodeInGraph(nodeId: string): void {
   })
 }
 
-function clearGraphHighlight(): void {
+async function clearGraphHighlight(): Promise<void> {
   const container = hubGraphContainer.value
   if (!container) return
 
@@ -914,12 +888,12 @@ function clearGraphHighlight(): void {
   const d3 = (window as any).d3
   if (!d3) return
 
-  const hubData = buildHubGraphData()
+  const hubData = await buildHubGraphData()
   const selectedNodeId = selectedGraphNode.value?.id
   const connectedNodeIds = new Set<string>()
 
   if (selectedNodeId) {
-    hubData.links.forEach((link) => {
+    hubData.links.forEach((link: any) => {
       const sourceId = typeof link.source === 'string' ? link.source : (link.source as any).id
       const targetId = typeof link.target === 'string' ? link.target : (link.target as any).id
 
@@ -966,94 +940,97 @@ function centerStatsPanel(): void {
   }
 }
 
-function buildHubGraphData(): GraphData {
-  // Combine all example graphs into one with project labels, optionally filtered by project
-  const allNodes: GraphNode[] = []
-  const allLinks: any[] = []
-  const nodeMap = new Map<string, GraphNode>()
-  const connectionCounts = new Map<string, number>()
+async function buildHubGraphData(): Promise<GraphData> {
+  try {
+    // If no project selected, combine data from all projects
+    if (!selectedGraphProject.value) {
+      const allNodes: GraphNode[] = []
+      const allLinks: any[] = []
+      const nodeMap = new Map<string, GraphNode>()
 
-  ;(graphExamples.examples as any[]).forEach((example) => {
-    example.nodes.forEach((node: any) => {
-      // Determine the project for this node (node-level or example-level)
-      const nodeProject = node.project || example.id
+      for (const project of allGraphProjects.value) {
+        const cacheKey = `${project.id}:${graphSearch.value}`
+        let projectData = graphDataCache.get(cacheKey)
 
-      // Filter by selected project (can be example ID or node-level project)
-      if (selectedGraphProject.value && selectedGraphProject.value !== example.id && selectedGraphProject.value !== nodeProject) {
-        return
-      }
-
-      // Filter by search query (case-insensitive)
-      const matchesSearch = !graphSearch.value ||
-        node.name.toLowerCase().includes(graphSearch.value.toLowerCase())
-
-      if (!matchesSearch) return
-
-      if (!nodeMap.has(node.id)) {
-        // Find the project object matching this node's project ID
-        const projectObj = projects.value.find(p => p.id === nodeProject) || {
-          id: nodeProject,
-          name: nodeProject,
+        if (!projectData) {
+          projectData = await graphApiClient.getProjectGraph(project.id, {
+            search: graphSearch.value || undefined,
+            types: Array.from(graphVisibleTypes.value),
+          })
+          graphDataCache.set(cacheKey, projectData)
         }
 
-        const graphNode: GraphNode = {
-          ...node,
-          project: projectObj,
-          name: node.name,
-        }
-        allNodes.push(graphNode)
-        nodeMap.set(node.id, graphNode)
-        connectionCounts.set(node.id, 0)
+        // Add project info to nodes
+        projectData.nodes.forEach((node: any) => {
+          if (!nodeMap.has(node.id)) {
+            const graphNode: GraphNode = {
+              ...node,
+              project: { id: project.id, name: project.name },
+              name: node.label,
+            }
+            allNodes.push(graphNode)
+            nodeMap.set(node.id, graphNode)
+          }
+        })
+
+        projectData.links.forEach((link: any) => {
+          allLinks.push(link)
+        })
       }
-    })
 
-    example.links.forEach((link: any) => {
-      allLinks.push(link)
-    })
-  })
+      // Sort nodes
+      const sortedNodes = [...allNodes]
+      if (graphSortBy.value === 'Name') {
+        sortedNodes.sort((a, b) => a.name.localeCompare(b.name))
+      } else if (graphSortBy.value === 'Size') {
+        sortedNodes.sort((a, b) => (b.value || 0) - (a.value || 0))
+      }
 
-  // Count connections for each node
-  allLinks.forEach((link: any) => {
-    const sourceId = typeof link.source === 'string' ? link.source : link.source.id
-    const targetId = typeof link.target === 'string' ? link.target : link.target.id
-    if (connectionCounts.has(sourceId)) {
-      connectionCounts.set(sourceId, (connectionCounts.get(sourceId) || 0) + 1)
+      return { nodes: sortedNodes, links: allLinks }
+    } else {
+      // Single project selected
+      const cacheKey = `${selectedGraphProject.value}:${graphSearch.value}`
+      let projectData = graphDataCache.get(cacheKey)
+
+      if (!projectData) {
+        projectData = await graphApiClient.getProjectGraph(selectedGraphProject.value, {
+          search: graphSearch.value || undefined,
+          types: Array.from(graphVisibleTypes.value),
+        })
+        graphDataCache.set(cacheKey, projectData)
+      }
+
+      const graphNode = allGraphProjects.value.find(p => p.id === selectedGraphProject.value)
+      const project = graphNode || { id: selectedGraphProject.value, name: selectedGraphProject.value }
+
+      const nodes = projectData.nodes.map((node: any) => ({
+        ...node,
+        project,
+        name: node.label,
+      }))
+
+      // Sort nodes
+      if (graphSortBy.value === 'Name') {
+        nodes.sort((a, b) => a.name.localeCompare(b.name))
+      } else if (graphSortBy.value === 'Size') {
+        nodes.sort((a, b) => (b.value || 0) - (a.value || 0))
+      }
+
+      return { nodes, links: projectData.links }
     }
-    if (connectionCounts.has(targetId)) {
-      connectionCounts.set(targetId, (connectionCounts.get(targetId) || 0) + 1)
-    }
-  })
-
-  // Update node values based on connection count
-  allNodes.forEach((node) => {
-    node.value = connectionCounts.get(node.id) || 0
-  })
-
-  // Filter links to only include those between existing nodes
-  const validLinks = allLinks.filter((link: any) => {
-    const sourceId = typeof link.source === 'string' ? link.source : link.source.id
-    const targetId = typeof link.target === 'string' ? link.target : link.target.id
-    return nodeMap.has(sourceId) && nodeMap.has(targetId)
-  })
-
-  // Sort nodes based on current sort mode
-  const sortedNodes = [...allNodes]
-  if (graphSortBy.value === 'Name') {
-    sortedNodes.sort((a, b) => a.name.localeCompare(b.name))
-  } else if (graphSortBy.value === 'Size') {
-    sortedNodes.sort((a, b) => (b.value || 0) - (a.value || 0))
+  } catch (error) {
+    console.error('Failed to build hub graph data:', error)
+    return { nodes: [], links: [] }
   }
-
-  return { nodes: sortedNodes, links: validLinks }
 }
 
 // Initialize/update hub graph when tab opens or filters change
 watch(
   [activeTab, selectedGraphProject, graphSearch, graphMinConfidence, graphRepulsion, graphShowSuggested, graphSortBy, graphVisibleTypes],
-  ([newTab]) => {
+  async ([newTab]) => {
     if (newTab === 'Graph' && hubGraphContainer.value) {
-      setTimeout(() => {
-        const hubData = buildHubGraphData()
+      setTimeout(async () => {
+        const hubData = await buildHubGraphData()
         initializeGraph(hubData, (node) => {
           console.log('[graph-click-callback] Node selected:', node?.id, node?.name)
           selectNodeInGraph(node ? node.id : null)
