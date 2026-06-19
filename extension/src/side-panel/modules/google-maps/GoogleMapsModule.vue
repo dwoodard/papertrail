@@ -6,8 +6,11 @@
       :results="exportData"
       :is-side-panel="isSidePanel"
       :selected-keyword="selectedKeyword"
+      :projects="projectSelection.projects.value"
+      :selected-project-id="projectSelection.selectedProjectId.value"
       @toggle-active="handleToggleActive"
       @clean-done="handleCleanDone"
+      @select-project="projectSelection.selectProject"
     />
 
     <!-- Active Project Display -->
@@ -127,11 +130,16 @@ import { useChromeStorage } from './composables/useChromeStorage.js'
 import { useKeywordGroups } from './composables/useKeywordGroups.js'
 import { useContentMessaging } from './composables/useContentMessaging.js'
 import { useSyncPlaces } from './composables/useSyncPlaces'
+import { useProjectSelection } from './composables/useProjectSelection'
 
 const storage = useChromeStorage()
 const { results, popupSize, panelWidth } = storage
 
 const syncState = useSyncPlaces()
+const projectSelection = useProjectSelection()
+
+// Update activeProject when selectedProjectId changes
+const activeProject = computed(() => projectSelection.selectedProject.value)
 
 const selectedKeyword = ref(null)
 const pendingClear = ref(null)
@@ -139,7 +147,6 @@ const activeToggle = ref(false)
 const contentArea = ref(null)
 const panelDivider = ref(null)
 const resultsTable = ref(null)
-const activeProject = ref(null)
 let isResizingPanel = false
 
 const keywordGroups = useKeywordGroups(results)

@@ -3,6 +3,20 @@
     <div class="header-top">
       <h1>Google Maps Scraper</h1>
       <div class="header-buttons">
+        <div class="project-selector">
+          <label for="project-select">Project:</label>
+          <select
+            id="project-select"
+            :value="selectedProjectId"
+            @change="selectProject"
+            title="Select project to sync to"
+          >
+            <option value="" disabled>Choose a project...</option>
+            <option v-for="project in projects" :key="project.id" :value="project.id">
+              {{ project.name }}
+            </option>
+          </select>
+        </div>
         <button v-if="!isSidePanel" class="btn-header" @click="openSidePanel" title="Open side panel for persistent view">📍 Side Panel</button>
         <DataManager @clean-done="$emit('clean-done')" />
         <ExportDropdown :results="results" :keyword="selectedKeyword" />
@@ -32,10 +46,16 @@ defineProps({
   total: Number,
   results: Array,
   isSidePanel: Boolean,
-  selectedKeyword: String
+  selectedKeyword: String,
+  projects: Array,
+  selectedProjectId: String,
 })
 
-defineEmits(['toggle-active', 'clean-done'])
+defineEmits(['toggle-active', 'clean-done', 'select-project'])
+
+function selectProject(event) {
+  $emit('select-project', event.target.value)
+}
 
 async function openSidePanel() {
   try {
@@ -65,6 +85,28 @@ h1 {
   display: flex;
   gap: 8px;
   align-items: center;
+}
+
+.project-selector {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.project-selector label {
+  font-size: 12px;
+  font-weight: 500;
+  color: #666;
+}
+
+.project-selector select {
+  padding: 6px 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: white;
+  font-size: 12px;
+  cursor: pointer;
+  max-width: 180px;
 }
 
 .btn-header {
