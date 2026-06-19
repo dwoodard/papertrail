@@ -34,11 +34,21 @@ class ProjectController extends Controller
         $project = Project::where('id', $validated['id'])->first();
 
         if (! $project) {
+            // Generate unique slug
+            $baseSlug = Str::slug($validated['name']);
+            $slug = $baseSlug;
+            $counter = 1;
+
+            while (Project::where('slug', $slug)->exists()) {
+                $slug = "{$baseSlug}-{$counter}";
+                $counter++;
+            }
+
             $project = Project::create([
                 'id' => $validated['id'],
                 'user_id' => auth()->id() ?? 1, // Default to user 1 if not authenticated
                 'name' => $validated['name'],
-                'slug' => Str::slug($validated['name']),
+                'slug' => $slug,
                 'goal' => $validated['goal'],
                 'status' => 'active',
             ]);
