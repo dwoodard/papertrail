@@ -9,7 +9,7 @@ export default defineManifest({
     description:
         'Project-based OSINT collection workspace. Collects observations while browsing and surfaces an intelligence graph.',
     permissions: ['storage', 'activeTab', 'sidePanel', 'tabs', 'scripting', 'contextMenus'],
-    host_permissions: ['https://www.google.com/maps/*'],
+    host_permissions: ['https://www.google.com/maps/*', 'http://papertrail.test/*'],
     action: {
         default_title: 'Papertrail',
         default_popup: 'src/popup/index.html',

@@ -10,6 +10,12 @@
       @clean-done="handleCleanDone"
     />
 
+    <!-- Active Project Display -->
+    <div v-if="activeProject" class="project-display">
+      <span class="project-label">Project:</span>
+      <span class="project-name">{{ activeProject.name }}</span>
+    </div>
+
     <div v-if="isScraping" class="scraping-banner">
       <div class="scraping-spinner">⟳</div>
       <div class="scraping-text">
@@ -72,6 +78,24 @@
       @stop="handleStopScrape"
     />
 
+    <!-- Sync Section -->
+    <div v-if="results.length > 0" class="sync-section">
+      <button
+        class="sync-button"
+        :disabled="syncState.isSyncing.value || !activeProject"
+        @click="syncState.handleSync(activeProject.id, exportData)"
+      >
+        <span v-if="syncState.isSyncing.value" class="spinner">⟳</span>
+        {{ syncState.isSyncing.value ? 'Syncing...' : 'Sync to Papertrail' }}
+      </button>
+
+      <div v-if="syncState.syncMessage.value" class="sync-success">
+        {{ syncState.syncMessage.value }}
+      </div>
+      <div v-if="syncState.syncError.value" class="sync-error">
+        ✗ {{ syncState.syncError.value }}
+      </div>
+    </div>
 
     <ResizeHandle
       :popup-size="popupSize"
@@ -102,9 +126,12 @@ import ConfirmModal from './components/ConfirmModal.vue'
 import { useChromeStorage } from './composables/useChromeStorage.js'
 import { useKeywordGroups } from './composables/useKeywordGroups.js'
 import { useContentMessaging } from './composables/useContentMessaging.js'
+import { useSyncPlaces } from './composables/useSyncPlaces'
 
 const storage = useChromeStorage()
 const { results, popupSize, panelWidth } = storage
+
+const syncState = useSyncPlaces()
 
 const selectedKeyword = ref(null)
 const pendingClear = ref(null)
@@ -112,6 +139,7 @@ const activeToggle = ref(false)
 const contentArea = ref(null)
 const panelDivider = ref(null)
 const resultsTable = ref(null)
+const activeProject = ref(null)
 let isResizingPanel = false
 
 const keywordGroups = useKeywordGroups(results)
@@ -223,6 +251,18 @@ onMounted(async () => {
   activeToggle.value = true
   await messaging.activate(true)
 
+  // Load active project from Chrome storage
+  chrome.storage.local.get(['pt.activeProjectId', 'pt.projects'], ({ 'pt.activeProjectId': activeProjectSlug, 'pt.projects': projectsData = [] }) => {
+    if (activeProjectSlug && projectsData.length > 0) {
+      // Find project by slug (pt.activeProjectId)
+      const project = projectsData.find(p => p.slug === activeProjectSlug)
+      if (project) {
+        activeProject.value = project
+        console.log(`[GoogleMapsModule] Active project loaded: ${project.name} (UUID: ${project.id})`)
+      }
+    }
+  })
+
   // Initialize panel width and layout
   if (contentArea.value) {
     contentArea.value.style.setProperty('--left-panel-width', panelWidth.value + '%')
@@ -333,3 +373,91 @@ async function handleDeleteItem(entry) {
   }
 }
 </script>
+
+<style scoped>
+.project-display {
+  padding: 8px 16px;
+  border-bottom: 1px solid #e5e7eb;
+  background: #f0f9ff;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.project-label {
+  color: #0c4a6e;
+  font-weight: 500;
+}
+
+.project-name {
+  color: #0369a1;
+  font-weight: 600;
+}
+
+.sync-section {
+  padding: 12px 16px;
+  border-top: 1px solid #e5e7eb;
+  background: #f9fafb;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sync-button {
+  padding: 10px 14px;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: background 0.2s;
+}
+
+.sync-button:hover:not(:disabled) {
+  background: #2563eb;
+}
+
+.sync-button:disabled {
+  background: #d1d5db;
+  cursor: not-allowed;
+}
+
+.sync-button .spinner {
+  display: inline-block;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.sync-success {
+  color: #059669;
+  font-size: 12px;
+  padding: 6px;
+  background: #ecfdf5;
+  border-radius: 4px;
+  border-left: 3px solid #059669;
+}
+
+.sync-error {
+  color: #dc2626;
+  font-size: 12px;
+  padding: 6px;
+  background: #fef2f2;
+  border-radius: 4px;
+  border-left: 3px solid #dc2626;
+}
+</style>

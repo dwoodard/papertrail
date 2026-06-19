@@ -625,15 +625,35 @@ function toggleAllTypes(show: boolean) {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
+  // Fetch projects from API
+  try {
+    const response = await fetch('http://papertrail.test/api/projects')
+    const apiProjects = await response.json()
+
+    // Map API projects to include slug as id for chrome storage compatibility
+    projects.value = apiProjects.map(p => ({
+      ...p,
+      slug: p.slug || p.id, // Fallback to id if slug missing
+      observations: 0,
+      entities: 0,
+      suggestions: 0,
+      lastActivity: 'just now',
+    }))
+
+    console.log('[Main.vue] Projects loaded from API:', projects.value.length)
+  } catch (err) {
+    console.error('[Main.vue] Failed to load projects from API:', err)
+  }
+
   // Save projects to storage on mount
   saveProjectsToStorage()
 
   // Set first project as active by default
   if (projects.value.length > 0) {
-    console.log('[Main.vue] Setting active project to:', projects.value[0].id)
-    chrome.storage.local.set({ 'pt.activeProjectId': projects.value[0].id }, () => {
-      console.log('[Main.vue] Active project saved:', projects.value[0].id)
+    console.log('[Main.vue] Setting active project to:', projects.value[0].slug)
+    chrome.storage.local.set({ 'pt.activeProjectId': projects.value[0].slug }, () => {
+      console.log('[Main.vue] Active project saved:', projects.value[0].slug)
       debugStorage()
     })
   }
@@ -660,44 +680,7 @@ const form = reactive({
   target: '',
 })
 
-const projects = ref([
-  {
-    id: 'davis-county-contractors',
-    name: 'Davis County Contractors',
-    goal: 'Find decision makers for contractor businesses',
-    observations: 48,
-    entities: 12,
-    suggestions: 6,
-    lastActivity: '2 hours ago',
-  },
-  {
-    id: 'tech-research',
-    name: 'Tech Sector Analysis',
-    goal: 'Map key players and funding connections',
-    observations: 124,
-    entities: 35,
-    suggestions: 8,
-    lastActivity: '1 hour ago',
-  },
-  {
-    id: 'nonprofit-network',
-    name: 'Nonprofit Network Study',
-    goal: 'Understand funding patterns in nonprofit sector',
-    observations: 87,
-    entities: 28,
-    suggestions: 9,
-    lastActivity: '45 minutes ago',
-  },
-  {
-    id: 'real-estate-connections',
-    name: 'Real Estate Investment Group',
-    goal: 'Track commercial property ownership chains',
-    observations: 156,
-    entities: 42,
-    suggestions: 12,
-    lastActivity: '30 minutes ago',
-  },
-])
+const projects = ref([])
 
 function openWorkspace(): void {
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
