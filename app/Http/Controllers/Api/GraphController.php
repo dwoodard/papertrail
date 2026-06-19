@@ -70,11 +70,35 @@ class GraphController extends Controller
             'properties' => $node->properties,
         ])->keyBy('id');
 
-        // Get edges between nodes
-        $edges = GraphEdge::where('project_id', $projectId)
+        // Get all edges (including LOCATED_IN for location mapping)
+        $allEdges = GraphEdge::where('project_id', $projectId)
             ->whereIn('from_node_id', $nodes->keys())
+            ->get();
+
+        // Map nodes to their location (city) via LOCATED_IN edges
+        $nodeLocations = [];
+        foreach ($allEdges as $edge) {
+            if ($edge->type === 'LOCATED_IN') {
+                $locationNode = GraphNode::find($edge->to_node_id);
+                if ($locationNode && $locationNode->type === 'city') {
+                    $nodeLocations[$edge->from_node_id] = [
+                        'id' => $locationNode->id,
+                        'name' => $locationNode->label,
+                    ];
+                }
+            }
+        }
+
+        // Add location info to nodes
+        $nodes = $nodes->map(function ($node) use ($nodeLocations) {
+            return array_merge($node, [
+                'location' => $nodeLocations[$node['id']] ?? null,
+            ]);
+        });
+
+        // Get edges between nodes (only those within visible node set)
+        $edges = $allEdges
             ->whereIn('to_node_id', $nodes->keys())
-            ->get()
             ->map(fn ($edge) => [
                 'id' => $edge->id,
                 'source' => (int) $edge->from_node_id,

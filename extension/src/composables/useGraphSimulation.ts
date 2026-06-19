@@ -9,12 +9,18 @@ export interface GraphNode {
   confidence?: number
   x?: number
   y?: number
+  vx?: number
+  vy?: number
   fx?: number | null
   fy?: number | null
   project?: {
     id: string
     name: string
     goal?: string
+  }
+  location?: {
+    id: string
+    name: string
   }
 }
 
@@ -29,12 +35,12 @@ export interface GraphData {
   links: GraphLink[]
 }
 
-export type ViewModeId = 'Project' | 'Type' | 'Cluster'
+export type ViewModeId = 'Project' | 'Type' | 'Cluster' | 'Location'
 
 export const GRID_CONFIG = {
   nodesPerRow: 4,
-  horizontalGap: 600,
-  verticalGap: 600,
+  horizontalGap: 1000,
+  verticalGap: 2000,
   forceStrength: 0.25,
 }
 
@@ -68,6 +74,13 @@ export const VIEW_MODES: Record<ViewModeId, ViewModeConfig> = {
     showClusters: false,
     colorBy: 'type',
   },
+  Location: {
+    id: 'Location',
+    label: 'View by Location',
+    description: 'Organized by city/location',
+    showClusters: false,
+    colorBy: 'type',
+  },
 }
 
 export interface GraphViewState {
@@ -97,6 +110,8 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
   const viewState = ref<GraphViewState>({ zoom: { k: 1, x: 0, y: 0 }, selectedNodeId: null, viewMode: 'Cluster' })
   const gridConfigOverride = ref<GridConfigOverride>({})
   const zoomBehavior = ref<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null)
+  const attractForceActive = ref(false)
+  const attractTargetNodeId = ref<string | null>(null)
 
   const defaultConfig: GraphConfig = {
     minConfidence: ref(0),
@@ -104,6 +119,35 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
   }
 
   const activeConfig = config || defaultConfig
+
+  function createAttractionForce(targetNodeId: string, connectedNodeIds: Set<string>, strength = 1.2) {
+    let nodes: GraphNode[] = []
+
+    function force(alpha: number) {
+      const targetNode = nodes.find((n) => n.id === targetNodeId)
+      if (!targetNode) return
+
+      nodes.forEach((node) => {
+        if (!connectedNodeIds.has(node.id) || node.id === targetNodeId) return
+
+        const dx = targetNode.x! - node.x!
+        const dy = targetNode.y! - node.y!
+        const distance = Math.sqrt(dx * dx + dy * dy)
+
+        if (distance > 0) {
+          const k = (strength * alpha) / distance
+          node.vx = (node.vx || 0) + (dx / distance) * k
+          node.vy = (node.vy || 0) + (dy / distance) * k
+        }
+      })
+    }
+
+    force.initialize = function (newNodes: GraphNode[]) {
+      nodes = newNodes
+    }
+
+    return force
+  }
 
   function initializeGraph(data: GraphData, onNodeSelect: (node: GraphNode | null) => void, isHubView = false) {
     if (!container.value) {
@@ -119,13 +163,8 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
       return meetsConfidence && isVisibleType
     })
 
-    // Filter links to only include those between visible nodes
-    const visibleNodeIds = new Set(filteredNodes.map(n => String(n.id)))
-    const filteredLinks = data.links.filter(link => {
-      const sourceId = typeof link.source === 'string' ? link.source : (link.source as any).id
-      const targetId = typeof link.target === 'string' ? link.target : (link.target as any).id
-      return visibleNodeIds.has(String(sourceId)) && visibleNodeIds.has(String(targetId))
-    })
+    // Use all links - D3 handles missing nodes gracefully
+    const filteredLinks = data.links
 
     const width = container.value.clientWidth || 800
     const height = container.value.clientHeight || 600
@@ -272,12 +311,12 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
           .forceLink<GraphNode, GraphLink>(filteredLinks)
           .id((d: GraphNode) => d.id)
           .distance((d: GraphLink) => (centralNode && (d.source as GraphNode).id === centralNode.id ? 220 : 160))
-          .strength(0.5),
+          .strength(0.001),
       )
       .force('charge', d3.forceManyBody().strength(activeConfig.repulsion.value))
       .force('center', d3.forceCenter(width / 2, height / 2))
-      .force('collision', d3.forceCollide().radius(70))
-      .force('radial', d3.forceRadial((d: GraphNode) => (d.id === centralNode.id ? 0 : 280), width / 2, height / 2).strength(0.4))
+      .force('collision', d3.forceCollide().radius(25).strength(0.15))
+      .force('radial', null)
       .force('cluster', (alpha: number) => {
         filteredNodes.forEach((node) => {
           const projectId = node.project?.id || 'unknown'
@@ -417,7 +456,6 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
       .on('click', (event: any, d: GraphNode) => {
         event.stopPropagation()
         console.log('Node clicked:', d.id, d.name)
-        selectedNode.value = d
 
         // Find connected nodes
         const connectedNodeIds = new Set<string>()
@@ -433,8 +471,34 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
           }
         })
 
+        // Handle Shift+Click for attraction force
+        if (event.shiftKey) {
+          const isCurrentlyActive = attractForceActive.value && attractTargetNodeId.value === d.id
+
+          if (isCurrentlyActive) {
+            // Toggle off
+            sim.force('attract', null)
+            attractForceActive.value = false
+            attractTargetNodeId.value = null
+            console.log('Attraction force disabled')
+          } else {
+            // Toggle on
+            const attractForce = createAttractionForce(d.id, connectedNodeIds)
+            sim.force('attract', attractForce as any)
+            attractForceActive.value = true
+            attractTargetNodeId.value = d.id
+            console.log('Attraction force enabled for node:', d.id)
+          }
+
+          sim.alpha(0.3).restart()
+          return
+        }
+
+        // Regular click: select node
+        selectedNode.value = d
+
         // Update classes and opacity
-         node
+        node
           .classed('is-selected', (n: GraphNode) => n.id === d.id)
           .classed('is-connected', (n: GraphNode) => connectedNodeIds.has(n.id) && n.id !== d.id)
           .attr('stroke-width', (n: GraphNode) => {
@@ -842,6 +906,65 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
     simulation.value.alpha(1).restart()
   }
 
+  function applyLocationRowLayout() {
+    if (!simulation.value) return
+
+    const nodes = simulation.value.nodes() as GraphNode[]
+    const uniqueLocations = Array.from(
+      new Set(
+        nodes
+          .map((n) => n.location?.id)
+          .filter((id): id is string => Boolean(id))
+      )
+    )
+    const locationPositions = new Map<string, { x: number; y: number }>()
+
+    const nodesPerRow = gridConfigOverride.value.nodesPerRow ?? GRID_CONFIG.nodesPerRow
+    const horizontalGap = gridConfigOverride.value.horizontalGap ?? GRID_CONFIG.horizontalGap
+    const verticalGap = gridConfigOverride.value.verticalGap ?? GRID_CONFIG.verticalGap
+    const forceStrength = gridConfigOverride.value.forceStrength ?? GRID_CONFIG.forceStrength
+
+    uniqueLocations.forEach((locationId, index) => {
+      const row = Math.floor(index / nodesPerRow)
+      const col = index % nodesPerRow
+      locationPositions.set(locationId, {
+        x: col * horizontalGap,
+        y: row * verticalGap,
+      })
+    })
+
+    simulation.value
+      .force('center', null)
+      .force('radial', null)
+      .force('link', null)
+      .force('charge', null)
+      .force('collision', null)
+
+    simulation.value
+      .force(
+        'forceX',
+        d3
+          .forceX((d: GraphNode) => {
+            const locationId = d.location?.id
+            return locationId ? locationPositions.get(locationId)?.x || 0 : 0
+          })
+          .strength(forceStrength),
+      )
+      .force(
+        'forceY',
+        d3
+          .forceY((d: GraphNode) => {
+            const locationId = d.location?.id
+            return locationId ? locationPositions.get(locationId)?.y || 0 : 0
+          })
+          .strength(forceStrength),
+      )
+      .force('charge', d3.forceManyBody().strength(-100))
+      .force('collision', d3.forceCollide().radius(50).strength(0.8))
+
+    simulation.value.alpha(1).restart()
+  }
+
   function applyClusterLayout() {
     if (!simulation.value) return
 
@@ -957,6 +1080,8 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
         applyProjectRowLayout()
       } else if (modeId === 'Type') {
         applyTypeRowLayout()
+      } else if (modeId === 'Location') {
+        applyLocationRowLayout()
       } else if (modeId === 'Cluster') {
         applyClusterLayout()
       } else {
@@ -1091,6 +1216,8 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
     highlightedNodes,
     lockedNodes,
     viewState,
+    attractForceActive,
+    attractTargetNodeId,
     initializeGraph,
     centerNode,
     setViewMode,

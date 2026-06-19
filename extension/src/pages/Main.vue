@@ -114,7 +114,7 @@
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg>
                 </button>
                 <div id="view-by-dropdown" v-if="showViewByDropdown" :style="{ display: 'block', position: 'absolute', top: 'calc(100% + 5px)', left: '0px', background: 'var(--pt-surface)', border: '1px solid var(--pt-border)', borderRadius: '8px', boxShadow: '0 10px 15px rgba(0, 0, 0, 0.3)', minWidth: '220px', zIndex: '10000', padding: '4px' }" @click.stop>
-                  <div v-for="mode in ['Project', 'Type', 'Cluster']" :key="mode" class="dropdown-item" :style="{ padding: '10px 12px', fontSize: '13px', color: currentViewMode === mode ? 'var(--pt-accent)' : 'var(--pt-text-muted)', cursor: 'pointer', borderRadius: '4px', background: currentViewMode === mode ? 'rgba(74, 144, 226, 0.1)' : 'transparent', transition: '0.2s' }" @click="handleViewModeChange(mode as any)">{{ mode }}</div>
+                  <div v-for="mode in ['Project', 'Type', 'Location', 'Cluster']" :key="mode" class="dropdown-item" :style="{ padding: '10px 12px', fontSize: '13px', color: currentViewMode === mode ? 'var(--pt-accent)' : 'var(--pt-text-muted)', cursor: 'pointer', borderRadius: '4px', background: currentViewMode === mode ? 'rgba(74, 144, 226, 0.1)' : 'transparent', transition: '0.2s' }" @click="handleViewModeChange(mode as any)">{{ mode }}</div>
                   <div style="height: 1px; background: var(--pt-border); margin: 4px 0;"></div>
                   <div style="padding: 4px 12px; font-size: 11px; font-weight: 700; color: var(--pt-text-muted); text-transform: uppercase; opacity: 0.6;">Sort By</div>
                   <div class="dropdown-item" data-sort="Name" :style="{ padding: '10px 12px', fontSize: '13px', color: graphSortBy === 'Name' ? 'var(--pt-accent)' : 'var(--pt-text-muted)', cursor: 'pointer', borderRadius: '4px', background: graphSortBy === 'Name' ? 'rgba(74, 144, 226, 0.1)' : 'transparent', transition: '0.2s' }" @click="handleSort('Name')">Alphabetical</div>
@@ -138,7 +138,7 @@
                 <button
                   class="btn-controls"
                   @click.stop="showGraphControls = !showGraphControls"
-                  :class="{ 'controls-active': showGraphControls || graphMinConfidence > 0 || graphRepulsion !== -1200 || graphNodesPerRow !== 4 || graphHorizontalGap !== 600 || graphVerticalGap !== 600 || graphGridForceStrength !== 0.25 || graphVisibleTypes.size < 5 }"
+                  :class="{ 'controls-active': showGraphControls || graphMinConfidence > 0 || graphRepulsion !== -600 || graphNodesPerRow !== 4 || graphHorizontalGap !== 2000 || graphVerticalGap !== 2000 || graphGridForceStrength !== 0.25 || graphVisibleTypes.size < 5 }"
                 >
                   <span class="controls-icon">⚙</span>
                   <span>Controls</span>
@@ -307,7 +307,7 @@
                     </button>
                   </div>
 
-                  <div v-if="graphSearch || selectedGraphProject || graphMinConfidence > 0 || graphRepulsion !== -1200 || graphNodesPerRow !== 4 || graphHorizontalGap !== 600 || graphVerticalGap !== 600 || graphGridForceStrength !== 0.25 || graphVisibleTypes.size < 5" class="control-group">
+                  <div v-if="graphSearch || selectedGraphProject || graphMinConfidence > 0 || graphRepulsion !== -600 || graphNodesPerRow !== 4 || graphHorizontalGap !== 2000 || graphVerticalGap !== 2000 || graphGridForceStrength !== 0.25 || graphVisibleTypes.size < 5" class="control-group">
                     <button
                       class="btn-reset-dropdown"
                       @click="resetGraphFilters"
@@ -407,7 +407,7 @@
                   <h5 class="section-title">Interface View</h5>
                   <div class="view-switcher-group">
                     <button
-                      v-for="mode in ['Project', 'Type', 'Cluster']"
+                      v-for="mode in ['Project', 'Type', 'Location', 'Cluster']"
                       :key="mode"
                       :class="['btn-view', { 'btn-view--active': currentViewMode === mode }]"
                       @click="handleViewModeChange(mode as any)"
@@ -529,11 +529,11 @@ const selectedGraphProject = ref('')
 const selectedGraphNode = ref<GraphNode | null>(null)
 const graphSortBy = ref<'Name' | 'Size'>('Name')
 const graphMinConfidence = ref(0)
-const graphRepulsion = ref(-1200)
+const graphRepulsion = ref(-600)
 const graphNodesPerRow = ref(4)
 const graphVisibleTypes = ref<Set<string>>(new Set(['business', 'person', 'location', 'website', 'contact']))
-const graphHorizontalGap = ref(600)
-const graphVerticalGap = ref(600)
+const graphHorizontalGap = ref(2000)
+const graphVerticalGap = ref(2000)
 const graphGridForceStrength = ref(0.25)
 const showGraphControls = ref(false)
 const showViewByDropdown = ref(false)
@@ -801,10 +801,10 @@ async function resetGraphFilters(): Promise<void> {
   selectedGraphProject.value = ''
   await selectNodeInGraph(null)
   graphMinConfidence.value = 0
-  graphRepulsion.value = -1200
+  graphRepulsion.value = -600
   graphNodesPerRow.value = 4
-  graphHorizontalGap.value = 600
-  graphVerticalGap.value = 600
+  graphHorizontalGap.value = 2000
+  graphVerticalGap.value = 2000
   graphGridForceStrength.value = 0.25
   graphVisibleTypes.value = new Set(['business', 'person', 'location', 'website', 'contact'])
   showGraphControls.value = false
@@ -1042,13 +1042,7 @@ async function buildHubGraphData(): Promise<GraphData> {
         sortedNodes.sort((a, b) => (b.value || 0) - (a.value || 0))
       }
 
-      // Filter links to only include those between visible nodes
-      const visibleNodeIds = new Set(sortedNodes.map(n => String(n.id)))
-      const filteredLinks = allLinks.filter((link: any) =>
-        visibleNodeIds.has(String(link.source)) && visibleNodeIds.has(String(link.target))
-      )
-
-      return { nodes: sortedNodes, links: filteredLinks }
+      return { nodes: sortedNodes, links: allLinks }
     } else {
       // Single project selected
       const cacheKey = `${selectedGraphProject.value}:${graphSearch.value}`
@@ -1078,13 +1072,7 @@ async function buildHubGraphData(): Promise<GraphData> {
         nodes.sort((a, b) => (b.value || 0) - (a.value || 0))
       }
 
-      // Filter links to only include those between visible nodes
-      const visibleNodeIds = new Set(nodes.map((n: any) => String(n.id)))
-      const filteredLinks = projectData.links.filter((link: any) =>
-        visibleNodeIds.has(String(link.source)) && visibleNodeIds.has(String(link.target))
-      )
-
-      return { nodes, links: filteredLinks }
+      return { nodes, links: projectData.links }
     }
   } catch (error) {
     console.error('Failed to build hub graph data:', error)
