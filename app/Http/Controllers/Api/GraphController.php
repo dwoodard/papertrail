@@ -77,8 +77,8 @@ class GraphController extends Controller
             ->get()
             ->map(fn ($edge) => [
                 'id' => $edge->id,
-                'source' => (string) $edge->from_node_id,
-                'target' => (string) $edge->to_node_id,
+                'source' => (int) $edge->from_node_id,
+                'target' => (int) $edge->to_node_id,
                 'type' => $edge->type,
                 'confidence' => (float) $edge->confidence,
             ]);
