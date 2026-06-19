@@ -22,8 +22,6 @@ export interface GraphLink {
   source: string | GraphNode
   target: string | GraphNode
   type: string
-  status: 'confirmed' | 'suggested'
-  evidence?: string
 }
 
 export interface GraphData {
@@ -81,7 +79,6 @@ export interface GraphViewState {
 export interface GraphConfig {
   minConfidence: Ref<number>
   repulsion: Ref<number>
-  showSuggested: Ref<boolean>
   visibleTypes?: Ref<Set<string>>
 }
 
@@ -104,7 +101,6 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
   const defaultConfig: GraphConfig = {
     minConfidence: ref(0),
     repulsion: ref(-600),
-    showSuggested: ref(true),
   }
 
   const activeConfig = config || defaultConfig
@@ -125,12 +121,11 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
 
     const nodeIds = new Set(filteredNodes.map(n => n.id))
 
-    // Filter links based on visibility toggles and active nodes
+    // Filter links based on active nodes
     const filteredLinks = data.links.filter(l => {
       const sId = typeof l.source === 'string' ? l.source : (l.source as any).id
       const tId = typeof l.target === 'string' ? l.target : (l.target as any).id
-      const isVisibleStatus = activeConfig.showSuggested.value || l.status === 'confirmed'
-      return nodeIds.has(sId) && nodeIds.has(tId) && isVisibleStatus
+      return nodeIds.has(sId) && nodeIds.has(tId)
     })
 
     const width = container.value.clientWidth || 800
@@ -302,13 +297,11 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
       .data(filteredLinks)
       .enter()
       .append('line')
-      .attr('class', (d) => `link link-${d.status}`)
-      .attr('stroke', (d: GraphLink) => (d.status === 'confirmed' ? '#3b82f6' : '#fbbf24'))
-      .attr('stroke-width', (d: GraphLink) => (d.status === 'confirmed' ? 2.5 : 2))
-      .attr('stroke-dasharray', (d: GraphLink) => (d.status === 'suggested' ? '5,3' : 'none'))
-      .attr('marker-end', (d: GraphLink) =>
-        d.status === 'confirmed' ? 'url(#arrow-confirmed)' : 'url(#arrow-suggested)',
-      )
+      .attr('class', 'link')
+      .attr('stroke', '#3b82f6')
+      .attr('stroke-width', 2.5)
+      .attr('stroke-dasharray', 'none')
+      .attr('marker-end', 'url(#arrow-confirmed)')
       .style('cursor', 'pointer')
       .on('click', (event: any, d: GraphLink) => {
         event.stopPropagation()
@@ -321,12 +314,10 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
           source: sourceNode?.name,
           target: targetNode?.name,
           type: d.type,
-          status: d.status,
-          evidence: d.evidence,
         })
       })
       .on('mouseenter', function (this: SVGLineElement, _event: any, d: GraphLink) {
-        d3.select(this).attr('stroke-width', d.status === 'confirmed' ? 4 : 3).attr('class', (link: GraphLink) => `link link-${link.status} link-active`)
+        d3.select(this).attr('stroke-width', 4).attr('class', 'link link-active')
 
         // Highlight connected nodes
         const sourceId = typeof d.source === 'string' ? d.source : (d.source as any).id
@@ -344,7 +335,7 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
           })
       })
       .on('mouseleave', function (this: SVGLineElement, _event: any, d: GraphLink) {
-        d3.select(this).attr('stroke-width', d.status === 'confirmed' ? 2.5 : 2).attr('class', (link: GraphLink) => `link link-${link.status}`)
+        d3.select(this).attr('stroke-width', 2.5).attr('class', 'link')
 
         // Remove highlight from nodes
         node

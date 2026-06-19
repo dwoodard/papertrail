@@ -51,9 +51,10 @@ class GraphController extends Controller
         // Get all nodes for this project
         $query = GraphNode::where('project_id', $projectId);
 
-        // Filter by type if specified
+        // Filter by type if specified (using db types, not frontend types)
         if (! empty($types)) {
-            $query->whereIn('type', (array) $types);
+            $dbTypes = $this->mapFrontendTypesToDbTypes((array) $types);
+            $query->whereIn('type', $dbTypes);
         }
 
         // Filter by search
@@ -64,7 +65,7 @@ class GraphController extends Controller
         $nodes = $query->get()->map(fn ($node) => [
             'id' => $node->id,
             'label' => $node->label,
-            'type' => $node->type,
+            'type' => $this->normalizeNodeType($node->type),
             'source' => $node->source,
             'properties' => $node->properties,
         ])->keyBy('id');
@@ -123,8 +124,8 @@ class GraphController extends Controller
                 'name' => $project->name,
                 'slug' => $project->slug,
             ],
-            'nodes' => $nodesWithCounts->values(),
-            'links' => $edges->values(),
+            'nodes' => $nodesWithCounts->values()->toArray(),
+            'links' => $edges->values()->toArray(),
         ]);
     }
 
@@ -204,5 +205,42 @@ class GraphController extends Controller
             ]);
 
         return response()->json(['sharedNodes' => $sharedNodes]);
+    }
+
+    /**
+     * Normalize database node types to frontend types.
+     * Maps internal types to the set of types the UI expects.
+     */
+    private function normalizeNodeType(string $dbType): string
+    {
+        return match ($dbType) {
+            'phone' => 'contact',
+            'domain' => 'website',
+            'address' => 'location',
+            'city' => 'location',
+            'category' => 'business', // Categorizations grouped with business
+            default => $dbType, // business, website, person stay as-is
+        };
+    }
+
+    /**
+     * Map frontend types (what user selected) to database types.
+     * Reverses the normalization for queries.
+     */
+    private function mapFrontendTypesToDbTypes(array $frontendTypes): array
+    {
+        $dbTypes = [];
+
+        foreach ($frontendTypes as $type) {
+            match ($type) {
+                'contact' => $dbTypes[] = 'phone',
+                'website' => array_push($dbTypes, 'website', 'domain'),
+                'location' => array_push($dbTypes, 'address', 'city'),
+                'business' => array_push($dbTypes, 'business', 'category'),
+                default => $dbTypes[] = $type,
+            };
+        }
+
+        return array_unique($dbTypes);
     }
 }

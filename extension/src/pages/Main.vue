@@ -138,7 +138,7 @@
                 <button
                   class="btn-controls"
                   @click.stop="showGraphControls = !showGraphControls"
-                  :class="{ 'controls-active': showGraphControls || graphMinConfidence > 0 || graphRepulsion !== -600 || !graphShowSuggested || graphNodesPerRow !== 4 || graphHorizontalGap !== 600 || graphVerticalGap !== 600 || graphGridForceStrength !== 0.25 || graphVisibleTypes.size < 5 }"
+                  :class="{ 'controls-active': showGraphControls || graphMinConfidence > 0 || graphRepulsion !== -600 || graphNodesPerRow !== 4 || graphHorizontalGap !== 600 || graphVerticalGap !== 600 || graphGridForceStrength !== 0.25 || graphVisibleTypes.size < 5 }"
                 >
                   <span class="controls-icon">⚙</span>
                   <span>Controls</span>
@@ -149,18 +149,6 @@
                   class="dropdown-menu"
                   @click.stop
                 >
-                  <div class="control-group">
-                    <label class="control-label">
-                      <input
-                        v-model="graphShowSuggested"
-                        type="checkbox"
-                        class="control-checkbox"
-                      />
-                      <span>Suggested Links</span>
-                    </label>
-                  </div>
-
-                  <div style="height: 1px; background: var(--pt-border); margin: 8px 0;"></div>
 
                   <div class="control-group">
                     <label class="control-label" style="margin-bottom: 8px;">Entity Types</label>
@@ -319,7 +307,7 @@
                     </button>
                   </div>
 
-                  <div v-if="graphSearch || selectedGraphProject || graphMinConfidence > 0 || graphRepulsion !== -600 || !graphShowSuggested || graphNodesPerRow !== 4 || graphHorizontalGap !== 600 || graphVerticalGap !== 600 || graphGridForceStrength !== 0.25 || graphVisibleTypes.size < 5" class="control-group">
+                  <div v-if="graphSearch || selectedGraphProject || graphMinConfidence > 0 || graphRepulsion !== -600 || graphNodesPerRow !== 4 || graphHorizontalGap !== 600 || graphVerticalGap !== 600 || graphGridForceStrength !== 0.25 || graphVisibleTypes.size < 5" class="control-group">
                     <button
                       class="btn-reset-dropdown"
                       @click="resetGraphFilters"
@@ -546,7 +534,6 @@ const selectedGraphNode = ref<GraphNode | null>(null)
 const graphSortBy = ref<'Name' | 'Size'>('Name')
 const graphMinConfidence = ref(0)
 const graphRepulsion = ref(-600)
-const graphShowSuggested = ref(true)
 const graphNodesPerRow = ref(4)
 const graphVisibleTypes = ref<Set<string>>(new Set(['business', 'person', 'location', 'website', 'contact']))
 const graphHorizontalGap = ref(600)
@@ -559,7 +546,6 @@ const currentViewMode = ref<ViewModeId>('Cluster')
 const graphConfig = {
   minConfidence: graphMinConfidence,
   repulsion: graphRepulsion,
-  showSuggested: graphShowSuggested,
   visibleTypes: graphVisibleTypes,
 }
 
@@ -809,7 +795,6 @@ function resetGraphFilters(): void {
   selectNodeInGraph(null)
   graphMinConfidence.value = 0
   graphRepulsion.value = -600
-  graphShowSuggested.value = true
   graphNodesPerRow.value = 4
   graphHorizontalGap.value = 600
   graphVerticalGap.value = 600
@@ -1052,7 +1037,7 @@ async function buildHubGraphData(): Promise<GraphData> {
 
 // Initialize/update hub graph when tab opens or filters change
 watch(
-  [activeTab, selectedGraphProject, graphSearch, graphMinConfidence, graphRepulsion, graphShowSuggested, graphSortBy, graphVisibleTypes],
+  [activeTab, selectedGraphProject, graphSearch, graphMinConfidence, graphRepulsion, graphSortBy, graphVisibleTypes],
   async ([newTab]) => {
     if (newTab === 'Graph' && hubGraphContainer.value) {
       setTimeout(async () => {
