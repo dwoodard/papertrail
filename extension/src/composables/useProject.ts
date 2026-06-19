@@ -4,6 +4,7 @@ import { computed } from 'vue'
 import { sendRuntimeMessage } from '@/utils/messaging'
 import { uuid } from '@/utils/id'
 import { STORAGE_KEYS } from '@/stores/keys'
+import { createProject as createProjectOnBackend } from '@/api/projects'
 
 import { useChromeStorage } from './useChromeStorage'
 

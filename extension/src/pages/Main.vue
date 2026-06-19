@@ -726,23 +726,38 @@ function debugStorage(): void {
   })
 }
 
-function createProject(): void {
+async function createProject(): Promise<void> {
   if (!form.name.trim()) return
 
-  const newProject = {
-    id: Date.now().toString(),
-    name: form.name,
-    goal: form.goal,
-    observations: 0,
-    entities: 0,
-    suggestions: 0,
-    lastActivity: 'just now',
+  try {
+    // Generate UUID for project (same format as backend)
+    const projectId = crypto.randomUUID()
+
+    // Create project on backend first
+    await graphApiClient.createProject(projectId, form.name, form.goal)
+
+    // Then add to local list
+    const newProject = {
+      id: projectId,
+      name: form.name,
+      goal: form.goal || undefined,
+      observations: 0,
+      entities: 0,
+      suggestions: 0,
+      lastActivity: 'just now',
+    }
+
+    projects.value.unshift(newProject)
+    saveProjectsToStorage()
+
+    // Refresh graph projects list
+    allGraphProjects.value = await graphApiClient.getProjects()
+
+    closeCreateModal()
+  } catch (error) {
+    console.error('[createProject] Failed:', error)
+    alert('Failed to create project. Please try again.')
   }
-
-  projects.value.unshift(newProject)
-  saveProjectsToStorage()
-
-  closeCreateModal()
 }
 
 // Graph view functions

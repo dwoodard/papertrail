@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\ProjectController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/projects', [ProjectController::class, 'index']);
+Route::post('/projects', [ProjectController::class, 'store']);
 Route::post('/places/sync', [PlaceSyncController::class, 'sync']);
 Route::post('/import/csv', [CsvImportController::class, 'store']);
 

@@ -56,6 +56,19 @@ const API_BASE = process.env.VUE_APP_API_URL || '/api'
 
 export const graphApiClient = {
   /**
+   * Create a new project
+   */
+  async createProject(id: string, name: string, goal?: string): Promise<GraphProject> {
+    const response = await fetch(`${API_BASE}/projects`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, name, goal }),
+    })
+    if (!response.ok) throw new Error('Failed to create project')
+    return response.json()
+  },
+
+  /**
    * Get all projects with graph statistics
    */
   async getProjects(): Promise<GraphProject[]> {
