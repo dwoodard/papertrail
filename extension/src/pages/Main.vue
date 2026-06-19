@@ -377,7 +377,7 @@
                         v-for="(relation, index) in selectedNodeRelations"
                         :key="index"
                         class="relation-item"
-                        @click="() => selectRelationNode(relation)"
+                        @click.stop="selectRelationNode(relation)"
                         @mouseenter="highlightNodeInGraph(relation.nodeId)"
                         @mouseleave="clearGraphHighlight"
                       >
@@ -545,7 +545,7 @@ const graphConfig = {
   visibleTypes: graphVisibleTypes,
 }
 
-const { initializeGraph, centerNode, setViewMode, updateForces, setGridConfig, resetLockedNodes, lockedNodes, selectNodeById, fitToView } = useGraphSimulation(hubGraphContainer, graphConfig)
+const { initializeGraph, centerNode, setViewMode, updateForces, setGridConfig, resetLockedNodes, lockedNodes, selectNodeById, selectNodeReactively, fitToView } = useGraphSimulation(hubGraphContainer, graphConfig)
 
 function closeGraphControls() {
   showGraphControls.value = false
@@ -819,14 +819,11 @@ function navigateToProjectGraph(): void {
 }
 
 async function selectRelationNode(relation: any): Promise<void> {
-  console.log('[selectRelationNode] Selecting relation:', relation.nodeId, relation.nodeType)
-
   // Ensure the node type is visible
   if (!graphVisibleTypes.value.has(relation.nodeType)) {
     const newTypes = new Set(graphVisibleTypes.value)
     newTypes.add(relation.nodeType)
     graphVisibleTypes.value = newTypes
-    console.log('[selectRelationNode] Unhid type:', relation.nodeType)
   }
 
   // Select the node
@@ -834,12 +831,8 @@ async function selectRelationNode(relation: any): Promise<void> {
 }
 
 async function selectNodeInGraph(nodeId: string | null): Promise<void> {
-  console.log(`[selectNodeInGraph] Called with nodeId: ${nodeId}`)
-
   if (!nodeId) {
-    console.log('[selectNodeInGraph] Clearing selection')
     selectedGraphNode.value = null
-    // Reset all node styles to default
     const container = hubGraphContainer.value
     if (container) {
       const svg = container.querySelector('svg')
@@ -863,7 +856,6 @@ async function selectNodeInGraph(nodeId: string | null): Promise<void> {
   let nodeToSelect = hubData.nodes.find((n) => String(n.id) === String(nodeId))
 
   if (!nodeToSelect) {
-    console.log(`[selectNodeInGraph] Node not found in current view: ${nodeId}, searching all projects...`)
     // Node might be from a different project. Load all projects without filters
     const allNodes: GraphNode[] = []
     for (const project of allGraphProjects.value) {
@@ -879,26 +871,21 @@ async function selectNodeInGraph(nodeId: string | null): Promise<void> {
           }
         })
       } catch (error) {
-        console.error(`[selectNodeInGraph] Failed to load project ${project.id}:`, error)
+        console.error(`Failed to load project ${project.id}:`, error)
       }
     }
     nodeToSelect = allNodes.find((n) => String(n.id) === String(nodeId))
   }
 
   if (!nodeToSelect) {
-    console.log(`[selectNodeInGraph] Node not found in any project: ${nodeId}`)
     return
   }
 
-  console.log(`[selectNodeInGraph] Selecting node: ${nodeToSelect.id} ${nodeToSelect.name}`)
   selectedGraphNode.value = nodeToSelect
+  selectNodeReactively(nodeToSelect)
 
-  // Update all styles in the graph
-  selectNodeById(nodeId, hubData)
-
-  // Center the node with a small delay to ensure DOM is updated
+  // Center the node with a small delay
   setTimeout(() => {
-    console.log(`[selectNodeInGraph] Centering node: ${nodeId}`)
     centerNode(nodeToSelect.id, hubData)
   }, 50)
 }
@@ -1092,8 +1079,7 @@ watch(
 
         // Create a non-async click handler wrapper
         const clickHandler = (node: any) => {
-          console.log('[graph-click-callback] Node selected:', node?.id, node?.name)
-          selectNodeInGraph(node ? node.id : null).catch(err => console.error('[clickHandler] Error:', err))
+          selectNodeInGraph(node ? node.id : null).catch(err => console.error('Error selecting node:', err))
         }
 
         try {

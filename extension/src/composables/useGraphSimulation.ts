@@ -112,6 +112,7 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
   const zoomBehavior = ref<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null)
   const attractForceActive = ref(false)
   const attractTargetNodeId = ref<string | null>(null)
+  let updateNodeStyleCallback: (() => void) | null = null
 
   const defaultConfig: GraphConfig = {
     minConfidence: ref(0),
@@ -169,22 +170,22 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
     const width = container.value.clientWidth || 800
     const height = container.value.clientHeight || 600
 
-    console.log('Container element:', container.value)
-    console.log('Container dimensions:', { width, height, clientWidth: container.value.clientWidth, clientHeight: container.value.clientHeight })
+    // console.log('Container element:', container.value)
+    // console.log('Container dimensions:', { width, height, clientWidth: container.value.clientWidth, clientHeight: container.value.clientHeight })
 
     if (width === 0 || height === 0) {
       console.warn('Container has no dimensions, using defaults')
     }
 
-    console.log(`Initializing graph with dimensions: ${width}x${height}`)
-    console.log('[useGraphSimulation] Input data:', {
-      totalNodes: data.nodes.length,
-      totalLinks: data.links.length,
-      filteredNodesCount: filteredNodes.length,
-      filteredLinksCount: filteredLinks.length,
-      nodeIdSample: filteredNodes.slice(0, 3).map(n => n.id),
-      linkSample: filteredLinks.slice(0, 3),
-    })
+    // console.log(`Initializing graph with dimensions: ${width}x${height}`)
+    // console.log('[useGraphSimulation] Input data:', {
+    //   totalNodes: data.nodes.length,
+    //   totalLinks: data.links.length,
+    //   filteredNodesCount: filteredNodes.length,
+    //   filteredLinksCount: filteredLinks.length,
+    //   nodeIdSample: filteredNodes.slice(0, 3).map(n => n.id),
+    //   linkSample: filteredLinks.slice(0, 3),
+    // })
 
     // Clear previous
     d3.select(container.value).selectAll('svg').remove()
@@ -200,7 +201,7 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
       .attr('class', 'graph-svg')
       .style('border', '1px solid #ccc')
 
-    console.log('SVG created')
+    // console.log('SVG created')
 
     // Add defs for markers and filters
     const defs = svg.append('defs')
@@ -354,13 +355,51 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
         // Store link info for display
         const sourceId = typeof d.source === 'string' ? d.source : (d.source as any).id
         const targetId = typeof d.target === 'string' ? d.target : (d.target as any).id
-        const sourceNode = nodeById.get(sourceId)
+        // const sourceNode = nodeById.get(sourceId)
         const targetNode = nodeById.get(targetId)
-        console.log('Link clicked:', {
-          source: sourceNode?.name,
-          target: targetNode?.name,
-          type: d.type,
-        })
+        // Select the target node
+        if (targetNode) {
+          // Reset old selection first
+          node
+            .classed('is-selected', false)
+            .classed('is-connected', false)
+            .attr('stroke-width', 2)
+            .attr('stroke', '#3a4557')
+            .style('opacity', (n: GraphNode) => n.confidence || 1)
+
+          selectedNode.value = targetNode
+
+          // Find connected nodes
+          const connectedNodeIds = new Set<string>()
+          filteredLinks.forEach((link) => {
+            const sId = typeof link.source === 'string' ? link.source : (link.source as any).id
+            const tId = typeof link.target === 'string' ? link.target : (link.target as any).id
+
+            if (sId === targetNode.id) {
+              connectedNodeIds.add(tId)
+            }
+            if (tId === targetNode.id) {
+              connectedNodeIds.add(sId)
+            }
+          })
+
+          // Update node styles
+          node
+            .classed('is-selected', (n: GraphNode) => n.id === targetNode.id)
+            .classed('is-connected', (n: GraphNode) => connectedNodeIds.has(n.id) && n.id !== targetNode.id)
+            .attr('stroke-width', (n: GraphNode) => {
+              if (n.id === targetNode.id) return 8
+              if (connectedNodeIds.has(n.id)) return 5
+              return 2
+            })
+            .style('opacity', (n: GraphNode) => {
+              if (n.id === targetNode.id) return 1
+              if (connectedNodeIds.has(n.id)) return (n.confidence || 1) * 0.95
+              return (n.confidence || 1) * 0.5
+            })
+
+          onNodeSelect(targetNode)
+        }
       })
       .on('mouseenter', function (this: SVGLineElement, _event: any, d: GraphLink) {
         d3.select(this).attr('stroke-width', 4).attr('class', 'link link-active')
@@ -390,9 +429,9 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
           .attr('stroke', (n: GraphNode) => (n.id === selectedNode.value?.id ? '#06b6d4' : '#3a4557'))
       })
 
-    const linkCount = link.size()
-    console.log(`[useGraphSimulation] Created ${linkCount} link elements in SVG`)
-    console.log('[useGraphSimulation] Link data sample:', filteredLinks.slice(0, 3))
+    // const linkCount = link.size()
+    // console.log(`[useGraphSimulation] Created ${linkCount} link elements in SVG`)
+    // console.log('[useGraphSimulation] Link data sample:', filteredLinks.slice(0, 3))
 
     // Create cluster hull circles for visual grouping
     const clusterHulls = g
@@ -455,7 +494,6 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
       )
       .on('click', (event: any, d: GraphNode) => {
         event.stopPropagation()
-        console.log('Node clicked:', d.id, d.name)
 
         // Find connected nodes
         const connectedNodeIds = new Set<string>()
@@ -480,14 +518,14 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
             sim.force('attract', null)
             attractForceActive.value = false
             attractTargetNodeId.value = null
-            console.log('Attraction force disabled')
+            // console.log('Attraction force disabled')
           } else {
             // Toggle on
             const attractForce = createAttractionForce(d.id, connectedNodeIds)
             sim.force('attract', attractForce as any)
             attractForceActive.value = true
             attractTargetNodeId.value = d.id
-            console.log('Attraction force enabled for node:', d.id)
+            // console.log('Attraction force enabled for node:', d.id)
           }
 
           sim.alpha(0.3).restart()
@@ -506,11 +544,8 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
             if (connectedNodeIds.has(n.id)) return 5
             return 2
           })
-          .style('opacity', (n: GraphNode) => {
+          .attr('opacity', (n: GraphNode) => {
             const opacity = n.id === d.id ? 1 : connectedNodeIds.has(n.id) ? (n.confidence || 1) * 0.95 : (n.confidence || 1) * 0.5
-            if (n.id === d.id || connectedNodeIds.has(n.id)) {
-              console.log(`[click-handler] Setting opacity for ${n.id}: ${opacity}`)
-            }
             return opacity
           })
 
@@ -527,7 +562,7 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
         updateLabelOpacity()
       })
 
-    console.log(`Created ${node.size()} nodes`)
+    // console.log(`Created ${node.size()} nodes`)
 
     // Create labels
     const labels = g
@@ -556,6 +591,8 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
 
     function updateNodeStyle() {
       const selectedNodeId = selectedNode.value?.id
+      if (!node) return
+
       const connectedNodeIds = new Set<string>()
 
       if (selectedNodeId) {
@@ -581,14 +618,17 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
           return 2
         })
         .attr('opacity', (d: GraphNode) => {
-          if (d.id === selectedNodeId) return 1
-          if (connectedNodeIds.has(d.id)) return (d.confidence || 1) * 0.95
-          return (d.confidence || 1) * 0.5
+          let opacity = (d.confidence || 1) * 0.5
+          if (d.id === selectedNodeId) opacity = 1
+          else if (connectedNodeIds.has(d.id)) opacity = (d.confidence || 1) * 0.95
+          return opacity
         })
     }
 
     function updateLinkOpacity() {
-      link.style('opacity', (d) => {
+      if (!node || !link) return
+
+      link.attr('opacity', (d: GraphLink) => {
         const sourceId = typeof d.source === 'string' ? d.source : d.source.id
         const targetId = typeof d.target === 'string' ? d.target : d.target.id
         return highlightedNodes.value.has(sourceId) || highlightedNodes.value.has(targetId)
@@ -596,12 +636,14 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
           : 0.2
       })
 
-      // Don't override node opacity during hover - let selection state control it
-      // Only highlight hovered neighbors, preserve selected node visibility
-      node.style('opacity', (d) => {
-        if (d.id === selectedNode.value?.id) return 1
-        if (highlightedNodes.value.has(d.id)) return 1
-        return (d.confidence || 1) * 0.5
+      node.attr('opacity', (d: GraphNode) => {
+        let opacity = (d.confidence || 1) * 0.5
+        if (d.id === selectedNode.value?.id) {
+          opacity = 1
+        } else if (highlightedNodes.value.has(d.id)) {
+          opacity = 1
+        }
+        return opacity
       })
     }
 
@@ -716,6 +758,9 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
 
       labels.attr('x', (d) => d.x || 0).attr('y', (d) => d.y || 0)
     })
+
+    // Store the updateNodeStyle function so it can be called from selectNodeReactively
+    updateNodeStyleCallback = updateNodeStyle
   }
 
   function getNodeColor(type: string): string {
@@ -1106,15 +1151,26 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
 
   function selectNodeById(nodeId: string, data: GraphData) {
     const nodeToSelect = data.nodes.find((n) => n.id === nodeId)
+
     if (nodeToSelect) {
       selectedNode.value = nodeToSelect
+      highlightedNodes.value.clear()
+
       const svg = d3.select(container.value).select('svg')
       const node = svg.selectAll('.node')
+
       const filteredLinks = data.links.filter((l) => {
         const sId = typeof l.source === 'string' ? l.source : (l.source as any).id
         const tId = typeof l.target === 'string' ? l.target : (l.target as any).id
         return data.nodes.some((n) => n.id === sId) && data.nodes.some((n) => n.id === tId)
       })
+
+      node
+        .classed('is-selected', false)
+        .classed('is-connected', false)
+        .attr('stroke-width', 2)
+        .attr('stroke', '#3a4557')
+        .style('opacity', (d: GraphNode) => d.confidence || 1)
 
       const selectedNodeId = selectedNode.value?.id
       const connectedNodeIds = new Set<string>()
@@ -1141,7 +1197,7 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
           if (connectedNodeIds.has(d.id)) return 5
           return 2
         })
-        .attr('opacity', (d: GraphNode) => {
+        .style('opacity', (d: GraphNode) => {
           if (d.id === selectedNodeId) return 1
           if (connectedNodeIds.has(d.id)) return (d.confidence || 1) * 0.95
           return (d.confidence || 1) * 0.5
@@ -1211,6 +1267,14 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
     zoomBehavior.value.transform(svg, transform)
   }
 
+  function selectNodeReactively(nodeToSelect: GraphNode | null) {
+    selectedNode.value = nodeToSelect
+    highlightedNodes.value.clear()
+    if (updateNodeStyleCallback) {
+      updateNodeStyleCallback()
+    }
+  }
+
   return {
     selectedNode,
     highlightedNodes,
@@ -1227,6 +1291,7 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
     setGridConfig,
     resetLockedNodes,
     selectNodeById,
+    selectNodeReactively,
     fitToView,
   }
 }
