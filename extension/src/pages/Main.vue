@@ -126,8 +126,8 @@
                 <label for="graph-project-filter" class="filter-label">Filter by Project:</label>
                 <select id="graph-project-filter" v-model="selectedGraphProject" class="filter-select" name="graph-project">
                   <option value="">All Projects</option>
-                  <option v-for="projectId in availableProjects" :key="projectId" :value="projectId">
-                    {{ projectId }}
+                  <option v-for="project in allGraphProjects" :key="project.id" :value="project.id">
+                    {{ project.name }} ({{ project.nodeCount }} nodes)
                   </option>
                 </select>
               </div>
@@ -564,10 +564,6 @@ const graphConfig = {
 }
 
 const { initializeGraph, centerNode, setViewMode, updateForces, setGridConfig, resetLockedNodes, lockedNodes, selectNodeById, fitToView } = useGraphSimulation(hubGraphContainer, graphConfig)
-
-const availableProjects = computed(() => {
-  return allGraphProjects.value.map(p => p.id).sort()
-})
 
 function closeGraphControls() {
   showGraphControls.value = false
