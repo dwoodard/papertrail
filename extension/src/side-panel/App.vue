@@ -16,9 +16,6 @@ const activeModuleId = computed(() => {
   if (currentUrl.value.includes('google.com/maps')) {
     return 'google-maps'
   }
-  if (currentUrl.value.includes('yelp.com')) {
-    return 'yelp'
-  }
   return null
 })
 

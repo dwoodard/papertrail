@@ -30,7 +30,6 @@
 import { computed, ref, onMounted } from 'vue'
 import { Paperclip } from '@lucide/vue'
 import GoogleMapsModule from './modules/google-maps/GoogleMapsModule.vue'
-import YelpModule from './modules/yelp/YelpModule.vue'
 import DefaultModule from './modules/DefaultModule.vue'
 
 const props = defineProps({
@@ -63,16 +62,12 @@ function handlePapertrailClick(e) {
 }
 
 const moduleLabels = {
-  'google-maps': 'Google Maps',
-  'yelp': 'Yelp Business Leads'
+  'google-maps': 'Google Maps'
 }
 
 const activeModule = computed(() => {
   if (props.activeModuleId === 'google-maps') {
     return GoogleMapsModule
-  }
-  if (props.activeModuleId === 'yelp') {
-    return YelpModule
   }
   return DefaultModule
 })
