@@ -611,20 +611,20 @@ onMounted(async () => {
       lastActivity: 'just now',
     }))
 
-    console.log('[Main.vue] Projects loaded from API:', projects.value.length)
+    // console.log('[Main.vue] Projects loaded from API:', projects.value.length)
   } catch (err) {
     console.error('[Main.vue] Failed to load projects from API:', err)
   }
 
   // Fetch graph projects from new API
   try {
-    console.log('[Main.vue] Starting to fetch projects...')
+    // console.log('[Main.vue] Starting to fetch projects...')
     graphProjectsLoading.value = true
     const projects = await graphApiClient.getProjects()
-    console.log('[Main.vue] API returned:', projects)
+    // console.log('[Main.vue] API returned:', projects)
     allGraphProjects.value = projects
-    console.log('[Main.vue] Graph projects loaded:', allGraphProjects.value.length, 'projects')
-    console.log('[Main.vue] First project:', allGraphProjects.value[0])
+    // console.log('[Main.vue] Graph projects loaded:', allGraphProjects.value.length, 'projects')
+    // console.log('[Main.vue] First project:', allGraphProjects.value[0])
   } catch (err: unknown) {
     console.error('[Main.vue] Failed to load graph projects:', err)
     if (err instanceof Error) {
@@ -639,9 +639,9 @@ onMounted(async () => {
 
   // Set first project as active by default
   if (projects.value.length > 0) {
-    console.log('[Main.vue] Setting active project to:', projects.value[0].slug)
+    // console.log('[Main.vue] Setting active project to:', projects.value[0].slug)
     chrome.storage.local.set({ 'pt.activeProjectId': projects.value[0].slug }, () => {
-      console.log('[Main.vue] Active project saved:', projects.value[0].slug)
+      // console.log('[Main.vue] Active project saved:', projects.value[0].slug)
       debugStorage()
     })
   }
@@ -664,9 +664,9 @@ watch(selectedProject, (newProject) => {
 
 // Debug: Log when projects load
 watch(allGraphProjects, (newProjects) => {
-  console.log('[Main.vue] allGraphProjects updated:', newProjects.length, 'projects')
+  // console.log('[Main.vue] allGraphProjects updated:', newProjects.length, 'projects')
   if (newProjects.length > 0) {
-    console.log('[Main.vue] First project:', newProjects[0].name, '- Nodes:', newProjects[0].nodeCount)
+    // console.log('[Main.vue] First project:', newProjects[0].name, '- Nodes:', newProjects[0].nodeCount)
   }
 })
 
@@ -704,18 +704,18 @@ function closeCreateModal(): void {
 
 function saveProjectsToStorage(): void {
   const projectsArray = JSON.parse(JSON.stringify(projects.value))
-  console.log('[Main.vue] Saving projects to storage:', projectsArray)
+  // console.log('[Main.vue] Saving projects to storage:', projectsArray)
   chrome.storage.local.set({ 'pt.projects': projectsArray }, () => {
-    console.log('[Main.vue] Projects saved successfully')
+    // console.log('[Main.vue] Projects saved successfully')
   })
 }
 
 function debugStorage(): void {
   chrome.storage.local.get(null, (allData) => {
-    console.log('[DEBUG] All Chrome Storage:', allData)
-    console.log('[DEBUG] pt.activeProjectId:', allData['pt.activeProjectId'])
-    console.log('[DEBUG] pt.projects:', allData['pt.projects'])
-    console.log('[DEBUG] results count:', allData['results']?.length || 0)
+    // console.log('[DEBUG] All Chrome Storage:', allData)
+    // console.log('[DEBUG] pt.activeProjectId:', allData['pt.activeProjectId'])
+    // console.log('[DEBUG] pt.projects:', allData['pt.projects'])
+    // console.log('[DEBUG] results count:', allData['results']?.length || 0)
   })
 }
 
@@ -1075,7 +1075,7 @@ watch(
       setTimeout(async () => {
         const hubData = await buildHubGraphData()
         // Always initialize graph (even with empty data) to properly clean up D3 state
-        console.log('[watch] Reinitializing graph with', hubData.nodes.length, 'nodes')
+        // console.log('[watch] Reinitializing graph with', hubData.nodes.length, 'nodes')
 
         // Create a non-async click handler wrapper
         const clickHandler = (node: any) => {
