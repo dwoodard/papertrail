@@ -4,21 +4,19 @@
 
 const CONFIG = {
     SELECTORS: {
-        feedContainer: 'div[role="feed"]',
-        feedContainerAlt: '.m6QErb.DxyBCb',
-        listing: '.Nv2PK',
-        listingName: '.qBF1Pd',
-        clickTarget: 'a.hfpxzc',
-        panelContainer: '.m6QErb[role="main"]',
-        panelContainerAlt: 'div[role="main"]',
-        name: 'h1.DUwDvf',
-        category: 'button[jsaction*="category"]',
-        rating: '.F7nice span span[aria-hidden="true"]',
-        address: 'button[data-item-id="address"]',
-        website: 'a.CsEnBe[aria-label^="Website"]',
-        phone: 'button[data-item-id^="phone:"] .Io6YTe',
-        plusCode: 'button[data-item-id="oloc"]',
-        hours: '.t39EBf'
+        feedContainer: ['div[role="feed"]', 'div[role="main"] div[role="feed"]'],
+        listing: ['div[role="feed"] div[role="article"]', 'div[role="feed"] [role="article"]'],
+        listingName: ['div[role="article"] span', 'div[role="article"] h3'],
+        clickTarget: ['div[role="article"] a[href*="/maps/place"]', 'div[role="article"] a'],
+        panelContainer: ['div[role="main"]', 'aside[role="complementary"]'],
+        name: ['h1', 'h1[data-item-id]'],
+        category: ['button[data-item-type="category"]', 'button[aria-label*="category"]'],
+        rating: ['[role="img"][aria-label*="star"]', 'span[aria-label*="star rating"]'],
+        address: ['button[data-item-id="address"]', 'button[aria-label*="address"]'],
+        website: ['a[aria-label^="Website"]', 'a[aria-label*="website"]'],
+        phone: ['button[data-item-id^="phone:"] span', 'button[aria-label*="call"] span'],
+        plusCode: ['button[data-item-id="oloc"]', 'button[aria-label*="Plus Code"]'],
+        hours: ['button[aria-label*="Hours"]', 'button[aria-label*="Open"]']
     },
     DEBOUNCE_MS: 800,
     MIN_DELAY_MS: 400,
@@ -31,6 +29,28 @@ const CONFIG = {
     SCROLL_DELAY_MIN_MS: 1500,
     SCROLL_DELAY_MAX_MS: 2800
 };
+
+// ============================================================================
+// Selector Helper - Tries multiple selectors in order
+// ============================================================================
+
+function findElement(selectors, root = document) {
+    const selectorArray = Array.isArray(selectors) ? selectors : [selectors];
+    for (const selector of selectorArray) {
+        const element = root.querySelector(selector);
+        if (element) return element;
+    }
+    return null;
+}
+
+function findAllElements(selectors, root = document) {
+    const selectorArray = Array.isArray(selectors) ? selectors : [selectors];
+    for (const selector of selectorArray) {
+        const elements = root.querySelectorAll(selector);
+        if (elements.length > 0) return elements;
+    }
+    return [];
+}
 
 // ============================================================================
 // State
@@ -125,7 +145,7 @@ function extractPlaceId() {
 
 function extractOpenClosedStatus() {
     // Look for "Open now" or "Closed" text in the hours section
-    const hoursEl = document.querySelector(CONFIG.SELECTORS.hours);
+    const hoursEl = findElement(CONFIG.SELECTORS.hours);
     if (!hoursEl) return 'N/A';
 
     const text = hoursEl.innerText?.toLowerCase() || '';
@@ -152,25 +172,24 @@ function extractPriceRange() {
     }
 
     // Fallback: search for text like "Price: $$$"
-    const allText = document.querySelector(CONFIG.SELECTORS.panelContainer)?.innerText || '';
+    const allText = findElement(CONFIG.SELECTORS.panelContainer)?.innerText || '';
     const priceMatch = allText.match(/\$+/);
     return priceMatch ? priceMatch[0] : 'N/A';
 }
 
 function extractDetails() {
-    const name = document.querySelector(CONFIG.SELECTORS.name)?.innerText?.trim() || 'N/A';
+    const name = findElement(CONFIG.SELECTORS.name)?.innerText?.trim() || 'N/A';
 
     // Check if listing is sponsored
-    const panelContainer = document.querySelector(CONFIG.SELECTORS.panelContainer)
-        || document.querySelector(CONFIG.SELECTORS.panelContainerAlt);
+    const panelContainer = findElement(CONFIG.SELECTORS.panelContainer);
     let isSponsored = false;
     if (panelContainer) {
         const sponsoredBadge = panelContainer.innerText?.toLowerCase().includes('sponsored');
         isSponsored = sponsoredBadge || false;
     }
 
-    const category = document.querySelector(CONFIG.SELECTORS.category)?.innerText?.trim() || 'N/A';
-    const rating = document.querySelector(CONFIG.SELECTORS.rating)?.innerText?.trim() || 'N/A';
+    const category = findElement(CONFIG.SELECTORS.category)?.innerText?.trim() || 'N/A';
+    const rating = findElement(CONFIG.SELECTORS.rating)?.innerText?.trim() || 'N/A';
 
     // Extract review count — search for patterns like "123 reviews" or "(123 reviews)"
     let reviews = 'N/A';
@@ -183,13 +202,13 @@ function extractDetails() {
         }
     }
 
-    const address = document.querySelector(CONFIG.SELECTORS.address)?.innerText?.trim() || 'N/A';
-    const website = document.querySelector(CONFIG.SELECTORS.website)?.href || 'N/A';
-    const phone = document.querySelector(CONFIG.SELECTORS.phone)?.innerText?.trim() || 'N/A';
+    const address = findElement(CONFIG.SELECTORS.address)?.innerText?.trim() || 'N/A';
+    const website = findElement(CONFIG.SELECTORS.website)?.href || 'N/A';
+    const phone = findElement(CONFIG.SELECTORS.phone)?.innerText?.trim() || 'N/A';
 
     // Plus Code extraction
     let plusCode = 'N/A';
-    const plusEl = document.querySelector(CONFIG.SELECTORS.plusCode);
+    const plusEl = findElement(CONFIG.SELECTORS.plusCode);
     if (plusEl) {
         const text = plusEl.innerText?.trim();
         plusCode = text && text !== '' ? text : 'N/A';
@@ -197,7 +216,7 @@ function extractDetails() {
 
     // Hours extraction
     let hours = 'N/A';
-    const hoursEl = document.querySelector(CONFIG.SELECTORS.hours);
+    const hoursEl = findElement(CONFIG.SELECTORS.hours);
     if (hoursEl) {
         const ariaLabel = hoursEl.getAttribute('aria-label');
         if (ariaLabel) {
@@ -265,8 +284,7 @@ function initPassiveCapture() {
     currentSessionKeyword = extractKeyword(); // Capture keyword when passive mode starts
     console.log(`[Maps Scraper] Passive capture activated for keyword: "${currentSessionKeyword}"`);
 
-    const panelContainer = document.querySelector(CONFIG.SELECTORS.panelContainer)
-        || document.querySelector(CONFIG.SELECTORS.panelContainerAlt);
+    const panelContainer = findElement(CONFIG.SELECTORS.panelContainer);
 
     if (!panelContainer) {
         console.warn('[Maps Scraper] Panel container not found');
@@ -321,7 +339,7 @@ async function scrollListingIntoView(targetPlaceId, targetName) {
 
     try {
         // Find the listing by placeId
-        const listings = document.querySelectorAll(CONFIG.SELECTORS.listing);
+        const listings = findAllElements(CONFIG.SELECTORS.listing);
         let targetListing = null;
 
         for (const listing of listings) {
@@ -371,7 +389,7 @@ async function enrichSingleResult(targetPlaceId, targetName, mapsUrl) {
             // Fallback: Find and click listing if panel not open
             console.log(`[Maps Scraper] ⏳ Panel not open, searching for listing...`);
 
-            const listings = document.querySelectorAll(CONFIG.SELECTORS.listing);
+            const listings = findAllElements(CONFIG.SELECTORS.listing);
             let targetListing = null;
 
             for (const listing of listings) {
@@ -484,7 +502,7 @@ async function bulkScrape(options = {}) {
                     const check = setInterval(() => {
                         const feed = document.querySelector(CONFIG.SELECTORS.feedContainer)
                             || document.querySelector(CONFIG.SELECTORS.feedContainerAlt);
-                        const listings = document.querySelectorAll(CONFIG.SELECTORS.listing);
+                        const listings = findAllElements(CONFIG.SELECTORS.listing);
                         if (feed && listings.length > 0) {
                             clearInterval(check);
                             resolve();
@@ -594,7 +612,7 @@ async function bulkScrape(options = {}) {
             }
 
             // Send current page listings to keep it updated during Phase 2
-            const listings = document.querySelectorAll(CONFIG.SELECTORS.listing);
+            const listings = findAllElements(CONFIG.SELECTORS.listing);
             const pageListings = Array.from(listings).map(listing => extractPlaceIdFromListing(listing)).filter(id => id !== 'N/A');
             sendMessage({ type: 'PAGE_LISTINGS', placeIds: pageListings });
 
@@ -611,8 +629,7 @@ async function bulkScrape(options = {}) {
 }
 
 async function phase1ScrollCollect() {
-    const feed = document.querySelector(CONFIG.SELECTORS.feedContainer)
-        || document.querySelector(CONFIG.SELECTORS.feedContainerAlt);
+    const feed = findElement(CONFIG.SELECTORS.feedContainer);
 
     if (!feed) {
         throw new Error('Feed container not found');
@@ -620,7 +637,7 @@ async function phase1ScrollCollect() {
 
     let prevCount = 0;
     while (isScraping) {
-        const listings = document.querySelectorAll(CONFIG.SELECTORS.listing);
+        const listings = findAllElements(CONFIG.SELECTORS.listing);
         const count = listings.length;
 
         if (count === prevCount) {
