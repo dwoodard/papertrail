@@ -517,6 +517,11 @@ const tabs = ['Overview', 'Graph', 'Entities', 'Timeline']
 const showCreateModal = ref(false)
 const selectedProject = ref<any>(null)
 
+// Log tab changes
+watch(activeTab, (newTab, oldTab) => {
+  console.log(`[Papertrail] Tab changed: "${oldTab || 'initial'}" → "${newTab}"`)
+})
+
 // Graph API state
 const allGraphProjects = ref<any[]>([])
 const graphProjectsLoading = ref(false)
@@ -555,16 +560,6 @@ function closeViewByDropdown() {
   showViewByDropdown.value = false
 }
 
-function handleViewModeChange(mode: 'Project' | 'Type' | 'Cluster') {
-  currentViewMode.value = mode
-  setViewMode(mode)
-  showViewByDropdown.value = false
-}
-
-function handleSort(sortBy: 'Name' | 'Size') {
-  graphSortBy.value = sortBy
-  showViewByDropdown.value = false
-}
 
 function getEntityTypeColor(type: string): string {
   const colors: Record<string, string> = {
@@ -596,10 +591,18 @@ function toggleAllTypes(show: boolean) {
 }
 
 onMounted(async () => {
+  console.log('[Papertrail] Extension mounted, initializing...')
+
   // Fetch projects from API
   try {
+    console.log('[Papertrail] Fetching projects from http://papertrail.test/api/projects')
+    const startTime = performance.now()
     const response = await fetch('http://papertrail.test/api/projects')
+    const duration = performance.now() - startTime
+    console.log(`[Papertrail] API response received (${duration.toFixed(2)}ms) - Status: ${response.status}`)
+
     const apiProjects = await response.json()
+    console.log(`[Papertrail] Parsed API projects: ${apiProjects.length} projects`)
 
     // Map API projects to include slug as id for chrome storage compatibility
     projects.value = apiProjects.map(p => ({
@@ -611,24 +614,35 @@ onMounted(async () => {
       lastActivity: 'just now',
     }))
 
-    // console.log('[Main.vue] Projects loaded from API:', projects.value.length)
+    console.log('[Papertrail] Projects mapped successfully:', projects.value.length, 'total')
   } catch (err) {
-    console.error('[Main.vue] Failed to load projects from API:', err)
+    console.error('[Papertrail] Failed to load projects from API:', err)
   }
 
   // Fetch graph projects from new API
   try {
-    // console.log('[Main.vue] Starting to fetch projects...')
+    console.log('[Papertrail] Starting graph projects fetch...')
     graphProjectsLoading.value = true
+    const startTime = performance.now()
     const projects = await graphApiClient.getProjects()
-    // console.log('[Main.vue] API returned:', projects)
+    const duration = performance.now() - startTime
+    console.log(`[Papertrail] Graph projects fetched (${duration.toFixed(2)}ms): ${projects.length} projects`)
+
     allGraphProjects.value = projects
-    // console.log('[Main.vue] Graph projects loaded:', allGraphProjects.value.length, 'projects')
-    // console.log('[Main.vue] First project:', allGraphProjects.value[0])
+
+    if (projects.length > 0) {
+      console.log('[Papertrail] First project sample:', {
+        id: projects[0].id,
+        name: projects[0].name,
+        nodeCount: projects[0].nodeCount,
+        placeCount: projects[0].placeCount,
+        edgeCount: projects[0].edgeCount,
+      })
+    }
   } catch (err: unknown) {
-    console.error('[Main.vue] Failed to load graph projects:', err)
+    console.error('[Papertrail] Failed to load graph projects:', err)
     if (err instanceof Error) {
-      console.error('[Main.vue] Error details:', err.message, err.stack)
+      console.error('[Papertrail] Error details:', err.message, err.stack)
     }
   } finally {
     graphProjectsLoading.value = false
@@ -639,15 +653,16 @@ onMounted(async () => {
 
   // Set first project as active by default
   if (projects.value.length > 0) {
-    // console.log('[Main.vue] Setting active project to:', projects.value[0].slug)
+    console.log('[Papertrail] Setting active project to:', projects.value[0].slug)
     chrome.storage.local.set({ 'pt.activeProjectId': projects.value[0].slug }, () => {
-      // console.log('[Main.vue] Active project saved:', projects.value[0].slug)
+      console.log('[Papertrail] Active project saved:', projects.value[0].slug)
       debugStorage()
     })
   }
 
   document.addEventListener('click', closeGraphControls)
   document.addEventListener('click', closeViewByDropdown)
+  console.log('[Papertrail] Mount complete, event listeners attached')
 })
 
 onBeforeUnmount(() => {
@@ -658,15 +673,21 @@ onBeforeUnmount(() => {
 // Save active project when selected
 watch(selectedProject, (newProject) => {
   if (newProject) {
+    console.log(`[Papertrail] Project selected: "${newProject.name}" (ID: ${newProject.id})`)
     chrome.storage.local.set({ 'pt.activeProjectId': newProject.id })
   }
 })
 
 // Debug: Log when projects load
 watch(allGraphProjects, (newProjects) => {
-  // console.log('[Main.vue] allGraphProjects updated:', newProjects.length, 'projects')
+  console.log(`[Papertrail] Graph projects updated: ${newProjects.length} projects`)
   if (newProjects.length > 0) {
-    // console.log('[Main.vue] First project:', newProjects[0].name, '- Nodes:', newProjects[0].nodeCount)
+    console.log('[Papertrail] First project:', {
+      name: newProjects[0].name,
+      nodes: newProjects[0].nodeCount,
+      edges: newProjects[0].edgeCount,
+      places: newProjects[0].placeCount,
+    })
   }
 })
 
@@ -684,18 +705,22 @@ const form = reactive({
 const projects = ref([])
 
 function openWorkspace(): void {
+  console.log('[Papertrail] Clicked: Open Workspace')
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
     if (tabs[0]) {
+      console.log(`[Papertrail] Opening side panel for tab: ${tabs[0].id}`)
       chrome.sidePanel.open({ tabId: tabs[0].id })
     }
   })
 }
 
 function openCreateModal(): void {
+  console.log('[Papertrail] Clicked: Open Create Project Modal')
   showCreateModal.value = true
 }
 
 function closeCreateModal(): void {
+  console.log('[Papertrail] Closed: Create Project Modal')
   showCreateModal.value = false
   form.name = ''
   form.goal = ''
@@ -722,12 +747,17 @@ function debugStorage(): void {
 async function createProject(): Promise<void> {
   if (!form.name.trim()) return
 
+  console.log(`[Papertrail] Creating project: "${form.name}"`)
   try {
     // Generate UUID for project (same format as backend)
     const projectId = crypto.randomUUID()
+    console.log(`[Papertrail] Generated project ID: ${projectId}`)
 
     // Create project on backend first
+    const startTime = performance.now()
     await graphApiClient.createProject(projectId, form.name, form.goal)
+    const duration = performance.now() - startTime
+    console.log(`[Papertrail] Project created on backend (${duration.toFixed(2)}ms)`)
 
     // Then add to local list
     const newProject = {
@@ -741,14 +771,17 @@ async function createProject(): Promise<void> {
     }
 
     projects.value.unshift(newProject)
+    console.log(`[Papertrail] Project added to local list`)
     saveProjectsToStorage()
 
     // Refresh graph projects list
+    console.log(`[Papertrail] Refreshing graph projects list...`)
     allGraphProjects.value = await graphApiClient.getProjects()
+    console.log(`[Papertrail] Graph projects refreshed: ${allGraphProjects.value.length} total`)
 
     closeCreateModal()
   } catch (error) {
-    console.error('[createProject] Failed:', error)
+    console.error('[Papertrail] Failed to create project:', error)
     alert('Failed to create project. Please try again.')
   }
 }
