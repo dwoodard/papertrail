@@ -2,11 +2,7 @@
 
 ## What Was Created
 
-### 1. Apache AGE Setup
-- **Migration:** Enables the AGE extension and creates the `papertrail_graph`
-- **Docs:** [APACHE_AGE_SETUP.md](APACHE_AGE_SETUP.md) for installation and troubleshooting
-
-### 2. Graph Sync Service
+### 1. Graph Sync Service
 `app/Services/PlaceGraphSyncService.php`
 
 Automatically called when Places are synced. Transforms a Place into:
@@ -16,7 +12,7 @@ Automatically called when Places are synced. Transforms a Place into:
 - `:Website` node (deduplicated)
 - Edges connecting them
 
-### 3. Graph Query Service
+### 2. Graph Query Service
 `app/Services/PlaceGraphQueryService.php`
 
 Seven investigative queries:
@@ -28,7 +24,7 @@ Seven investigative queries:
 6. **findConnectedClusters()** — Tightly connected groups
 7. **getProjectGraphStats()** — Summary statistics
 
-### 4. API Endpoints
+### 3. API Endpoints
 All in `app/Http/Controllers/Api/PlaceGraphController.php`:
 
 ```
@@ -41,45 +37,26 @@ GET /api/graph/clusters?project_id={uuid}&min_connections=2
 GET /api/graph/stats?project_id={uuid}
 ```
 
-### 5. Tests
+### 4. Tests
 - `tests/Feature/PlaceGraphSyncTest.php` — Verify sync works
 - `tests/Feature/PlaceGraphQueryTest.php` — Verify queries work
 
 ## Setup Steps
 
-### Step 1: Install Apache AGE
-
-**macOS:**
-```bash
-brew install age
-```
-
-**Linux/Docker:** See [APACHE_AGE_SETUP.md](APACHE_AGE_SETUP.md)
-
-### Step 2: Enable in PostgreSQL
-
-If using Laravel Herd, Apache AGE should be auto-available. Otherwise, run this once on your PostgreSQL instance:
-
-```sql
-CREATE EXTENSION IF NOT EXISTS age;
-```
-
-### Step 3: Run Migration
+### Step 1: Run Migrations
 
 ```bash
 php artisan migrate
 ```
 
-This creates the `papertrail_graph` and sets up the structure.
+This creates the necessary database structure for graph operations.
 
-### Step 4: Test It
+### Step 2: Test It
 
 ```bash
 php artisan test tests/Feature/PlaceGraphSyncTest.php
 php artisan test tests/Feature/PlaceGraphQueryTest.php
 ```
-
-If tests skip with "Apache AGE extension not installed", AGE isn't available in your PostgreSQL.
 
 ## Usage Example
 
@@ -113,23 +90,6 @@ GET /api/graph/shared-phones?project_id=abc-def-ghi
     }
   ],
   "count": 1
-}
-```
-
-### 3. Custom Cypher Queries
-
-```php
-use Illuminate\Support\Facades\DB;
-
-$results = DB::select("
-    SELECT * FROM cypher('papertrail_graph', $$
-        MATCH (p:Place {id: \$1})-[:HAS_PHONE]->(phone:Phone)
-        RETURN p.name as name, phone.number as phone
-    $$) AS (name agtype, phone agtype)
-", [$placeId]);
-
-foreach ($results as $row) {
-    echo $row->name . ' → ' . $row->phone;
 }
 ```
 
@@ -191,8 +151,8 @@ Extension Scraper
 PostgreSQL places table
     ↓ (PlaceSyncController)
 PlaceGraphSyncService
-    ↓ Cypher CREATE statements
-Apache AGE Graph
+    ↓ Graph relationship creation
+Graph data structure
     ↓ (PlaceGraphQueryService)
 API Endpoints
     ↓ 
@@ -201,17 +161,9 @@ Frontend (visualization, analysis)
 
 ## Troubleshooting
 
-**Tests skip with "Apache AGE extension not installed"**
-- AGE isn't available on your PostgreSQL instance
-- macOS: `brew install age`
-- See [APACHE_AGE_SETUP.md](APACHE_AGE_SETUP.md) for other platforms
-
-**"Graph 'papertrail_graph' does not exist"**
-- Run `php artisan migrate`
-
-**Cypher syntax error in custom queries**
-- Check Apache AGE Cypher support: not all Neo4j features are available
-- Use `MERGE` for contact nodes, not `CREATE`, to avoid duplicates
+**Graph operations failing**
+- Run `php artisan migrate` to ensure database structure is set up
+- Check that Places have been synced to the database
 
 **Queries returning empty results**
 - Verify Places are synced: check if graph nodes exist with a quick test query
@@ -228,13 +180,11 @@ Frontend (visualization, analysis)
 
 ## File Reference
 
-- Migration: `database/migrations/2026_06_19_020547_enable_apache_age_extension.php`
 - Sync: `app/Services/PlaceGraphSyncService.php`
 - Queries: `app/Services/PlaceGraphQueryService.php`
 - API: `app/Http/Controllers/Api/PlaceGraphController.php`
 - Routes: `routes/api.php`
 - Tests: `tests/Feature/PlaceGraph*.php`
-- Docs: `_docs/APACHE_AGE_SETUP.md` (detailed)
 
 ## Architecture Diagram
 
@@ -260,10 +210,10 @@ Frontend (visualization, analysis)
 │ PlaceGraphSyncService                       │
 │ (Extract contact points, create nodes)      │
 └────────────────┬────────────────────────────┘
-                 │ Cypher CREATE/MERGE
+                 │ Graph relationship creation
                  ↓
 ┌─────────────────────────────────────────────┐
-│ Apache AGE Graph (papertrail_graph)         │
+│ Graph Structure                             │
 │                                             │
 │ Place --HAS_PHONE--> Phone                  │
 │ Place --HAS_ADDRESS--> Address              │
