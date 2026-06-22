@@ -2,7 +2,6 @@
 
 use App\Models\Place;
 use App\Models\Project;
-use App\Models\User;
 
 test('sync endpoint creates new places', function () {
     $project = Project::factory()->create();
