@@ -428,6 +428,185 @@
 
         </div>
 
+        <!-- Table Tab -->
+        <div v-show="activeTab === 'Table'" class="tab-pane table-tab">
+          <!-- Search & Filter Header -->
+          <div class="search-header">
+            <div class="search-box">
+              <span class="search-icon">🔍</span>
+              <input
+                id="table-entity-search"
+                v-model="tableSearch"
+                type="text"
+                placeholder="Search entities..."
+                class="search-input"
+                name="entity-search"
+              />
+              <button v-if="tableSearch" class="search-clear" @click="tableSearch = ''">✕</button>
+            </div>
+
+            <button
+              class="btn-toggle-filters"
+              @click.stop="showTableFilters = !showTableFilters"
+            >
+              Filters {{ showTableFilters ? '▼' : '▶' }}
+            </button>
+          </div>
+
+          <div v-show="showTableFilters" class="table-filter-bar" @click.stop>
+            <div class="filter-group-compact">
+              <span class="filter-label-compact">Project:</span>
+              <select v-model="selectedTableProject" class="filter-select-compact">
+                <option value="">All</option>
+                <option v-for="project in allGraphProjects" :key="project.id" :value="project.id">
+                  {{ project.name }}
+                </option>
+              </select>
+            </div>
+
+            <div class="filter-group-compact">
+              <span class="filter-label-compact">Types:</span>
+              <label class="checkbox-compact">
+                <input :checked="tableVisibleTypes.business" type="checkbox" @change="toggleTableType('business')" />
+                <span :style="{ color: getEntityTypeColor('business') }">Business</span>
+              </label>
+              <label class="checkbox-compact">
+                <input :checked="tableVisibleTypes.person" type="checkbox" @change="toggleTableType('person')" />
+                <span :style="{ color: getEntityTypeColor('person') }">Person</span>
+              </label>
+              <label class="checkbox-compact">
+                <input :checked="tableVisibleTypes.location" type="checkbox" @change="toggleTableType('location')" />
+                <span :style="{ color: getEntityTypeColor('location') }">Location</span>
+              </label>
+              <label class="checkbox-compact">
+                <input :checked="tableVisibleTypes.website" type="checkbox" @change="toggleTableType('website')" />
+                <span :style="{ color: getEntityTypeColor('website') }">Website</span>
+              </label>
+              <label class="checkbox-compact">
+                <input :checked="tableVisibleTypes.contact" type="checkbox" @change="toggleTableType('contact')" />
+                <span :style="{ color: getEntityTypeColor('contact') }">Contact</span>
+              </label>
+            </div>
+
+            <div class="filter-group-compact">
+              <span class="filter-label-compact">Connections:</span>
+              <input v-model.number="tableMinConnections" type="number" min="0" class="number-input-compact" placeholder="Min" />
+              <span class="filter-separator">-</span>
+              <input v-model.number="tableMaxConnections" type="number" min="0" class="number-input-compact" placeholder="Max" />
+            </div>
+
+            <button class="btn-reset-filters-compact" @click="resetTableFilters" v-if="selectedTableProject || tableMinConnections > 0 || tableMaxConnections < Infinity || !Object.values(tableVisibleTypes).every(v => v)">
+              Reset
+            </button>
+          </div>
+
+          <!-- Grouping Panel -->
+          <div class="grouping-panel">
+            <label class="grouping-label">Group By:</label>
+            <div class="grouping-chips">
+              <div
+                v-for="(groupCol, idx) in tableGrouping"
+                :key="groupCol"
+                class="group-chip"
+              >
+                {{ columns.find(c => c.id === groupCol || (c as any).columnDef?.header === groupCol)?.header || groupCol }}
+                <button
+                  class="remove-group-btn"
+                  @click="tableGrouping = tableGrouping.filter((_, i) => i !== idx)"
+                  title="Remove from grouping"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+            <div
+              class="grouping-drop-zone"
+              :class="{ 'drag-over': dragOverGrouping }"
+              @dragover.prevent="dragOverGrouping = true"
+              @dragleave="dragOverGrouping = false"
+              @drop.prevent="handleGroupDrop"
+            >
+              <span v-if="tableGrouping.length === 0" class="drop-hint">Drag column headers here to group</span>
+            </div>
+          </div>
+
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th v-for="header in table.getHeaderGroups()[0]?.headers" :key="header.id" class="table-header" :style="{ width: header.getSize() }">
+                    <div
+                      :draggable="!header.isPlaceholder"
+                      class="header-content"
+                      :class="{ 'draggable': !header.isPlaceholder }"
+                      @dragstart="handleHeaderDragStart(header, $event)"
+                    >
+                      <button
+                        v-if="header.column.getCanSort()"
+                        @click="header.column.toggleSorting()"
+                        class="sort-button"
+                        :class="{ 'sorted': header.column.getIsSorted() }"
+                      >
+                        {{ header.isPlaceholder ? null : header.column.columnDef.header }}
+                        <span class="sort-icon" v-if="header.column.getIsSorted()">
+                          {{ header.column.getIsSorted() === 'desc' ? '▼' : '▲' }}
+                        </span>
+                      </button>
+                      <div v-else class="table-header-text">
+                        {{ header.isPlaceholder ? null : header.column.columnDef.header }}
+                      </div>
+                    </div>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <template v-for="(row, rowIndex) in table.getRowModel().rows" :key="row.id">
+                  <tr
+                    class="table-row"
+                    :class="{ 'row-selected': rowSelection[rowIndex], 'group-row': row.getIsGrouped() }"
+                    :style="{ paddingLeft: `${row.depth * 20}px` }"
+                  >
+                    <td v-for="cell in row.getVisibleCells()" :key="cell.id" class="table-cell" :style="{ width: cell.column.getSize() }">
+                      <!-- Group header with expand/collapse -->
+                      <template v-if="row.getIsGrouped() && cell.column.id === row.groupingColumnId">
+                        <div class="group-header">
+                          <button
+                            class="expand-btn"
+                            @click="row.toggleExpanded()"
+                          >
+                            {{ row.getIsExpanded() ? '▼' : '▶' }}
+                          </button>
+                          <span class="group-value">
+                            {{ row.groupingColumnId === 'project' ? row.original.project?.name : row.original[row.groupingColumnId as keyof typeof row.original] }} ({{ row.subRows.length }})
+                          </span>
+                        </div>
+                      </template>
+                      <!-- Empty cell for grouped rows (non-grouped column) -->
+                      <template v-else-if="row.getIsGrouped()">
+                      </template>
+                      <!-- Regular cell -->
+                      <template v-else-if="!cell.getIsAggregated()">
+                        <template v-if="cell.column.columnDef.header === 'Type'">
+                          <span :style="{ color: getEntityTypeColor(cell.getValue() as string), fontWeight: '600', textTransform: 'capitalize' }">
+                            {{ cell.getValue() }}
+                          </span>
+                        </template>
+                        <template v-else>
+                          {{ cell.getValue() }}
+                        </template>
+                      </template>
+                      <!-- Aggregated cell (count) -->
+                      <template v-else-if="cell.getIsAggregated()">
+                        {{ cell.getValue() }}
+                      </template>
+                    </td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
         <!-- Entities Tab -->
         <div v-show="activeTab === 'Entities'" class="tab-pane">
           <section class="placeholder-section">
@@ -508,18 +687,47 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { FlipHorizontal, LockOpen } from '@lucide/vue'
+import {
+  useVueTable,
+  getCoreRowModel,
+  getSortedRowModel,
+  getFilteredRowModel,
+  getGroupedRowModel,
+  getExpandedRowModel,
+  createColumnHelper,
+  type ColumnDef,
+  type SortingState,
+  type GroupingState,
+  type ExpandedState,
+} from '@tanstack/vue-table'
 import ProjectDetail from './ProjectDetail.vue'
 import { useGraphSimulation, type GraphData, type GraphNode, type ViewModeId } from '../composables/useGraphSimulation'
 import { graphApiClient } from '../services/graphApiClient'
 
 const activeTab = ref('Overview')
-const tabs = ['Overview', 'Graph', 'Entities', 'Timeline']
+const tabs = ['Overview', 'Graph', 'Table', 'Entities', 'Timeline']
 const showCreateModal = ref(false)
 const selectedProject = ref<any>(null)
 
 // Log tab changes
 watch(activeTab, (newTab, oldTab) => {
   console.log(`[Papertrail] Tab changed: "${oldTab || 'initial'}" → "${newTab}"`)
+})
+
+// Sync Table filters to Graph when switching to Graph tab
+watch(activeTab, (newTab, oldTab) => {
+  if (newTab === 'Graph' && oldTab === 'Table') {
+    // Sync entity types: convert tableVisibleTypes object to graphVisibleTypes Set
+    const visibleTypes = Object.keys(tableVisibleTypes.value).filter(
+      type => tableVisibleTypes.value[type as keyof typeof tableVisibleTypes.value]
+    )
+    graphVisibleTypes.value = new Set(visibleTypes)
+
+    // Sync project filter
+    selectedGraphProject.value = selectedTableProject.value
+
+    console.log('[Papertrail] Synced Table filters to Graph view')
+  }
 })
 
 // Graph API state
@@ -544,6 +752,23 @@ const showGraphControls = ref(false)
 const showViewByDropdown = ref(false)
 const currentViewMode = ref<ViewModeId>('Cluster')
 
+// Table view state
+const tableSearch = ref('')
+const tableVisibleTypes = ref({
+  business: true,
+  person: true,
+  location: true,
+  website: true,
+  contact: true,
+})
+const tableSortBy = ref<'name' | 'type' | 'connections' | 'project'>('name')
+const tableSortAsc = ref(true)
+const showTableFilters = ref(false)
+const selectedTableProject = ref('')
+const tableMinConnections = ref(0)
+const tableMaxConnections = ref(Infinity)
+const tableRequestId = ref(0)
+
 const graphConfig = {
   minConfidence: graphMinConfidence,
   repulsion: graphRepulsion,
@@ -559,6 +784,11 @@ function closeGraphControls() {
 function closeViewByDropdown() {
   showViewByDropdown.value = false
 }
+
+function closeTableFilters() {
+  showTableFilters.value = false
+}
+
 
 
 function getEntityTypeColor(type: string): string {
@@ -582,6 +812,7 @@ function toggleTypeFilter(type: string) {
   graphVisibleTypes.value = newTypes
 }
 
+
 function toggleAllTypes(show: boolean) {
   if (show) {
     graphVisibleTypes.value = new Set(['business', 'person', 'location', 'website', 'contact'])
@@ -589,6 +820,73 @@ function toggleAllTypes(show: boolean) {
     graphVisibleTypes.value = new Set()
   }
 }
+
+function handleViewModeChange(mode: ViewModeId) {
+  currentViewMode.value = mode
+  setViewMode(mode)
+}
+
+function handleSort(sortBy: 'Name' | 'Size') {
+  graphSortBy.value = sortBy
+}
+
+function toggleTableSort(column: 'name' | 'type' | 'connections' | 'project' | 'confidence') {
+  if (tableSortBy.value === column) {
+    tableSortAsc.value = !tableSortAsc.value
+  } else {
+    tableSortBy.value = column
+    tableSortAsc.value = true
+  }
+}
+
+function toggleTableType(type: 'business' | 'person' | 'location' | 'website' | 'contact') {
+  tableVisibleTypes.value[type] = !tableVisibleTypes.value[type]
+}
+
+function resetTableFilters() {
+  tableSearch.value = ''
+  selectedTableProject.value = ''
+  tableMinConnections.value = 0
+  tableMaxConnections.value = Infinity
+  tableVisibleTypes.value = {
+    business: true,
+    person: true,
+    location: true,
+    website: true,
+    contact: true,
+  }
+}
+
+function highlightSearchMatch(text: string): string {
+  if (!tableSearch.value) return text
+  const regex = new RegExp(`(${tableSearch.value})`, 'gi')
+  return text.replace(regex, '<strong style="background: rgba(251, 191, 36, 0.3); font-weight: 600;">$1</strong>')
+}
+
+function getNodeConnectionTypes(nodeId: string): Record<string, boolean> {
+  const types: Record<string, boolean> = {
+    business: false,
+    person: false,
+    location: false,
+    website: false,
+    contact: false,
+  }
+
+  const node = sortedTableNodes.value.find(n => n.id === nodeId)
+  if (!node || !selectedNodeRelations.value) return types
+
+  // Check the selected node's relations (if this node is selected)
+  if (selectedGraphNode.value?.id === nodeId) {
+    selectedNodeRelations.value.forEach(rel => {
+      if (types.hasOwnProperty(rel.nodeType)) {
+        types[rel.nodeType] = true
+      }
+    })
+  }
+
+  return types
+}
+
 
 onMounted(async () => {
   console.log('[Papertrail] Extension mounted, initializing...')
@@ -662,12 +960,14 @@ onMounted(async () => {
 
   document.addEventListener('click', closeGraphControls)
   document.addEventListener('click', closeViewByDropdown)
+  document.addEventListener('click', closeTableFilters)
   console.log('[Papertrail] Mount complete, event listeners attached')
 })
 
 onBeforeUnmount(() => {
   document.removeEventListener('click', closeGraphControls)
   document.removeEventListener('click', closeViewByDropdown)
+  document.removeEventListener('click', closeTableFilters)
 })
 
 // Save active project when selected
@@ -796,6 +1096,97 @@ const totalRelationshipsCount = computed(() => {
 })
 
 const selectedNodeRelations = ref<any[]>([])
+const sortedTableNodes = ref<GraphNode[]>([])
+
+// TanStack Table setup
+const columnHelper = createColumnHelper<GraphNode>()
+const tableSorting = ref<SortingState>([])
+const rowSelection = ref<Record<string, boolean>>({})
+const tableGrouping = ref<GroupingState>([])
+const tableExpanded = ref<ExpandedState>({})
+const dragOverGrouping = ref(false)
+
+function handleHeaderDragStart(header: any, event: DragEvent) {
+  const columnId = header.column.id
+  event.dataTransfer!.effectAllowed = 'move'
+  event.dataTransfer!.setData('columnId', columnId)
+}
+
+function handleGroupDrop(event: DragEvent) {
+  event.preventDefault()
+  dragOverGrouping.value = false
+  const columnId = event.dataTransfer!.getData('columnId')
+
+  // Add to grouping if not already there
+  if (!tableGrouping.value.includes(columnId)) {
+    tableGrouping.value = [...tableGrouping.value, columnId]
+  }
+}
+
+const columns: ColumnDef<GraphNode>[] = [
+  columnHelper.accessor('name', {
+    header: 'Name',
+  } as any),
+  columnHelper.accessor('type', {
+    header: 'Type',
+  } as any),
+  columnHelper.accessor('value', {
+    header: 'Connections',
+  } as any),
+  columnHelper.accessor((row: GraphNode) => row.project?.name || '—', {
+    id: 'project',
+    header: 'Project',
+  } as any),
+] as ColumnDef<GraphNode>[]
+
+const table = computed(() =>
+  useVueTable({
+    get data() {
+      return sortedTableNodes.value
+    },
+    columns,
+    state: {
+      get sorting() {
+        return tableSorting.value
+      },
+      get rowSelection() {
+        return rowSelection.value
+      },
+      get grouping() {
+        return tableGrouping.value
+      },
+      get expanded() {
+        return tableExpanded.value
+      },
+    },
+    onSortingChange: (updater: any) => {
+      tableSorting.value = typeof updater === 'function' ? updater(tableSorting.value) : updater
+    },
+    onRowSelectionChange: (updater: any) => {
+      const newSelection = typeof updater === 'function' ? updater(rowSelection.value) : updater
+      rowSelection.value = newSelection
+
+      const rowIndex = Object.keys(newSelection).find(key => newSelection[key] === true)
+      if (rowIndex !== undefined) {
+        const selectedNode = sortedTableNodes.value[parseInt(rowIndex)]
+        if (selectedNode) {
+          selectNodeInGraph(selectedNode.id).catch(err => console.error('Error selecting node:', err))
+        }
+      }
+    },
+    onGroupingChange: (updater: any) => {
+      tableGrouping.value = typeof updater === 'function' ? updater(tableGrouping.value) : updater
+    },
+    onExpandedChange: (updater: any) => {
+      tableExpanded.value = typeof updater === 'function' ? updater(tableExpanded.value) : updater
+    },
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getGroupedRowModel: getGroupedRowModel(),
+    getExpandedRowModel: getExpandedRowModel(),
+  })
+)
 
 function normalizeNodeType(dbType: string): string {
   const typeMap: Record<string, string> = {
@@ -1025,7 +1416,8 @@ async function buildHubGraphData(): Promise<GraphData> {
       const nodeMap = new Map<string, GraphNode>()
 
       for (const project of allGraphProjects.value) {
-        const cacheKey = `${project.id}:${graphSearch.value}`
+        const typesKey = Array.from(graphVisibleTypes.value).sort().join(',')
+        const cacheKey = `${project.id}:${graphSearch.value}:${typesKey}`
         let projectData = graphDataCache.get(cacheKey)
 
         if (!projectData) {
@@ -1065,7 +1457,8 @@ async function buildHubGraphData(): Promise<GraphData> {
       return { nodes: sortedNodes, links: allLinks }
     } else {
       // Single project selected
-      const cacheKey = `${selectedGraphProject.value}:${graphSearch.value}`
+      const typesKey = Array.from(graphVisibleTypes.value).sort().join(',')
+      const cacheKey = `${selectedGraphProject.value}:${graphSearch.value}:${typesKey}`
       let projectData = graphDataCache.get(cacheKey)
 
       if (!projectData) {
@@ -1129,6 +1522,98 @@ watch(
   { immediate: false }
 )
 
+// Update table data when filters or sort settings change
+watch(
+  [activeTab, tableSearch, tableSortBy, tableSortAsc, selectedTableProject, tableMinConnections, tableMaxConnections, tableVisibleTypes],
+  async () => {
+    if (activeTab.value === 'Table') {
+      const requestId = ++tableRequestId.value
+      console.log(`[Table] Loading data... Request #${requestId}. Projects:`, allGraphProjects.value.length)
+      try {
+        const allNodes: GraphNode[] = []
+        const nodeMap = new Map<string, GraphNode>()
+
+        // Get nodes from selected project or all projects
+        const projectsToLoad = selectedTableProject.value
+          ? allGraphProjects.value.filter(p => p.id === selectedTableProject.value)
+          : allGraphProjects.value
+
+        // Get visible types list
+        const visibleTypesList = Object.keys(tableVisibleTypes.value).filter(type => tableVisibleTypes.value[type as keyof typeof tableVisibleTypes.value])
+
+        // If no types are selected, show nothing
+        if (visibleTypesList.length === 0) {
+          sortedTableNodes.value = []
+          return
+        }
+
+        for (const project of projectsToLoad) {
+          const typesKey = visibleTypesList.sort().join(',')
+          const cacheKey = `${project.id}:${tableSearch.value}:${typesKey}`
+          let projectData = graphDataCache.get(cacheKey)
+
+          if (!projectData) {
+            projectData = await graphApiClient.getProjectGraph(project.id, {
+              search: tableSearch.value || undefined,
+              types: visibleTypesList,
+            })
+            graphDataCache.set(cacheKey, projectData)
+          }
+
+          projectData.nodes.forEach((node: any) => {
+            if (!nodeMap.has(node.id)) {
+              const graphNode: GraphNode = {
+                ...node,
+                project: { id: project.id, name: project.name },
+                name: node.label,
+              }
+
+              // Apply connection count filter
+              const connections = graphNode.value || 0
+              if (connections >= tableMinConnections.value && connections <= tableMaxConnections.value) {
+                allNodes.push(graphNode)
+                nodeMap.set(node.id, graphNode)
+              }
+            }
+          })
+        }
+
+        if (requestId !== tableRequestId.value) return
+
+        // Sort nodes
+        const sorted = [...allNodes]
+        sorted.sort((a, b) => {
+          let comparison = 0
+
+          switch (tableSortBy.value) {
+            case 'name':
+              comparison = a.name.localeCompare(b.name)
+              break
+            case 'type':
+              comparison = a.type.localeCompare(b.type)
+              break
+            case 'connections':
+              comparison = (a.value || 0) - (b.value || 0)
+              break
+            case 'project':
+              comparison = (a.project?.name || '').localeCompare(b.project?.name || '')
+              break
+          }
+
+          return tableSortAsc.value ? comparison : -comparison
+        })
+
+        sortedTableNodes.value = sorted
+        console.log(`[Table] Request #${requestId} completed. Loaded nodes:`, sorted.length)
+      } catch (error) {
+        console.error('Failed to build table data:', error)
+        sortedTableNodes.value = []
+      }
+    }
+  },
+  { deep: true }
+)
+
 // Update forces when repulsion changes
 watch(
   () => graphRepulsion.value,
@@ -1150,6 +1635,15 @@ watch(
     // Reapply the current view mode to update the grid
     setViewMode(currentViewMode.value)
   }
+)
+
+// Force table recompute when grouping changes
+watch(
+  () => tableGrouping.value,
+  () => {
+    tableExpanded.value = {}
+  },
+  { deep: true }
 )
 
 </script>
@@ -2594,5 +3088,630 @@ body {
   animation: connectedPulse 1.5s ease-in-out infinite;
   transition: stroke 0.2s ease, stroke-width 0.2s ease, opacity 0.2s ease;
   paint-order: stroke;
+}
+
+/* Table Tab Styles */
+.table-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  overflow: hidden !important;
+  height: calc(100vh - 200px);
+  padding: 0;
+}
+
+/* Search & Filter Header */
+.search-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--pt-border);
+  background: linear-gradient(135deg, var(--pt-surface) 0%, var(--pt-bg) 100%);
+  animation: slideDown 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  flex-shrink: 0;
+  margin-bottom: 16px;
+}
+
+/* Table Column Header */
+.table-header {
+  padding: 12px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--pt-text-muted);
+  border-right: 1px solid var(--pt-border);
+  display: table-cell;
+  flex: 1;
+}
+
+.table-container-wrapper {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  padding: 20px 24px;
+}
+
+.entities-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--pt-surface);
+  border: 1px solid var(--pt-border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.entities-table thead {
+  background: linear-gradient(135deg, var(--pt-surface-alt) 0%, var(--pt-bg) 100%);
+  border-bottom: 2px solid var(--pt-accent);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.entities-table th {
+  padding: 16px 12px;
+  text-align: left;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--pt-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.entities-table th:hover {
+  background: rgba(74, 144, 226, 0.1);
+  color: var(--pt-accent);
+}
+
+.entities-table th.sort-active {
+  color: var(--pt-accent);
+  background: rgba(74, 144, 226, 0.1);
+}
+
+.sort-indicator {
+  margin-left: 6px;
+  font-size: 10px;
+  opacity: 0.8;
+}
+
+.entities-table tbody {
+  display: table-row-group;
+}
+
+.table-row {
+  display: table-row;
+  border-bottom: 1px solid var(--pt-border);
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.table-row {
+  background: linear-gradient(90deg, rgba(74, 144, 226, calc(var(--connection-intensity) * 0.08)) 0%, transparent 100%);
+}
+
+.table-row.row-hub {
+  background: linear-gradient(90deg, rgba(34, 197, 94, 0.1) 0%, transparent 100%);
+}
+
+.table-row.row-isolated {
+  background: linear-gradient(90deg, rgba(107, 114, 128, 0.05) 0%, transparent 100%);
+}
+
+.table-row.row-connected {
+  background: linear-gradient(90deg, rgba(59, 130, 246, 0.08) 0%, transparent 100%);
+}
+
+.table-row:hover {
+  background: rgba(74, 144, 226, 0.1) !important;
+}
+
+.table-row.row-selected {
+  background: rgba(74, 144, 226, 0.2) !important;
+  border-bottom-color: var(--pt-accent);
+}
+
+.entities-table td {
+  padding: 14px 12px;
+  font-size: 13px;
+  color: var(--pt-text);
+}
+
+.cell-name {
+  font-weight: 500;
+  color: var(--pt-text);
+}
+
+.name-with-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hub-badge {
+  font-size: 14px;
+  flex-shrink: 0;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.cell-type {
+  text-align: center;
+}
+
+.cell-connections {
+  text-align: center;
+  font-family: 'Courier New', monospace;
+  font-weight: 600;
+  color: var(--pt-accent);
+}
+
+.connections-with-types {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.connection-count {
+  min-width: 30px;
+}
+
+.connection-type-dots {
+  display: flex;
+  gap: 4px;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.dot-business {
+  background: #2563eb;
+}
+
+.dot-person {
+  background: #9333ea;
+}
+
+.dot-location {
+  background: #16a34a;
+}
+
+.dot-website {
+  background: #0891b2;
+}
+
+.dot-contact {
+  background: #d97706;
+}
+
+.cell-project {
+  font-size: 12px;
+  color: var(--pt-text-muted);
+}
+
+.table-container {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  margin: 0;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--pt-surface);
+  border: 1px solid var(--pt-border);
+  border-radius: 8px;
+  overflow: hidden;
+  height: 100%;
+  font-size: 13px;
+  font-family: var(--font-body);
+  table-layout: fixed;
+  display: flex;
+  flex-direction: column;
+}
+
+.data-table thead {
+  background: linear-gradient(135deg, var(--pt-surface-alt) 0%, var(--pt-bg) 100%);
+  border-bottom: 1px solid var(--pt-border);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: table;
+  width: 100%;
+  table-layout: fixed;
+}
+
+.data-table thead tr {
+  display: table;
+  width: 100%;
+  table-layout: fixed;
+}
+
+.table-header {
+  padding: 12px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--pt-text-muted);
+  border-right: 1px solid var(--pt-border);
+  display: table-cell;
+  flex: 1;
+}
+
+.table-header:last-child {
+  border-right: none;
+}
+
+.sort-button {
+  background: transparent;
+  border: none;
+  color: var(--pt-text-muted);
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  transition: color 0.2s ease;
+}
+
+.sort-button:hover {
+  color: var(--pt-text);
+}
+
+.sort-button.sorted {
+  color: var(--pt-accent);
+}
+
+.sort-icon {
+  font-size: 9px;
+  display: inline-block;
+}
+
+.table-header-text {
+  color: var(--pt-text-muted);
+}
+
+.data-table tbody {
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.data-table tbody tr {
+  display: table;
+  width: 100%;
+  table-layout: fixed;
+}
+
+.table-row {
+  border-bottom: 1px solid var(--pt-border);
+  cursor: pointer;
+  transition: background 0.15s ease;
+  display: table;
+  width: 100%;
+  table-layout: fixed;
+}
+
+.table-row:hover {
+  background: rgba(74, 144, 226, 0.08);
+}
+
+.table-row.row-selected {
+  background: rgba(74, 144, 226, 0.15);
+}
+
+.table-cell {
+  padding: 12px;
+  border-right: 1px solid var(--pt-border);
+  color: var(--pt-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: table-cell;
+  flex: 1;
+}
+
+.table-cell:last-child {
+  border-right: none;
+}
+
+/* Grouping Panel */
+.grouping-panel {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 24px;
+  background: rgba(74, 144, 226, 0.05);
+  border-bottom: 1px solid var(--pt-border);
+  flex-wrap: wrap;
+  margin: 0;
+  flex-shrink: 0;
+}
+
+.grouping-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--pt-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  flex-shrink: 0;
+}
+
+.grouping-chips {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.group-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: rgba(74, 144, 226, 0.2);
+  border: 1px solid var(--pt-accent);
+  border-radius: 20px;
+  color: var(--pt-text);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.remove-group-btn {
+  background: transparent;
+  border: none;
+  color: var(--pt-text-muted);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0;
+  transition: color 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+}
+
+.remove-group-btn:hover {
+  color: var(--pt-accent);
+}
+
+.grouping-drop-zone {
+  flex: 1;
+  min-width: 200px;
+  padding: 12px 16px;
+  background: var(--pt-surface);
+  border: 2px dashed var(--pt-border);
+  border-radius: 8px;
+  text-align: center;
+  transition: all 0.2s ease;
+}
+
+.grouping-drop-zone.drag-over {
+  border-color: var(--pt-accent);
+  background: rgba(74, 144, 226, 0.1);
+}
+
+.drop-hint {
+  font-size: 12px;
+  color: var(--pt-text-muted);
+}
+
+/* Draggable Headers */
+.header-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.header-content.draggable {
+  cursor: grab;
+  user-select: none;
+}
+
+.header-content.draggable:active {
+  cursor: grabbing;
+}
+
+/* Grouped Rows */
+.table-row.group-row {
+  background: rgba(74, 144, 226, 0.03);
+  font-weight: 500;
+  border-bottom: none;
+}
+
+.table-row.group-row:hover {
+  background: rgba(74, 144, 226, 0.08);
+}
+
+.group-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.expand-btn {
+  background: transparent;
+  border: none;
+  color: var(--pt-text-muted);
+  cursor: pointer;
+  padding: 0;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  transition: color 0.2s ease;
+}
+
+.expand-btn:hover {
+  color: var(--pt-text);
+}
+
+.group-value {
+  font-weight: 600;
+  color: var(--pt-accent);
+}
+
+.header-left {
+  flex: 1;
+  min-width: 300px;
+}
+
+.header-right {
+  display: flex;
+  gap: 12px;
+}
+
+.btn-toggle-filters {
+  padding: 8px 12px;
+  background: transparent;
+  border: 1px solid var(--pt-border);
+  color: var(--pt-text-muted);
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.btn-toggle-filters:hover {
+  border-color: var(--pt-accent);
+  color: var(--pt-text);
+}
+
+.table-filter-bar {
+  padding: 12px 24px;
+  background: rgba(74, 144, 226, 0.03);
+  border-bottom: 1px solid var(--pt-border);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+  animation: slideDown 0.2s ease;
+}
+
+.filter-group-compact {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.filter-label-compact {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--pt-text-muted);
+  letter-spacing: 0.5px;
+}
+
+.checkbox-compact {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  cursor: pointer;
+  font-size: 10px;
+  color: var(--pt-text);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.checkbox-compact input {
+  cursor: pointer;
+  accent-color: var(--pt-accent);
+  width: 13px;
+  height: 13px;
+}
+
+.checkbox-compact:hover {
+  opacity: 0.75;
+}
+
+.number-input-compact {
+  width: 50px;
+  padding: 4px 6px;
+  background: var(--pt-bg);
+  border: 1px solid var(--pt-border);
+  color: var(--pt-text);
+  border-radius: 3px;
+  font-family: var(--font-body);
+  font-size: 11px;
+}
+
+.number-input-compact:focus {
+  outline: none;
+  border-color: var(--pt-accent);
+}
+
+.filter-separator {
+  color: var(--pt-text-muted);
+  font-size: 11px;
+  margin: 0 2px;
+}
+
+.filter-select-compact {
+  padding: 4px 6px;
+  background: var(--pt-bg);
+  border: 1px solid var(--pt-border);
+  color: var(--pt-text);
+  border-radius: 3px;
+  font-family: var(--font-body);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.filter-select-compact:focus {
+  outline: none;
+  border-color: var(--pt-accent);
+}
+
+.btn-reset-filters-compact {
+  padding: 4px 10px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid #ef4444;
+  color: #ef4444;
+  border-radius: 3px;
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.btn-reset-filters-compact:hover {
+  background: rgba(239, 68, 68, 0.2);
 }
 </style>
