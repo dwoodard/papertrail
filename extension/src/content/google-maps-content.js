@@ -2,6 +2,9 @@
 // Google Maps Scraper - Content Script
 // ============================================================================
 
+console.log('[Maps Scraper] ✅ Content script loaded at', new Date().toLocaleTimeString());
+console.log('[Maps Scraper] Current URL:', window.location.href);
+
 const CONFIG = {
     SELECTORS: {
         feedContainer: ['div[role="feed"]', 'div[role="main"] div[role="feed"]'],
@@ -9,14 +12,14 @@ const CONFIG = {
         listingName: ['div[role="article"] span', 'div[role="article"] h3'],
         clickTarget: ['div[role="article"] a[href*="/maps/place"]', 'div[role="article"] a'],
         panelContainer: ['div[role="main"]', 'aside[role="complementary"]'],
-        name: ['h1', 'h1[data-item-id]'],
-        category: ['button[data-item-type="category"]', 'button[aria-label*="category"]'],
-        rating: ['[role="img"][aria-label*="star"]', 'span[aria-label*="star rating"]'],
-        address: ['button[data-item-id="address"]', 'button[aria-label*="address"]'],
-        website: ['a[aria-label^="Website"]', 'a[aria-label*="website"]'],
-        phone: ['button[data-item-id^="phone:"] span', 'button[aria-label*="call"] span'],
-        plusCode: ['button[data-item-id="oloc"]', 'button[aria-label*="Plus Code"]'],
-        hours: ['button[aria-label*="Hours"]', 'button[aria-label*="Open"]']
+        name: ['h1', 'h1[data-item-id]', 'div[role="heading"] h1'],
+        category: ['button[aria-label*="category"]', 'button span:not(:empty)'],
+        rating: ['[role="img"][aria-label*="star"]', 'span[aria-label*="star rating"]', 'span[aria-label*="stars"]'],
+        address: ['button[aria-label*="address"]', 'a[aria-label*="address"]', 'div[aria-label*="address"]'],
+        website: ['a[aria-label^="Website"]', 'a[aria-label*="website"]', 'a[href*="http"]'],
+        phone: ['button[aria-label*="call"]', 'a[aria-label*="phone"]', 'a[href*="tel:"]', 'button span[dir="ltr"]'],
+        plusCode: ['button[aria-label*="Plus Code"]', 'button[aria-label*="plus code"]'],
+        hours: ['button[aria-label*="Hours"]', 'button[aria-label*="hours"]', 'button[aria-label*="Open"]']
     },
     DEBOUNCE_MS: 800,
     MIN_DELAY_MS: 400,
@@ -50,6 +53,28 @@ function findAllElements(selectors, root = document) {
         if (elements.length > 0) return elements;
     }
     return [];
+}
+
+// ============================================================================
+// Text-Based Extraction Helper
+// ============================================================================
+// Google Maps now stores data as plain text content in buttons/links,
+// not in aria-labels. This helper searches for elements by text pattern.
+
+function findElementByText(selector, textPattern, root = document) {
+    if (!textPattern) return null;
+    const elements = root.querySelectorAll(selector);
+    const patterns = Array.isArray(textPattern) ? textPattern : [textPattern];
+
+    for (const el of elements) {
+        const text = el.textContent?.toLowerCase() || '';
+        for (const pattern of patterns) {
+            if (text.includes(pattern.toLowerCase())) {
+                return el;
+            }
+        }
+    }
+    return null;
 }
 
 // ============================================================================
@@ -178,22 +203,43 @@ function extractPriceRange() {
 }
 
 function extractDetails() {
-    const name = findElement(CONFIG.SELECTORS.name)?.innerText?.trim() || 'N/A';
+    console.log(`[Maps Scraper] 🔎 Extracting details from page...`);
 
-    // Check if listing is sponsored
+    // Get panel container FIRST, then scope all searches to it
     const panelContainer = findElement(CONFIG.SELECTORS.panelContainer);
-    let isSponsored = false;
-    if (panelContainer) {
-        const sponsoredBadge = panelContainer.innerText?.toLowerCase().includes('sponsored');
-        isSponsored = sponsoredBadge || false;
+    console.log(`[Maps Scraper]   Panel container: ${panelContainer ? '✓' : '✗'}`);
+
+    if (!panelContainer) {
+        console.warn('[Maps Scraper] ⚠️ Detail panel not found!');
+        return {
+            name: 'N/A', category: 'N/A', rating: 'N/A', reviews: 'N/A', address: 'N/A',
+            website: 'N/A', phone: 'N/A', plusCode: 'N/A', hours: 'N/A', status: 'N/A',
+            priceRange: 'N/A', latitude: 'N/A', longitude: 'N/A', placeId: 'N/A',
+            mapsUrl: window.location.href, isSponsored: false, keyword: currentSessionKeyword,
+            capturedAt: new Date().toISOString(), source: 'unknown'
+        };
     }
 
-    const category = findElement(CONFIG.SELECTORS.category)?.innerText?.trim() || 'N/A';
-    const rating = findElement(CONFIG.SELECTORS.rating)?.innerText?.trim() || 'N/A';
+    // Name: Get the FIRST h1 INSIDE the panel (not the whole document)
+    const nameEl = panelContainer.querySelector('h1');
+    const name = nameEl?.innerText?.trim() || 'N/A';
+    console.log(`[Maps Scraper]   Name: "${name}" ${nameEl ? '✓' : '✗'}`);
 
-    // Extract review count — search for patterns like "123 reviews" or "(123 reviews)"
+    let isSponsored = false;
+    const sponsoredBadge = panelContainer.innerText?.toLowerCase().includes('sponsored');
+    isSponsored = sponsoredBadge || false;
+
+    // Category: First button in panel (usually right after name)
+    const categoryEl = panelContainer.querySelector('button');
+    const category = categoryEl?.innerText?.trim() || 'N/A';
+    console.log(`[Maps Scraper]   Category: "${category}" ${categoryEl ? '✓' : '✗'}`);
+
+    const ratingEl = findElement(CONFIG.SELECTORS.rating, panelContainer);
+    const rating = ratingEl?.innerText?.trim() || 'N/A';
+    console.log(`[Maps Scraper]   Rating: "${rating}" ${ratingEl ? '✓' : '✗'}`);
+
     let reviews = 'N/A';
-    const reviewSpans = Array.from(document.querySelectorAll('span'));
+    const reviewSpans = Array.from(panelContainer.querySelectorAll('span'));
     for (const span of reviewSpans) {
         const text = span.innerText?.trim() || '';
         if (text.match(/^\d+\s*reviews?$/i) || text.match(/^\(\d+\s*reviews?\)$/i)) {
@@ -201,30 +247,60 @@ function extractDetails() {
             break;
         }
     }
+    console.log(`[Maps Scraper]   Reviews: "${reviews}" ${reviews !== 'N/A' ? '✓' : '✗'}`);
 
-    const address = findElement(CONFIG.SELECTORS.address)?.innerText?.trim() || 'N/A';
-    const website = findElement(CONFIG.SELECTORS.website)?.href || 'N/A';
-    const phone = findElement(CONFIG.SELECTORS.phone)?.innerText?.trim() || 'N/A';
-
-    // Plus Code extraction
-    let plusCode = 'N/A';
-    const plusEl = findElement(CONFIG.SELECTORS.plusCode);
-    if (plusEl) {
-        const text = plusEl.innerText?.trim();
-        plusCode = text && text !== '' ? text : 'N/A';
+    // Address: Find button/link with "Address:" text within panel
+    const addressEl = findElementByText('button, a', 'address', panelContainer);
+    let address = 'N/A';
+    if (addressEl) {
+        const fullText = addressEl.innerText?.trim() || '';
+        address = fullText.replace(/^address:\s*/i, '').trim();
     }
+    console.log(`[Maps Scraper]   Address: "${address}" ${addressEl ? '✓' : '✗'}`);
 
-    // Hours extraction
-    let hours = 'N/A';
-    const hoursEl = findElement(CONFIG.SELECTORS.hours);
-    if (hoursEl) {
-        const ariaLabel = hoursEl.getAttribute('aria-label');
-        if (ariaLabel) {
-            hours = ariaLabel;
+    // Website: Find link with "Website:" text within panel
+    const websiteEl = findElementByText('a', 'website', panelContainer);
+    let website = 'N/A';
+    if (websiteEl) {
+        website = websiteEl.href || websiteEl.innerText?.trim() || 'N/A';
+    }
+    console.log(`[Maps Scraper]   Website: "${website}" ${websiteEl ? '✓' : '✗'}`);
+
+    // Phone: Find button/link with "Phone:" text within panel
+    const phoneEl = findElementByText('button, a', 'phone', panelContainer);
+    let phone = 'N/A';
+    if (phoneEl) {
+        const fullText = phoneEl.innerText?.trim() || '';
+        phone = fullText.replace(/^phone:\s*/i, '').trim();
+    }
+    console.log(`[Maps Scraper]   Phone: "${phone}" ${phoneEl ? '✓' : '✗'}`);
+
+    // Plus Code: Find button with "Plus code:" text within panel
+    const plusEl = findElementByText('button', 'plus code', panelContainer);
+    let plusCode = 'N/A';
+    if (plusEl) {
+        const fullText = plusEl.innerText?.trim() || '';
+        const match = fullText.match(/plus\s+code:\s*([A-Z0-9+]+)/i);
+        if (match) {
+            plusCode = match[1];
         } else {
-            const text = hoursEl.innerText?.trim();
-            if (text) hours = text;
+            plusCode = fullText.replace(/^plus\s+code:\s*/i, '').trim();
         }
+    }
+    console.log(`[Maps Scraper]   Plus Code: "${plusCode}" ${plusEl ? '✓' : '✗'}`);
+
+    // Hours: Find button with "Hours", "Open", or "Closes" text within panel
+    const hoursEl = findElementByText('button', ['hours', 'open', 'closes'], panelContainer);
+    let hours = 'N/A';
+    if (hoursEl) {
+        const text = hoursEl.innerText?.trim();
+        if (text) hours = text;
+    }
+    console.log(`[Maps Scraper]   Hours: "${hours}" ${hoursEl ? '✓' : '✗'}`);
+
+    if (name === 'N/A') {
+        console.warn('[Maps Scraper] ⚠️ NAME NOT FOUND! Page structure may have changed.');
+        console.log('[Maps Scraper] H1 elements in panel:', Array.from(panelContainer.querySelectorAll('h1')).map(h => h.innerText).slice(0, 5));
     }
 
     const coords = extractCoordinates();
@@ -250,7 +326,7 @@ function extractDetails() {
         placeId,
         mapsUrl,
         isSponsored,
-        keyword: currentSessionKeyword, // Use session keyword, not re-extracted
+        keyword: currentSessionKeyword,
         capturedAt: new Date().toISOString(),
         source: 'unknown'
     };
@@ -292,6 +368,7 @@ function initPassiveCapture() {
     }
 
     const observer = new MutationObserver(() => {
+        console.log('[Maps Scraper] 🔄 DOM mutation detected, debouncing...');
         clearTimeout(debounceTimer);
         debounceTimer = setTimeout(() => {
             const nameEl = document.querySelector(CONFIG.SELECTORS.name);
@@ -300,7 +377,9 @@ function initPassiveCapture() {
                 entry.source = 'passive';
                 markCaptured(entry.name);
                 saveEntry(entry);
-                console.log('[Maps Scraper] Captured:', entry.name);
+                console.log(`[Maps Scraper] ✅ Passive captured: "${entry.name}"`);
+            } else if (nameEl) {
+                console.log(`[Maps Scraper] ⏭️ Already captured: "${nameEl.innerText}"`);
             }
         }, CONFIG.DEBOUNCE_MS);
     });
@@ -432,12 +511,19 @@ async function enrichSingleResult(targetPlaceId, targetName, mapsUrl) {
         const fullDetails = extractDetails();
         fullDetails.source = 'bulk';
 
-        console.log(`[Maps Scraper] 📊 Extracted details:`, {
+        console.log(`[Maps Scraper] 📊 Extracted all fields:`, {
             name: fullDetails.name,
+            category: fullDetails.category,
+            rating: fullDetails.rating,
+            reviews: fullDetails.reviews,
             phone: fullDetails.phone,
             website: fullDetails.website,
             address: fullDetails.address,
-            hours: fullDetails.hours
+            hours: fullDetails.hours,
+            plusCode: fullDetails.plusCode,
+            status: fullDetails.status,
+            priceRange: fullDetails.priceRange,
+            placeId: fullDetails.placeId
         });
 
         await mergeEntry(fullDetails);
@@ -493,24 +579,39 @@ async function bulkScrape(options = {}) {
         for (let i = 0; i < total; i++) {
             if (!isScraping) break; // allow stop signal
 
+            const itemStartTime = Date.now();
+            console.log(`[Maps Scraper] ⏱️ [${i + 1}/${total}] Starting item processing...`);
+
             // After clicking a detail panel, the URL changes to a /place/ URL and the
-            // feed disappears. Navigate back to the search URL and wait for listings.
+            // feed disappears. Navigate back using browser history to avoid full page reload.
             if (!window.location.href.includes(searchUrl.split('?')[0].split('@')[0])) {
-                console.log(`[Maps Scraper] Navigating back to search results...`);
-                window.location.href = searchUrl;
+                console.log(`[Maps Scraper] 🔄 Going back to search results using history...`);
+                window.history.back();
+
+                // Wait for URL to change and listings to reappear
                 await new Promise(resolve => {
                     const check = setInterval(() => {
+                        const currentUrl = window.location.href;
+                        const isBackOnSearch = currentUrl.includes(searchUrl.split('?')[0].split('@')[0]);
                         const feed = document.querySelector(CONFIG.SELECTORS.feedContainer)
                             || document.querySelector(CONFIG.SELECTORS.feedContainerAlt);
                         const listings = findAllElements(CONFIG.SELECTORS.listing);
-                        if (feed && listings.length > 0) {
+
+                        if (isBackOnSearch && feed && listings.length > 0) {
                             clearInterval(check);
                             resolve();
                         }
                     }, 500);
+
+                    // Timeout after 10 seconds
+                    setTimeout(() => {
+                        clearInterval(check);
+                        resolve();
+                    }, 10000);
                 });
+
                 await sleep(rand(1000, 2000));
-                console.log(`[Maps Scraper] Back on search results, ${document.querySelectorAll(CONFIG.SELECTORS.listing).length} listings visible`);
+                console.log(`[Maps Scraper] ✅ Back on search results, ${document.querySelectorAll(CONFIG.SELECTORS.listing).length} listings visible`);
             }
 
             // Re-query fresh listings and find our target by placeId or index
@@ -607,7 +708,7 @@ async function bulkScrape(options = {}) {
             // Occasional long pause
             if (Math.random() < CONFIG.LONG_PAUSE_CHANCE) {
                 const pauseMs = rand(CONFIG.LONG_PAUSE_MIN_MS, CONFIG.LONG_PAUSE_MAX_MS);
-                console.log(`[Maps Scraper] Taking ${(pauseMs / 1000).toFixed(1)}s pause...`);
+                console.log(`[Maps Scraper] 😴 Taking random pause: ${(pauseMs / 1000).toFixed(1)}s...`);
                 await sleep(pauseMs);
             }
 
@@ -616,7 +717,8 @@ async function bulkScrape(options = {}) {
             const pageListings = Array.from(listings).map(listing => extractPlaceIdFromListing(listing)).filter(id => id !== 'N/A');
             sendMessage({ type: 'PAGE_LISTINGS', placeIds: pageListings });
 
-            console.log(`[Maps Scraper] Entry placeId: ${fullDetails.placeId}`);
+            const itemDuration = ((Date.now() - itemStartTime) / 1000).toFixed(1);
+            console.log(`[Maps Scraper] ✅ Item [${i + 1}/${total}] complete in ${itemDuration}s`);
             sendProgress(i + 1, total, fullDetails);
         }
     } catch (err) {
@@ -636,12 +738,62 @@ async function phase1ScrollCollect() {
     }
 
     let prevCount = 0;
+    const processedPlaceIds = new Set(); // Track which listings we've already saved
+
     while (isScraping) {
         const listings = findAllElements(CONFIG.SELECTORS.listing);
         const count = listings.length;
 
         if (count === prevCount) {
             break;
+        }
+
+        // Save basic entry for each NEW listing found during scroll
+        const allListings = Array.from(listings);
+        for (const listing of allListings) {
+            const placeId = extractPlaceIdFromListing(listing);
+            const name = listing.querySelector(CONFIG.SELECTORS.listingName)?.innerText?.trim() || 'N/A';
+
+            // Only save if we haven't already processed this placeId
+            if (placeId && placeId !== 'N/A' && !processedPlaceIds.has(placeId)) {
+                processedPlaceIds.add(placeId);
+
+                // Create basic entry with keyword - will be enriched later in phase2
+                const basicEntry = {
+                    name,
+                    placeId,
+                    keyword: currentSessionKeyword,
+                    capturedAt: new Date().toISOString(),
+                    source: 'partial',  // Mark as incomplete - will be enriched later
+                    // Placeholder fields (will be filled in during enrichment)
+                    category: 'N/A',
+                    rating: 'N/A',
+                    reviews: 'N/A',
+                    address: 'N/A',
+                    website: 'N/A',
+                    phone: 'N/A',
+                    plusCode: 'N/A',
+                    hours: 'N/A',
+                    status: 'N/A',
+                    priceRange: 'N/A',
+                    latitude: 'N/A',
+                    longitude: 'N/A',
+                    mapsUrl: window.location.href,
+                    isSponsored: false
+                };
+
+                // Save immediately so results appear in UI as we scroll
+                await new Promise((resolve) => {
+                    chrome.storage.local.get(['results'], ({ results = [] }) => {
+                        const existingIndex = results.findIndex(r => r.placeId === placeId);
+                        if (existingIndex === -1) {
+                            results.push(basicEntry);
+                            console.log(`[Maps Scraper] 📝 Saved partial entry: "${name}" (${placeId})`);
+                        }
+                        chrome.storage.local.set({ results }, resolve);
+                    });
+                });
+            }
         }
 
         prevCount = count;
@@ -672,21 +824,20 @@ async function mergeEntry(fullDetails) {
         chrome.storage.local.get(['results'], ({ results = [] }) => {
             const sanitized = sanitizeEntry(fullDetails);
             const placeId = sanitized.placeId;
+            console.log(`[Maps Scraper] 💾 Merging entry: "${sanitized.name}" (PlaceID: ${placeId})`);
 
-            // Try to find existing partial with same placeId
             if (placeId && placeId !== 'N/A') {
                 const existingIndex = results.findIndex(r => r.placeId === placeId);
                 if (existingIndex !== -1) {
-                    // Update existing partial with full details
                     results[existingIndex] = { ...results[existingIndex], ...sanitized };
-                    console.log(`[Maps Scraper] Merged details into existing partial: ${sanitized.name}`);
+                    console.log(`[Maps Scraper] ✅ Merged into existing entry at index ${existingIndex}`);
                     chrome.storage.local.set({ results }, resolve);
                     return;
                 }
             }
 
-            // No existing partial found, save as new complete entry
             results.push(sanitized);
+            console.log(`[Maps Scraper] ✅ Saved as new entry (total: ${results.length})`);
             chrome.storage.local.set({ results }, resolve);
         });
     });
@@ -696,12 +847,14 @@ async function saveEntry(entry) {
     return new Promise((resolve) => {
         chrome.storage.local.get(['results'], ({ results = [] }) => {
             const sanitized = sanitizeEntry(entry);
-            // Check for duplicate by Place ID (unique identifier) instead of name
+            console.log(`[Maps Scraper] 💾 Saving entry: "${sanitized.name}" (PlaceID: ${sanitized.placeId})`);
             const exists = results.some(r => r.placeId && r.placeId === sanitized.placeId);
             if (!exists) {
                 results.push(sanitized);
+                console.log(`[Maps Scraper] ✅ Saved successfully (total: ${results.length})`);
                 chrome.storage.local.set({ results }, resolve);
             } else {
+                console.log(`[Maps Scraper] ⏭️ Entry already exists, skipping`);
                 resolve();
             }
         });
@@ -709,13 +862,53 @@ async function saveEntry(entry) {
 }
 
 function sendMessage(message) {
-    chrome.runtime.sendMessage(message, () => {
-        // ignore errors if popup is closed
+    console.log(`[Maps Scraper] 📤 Sending message: "${message.type}"`);
+    chrome.runtime.sendMessage(message, (response) => {
+        if (chrome.runtime.lastError) {
+            console.log(`[Maps Scraper] ℹ️ Message sent but no receiver (popup may be closed)`);
+        } else {
+            console.log(`[Maps Scraper] ✅ Message sent, response:`, response);
+        }
     });
 }
 
 function sendProgress(done, total, entry) {
-    console.log(`[Maps Scraper] 📤 Sending progress: ${done}/${total} - ${entry?.name || 'N/A'}`);
+    if (entry) {
+        const fieldsFound = [
+            entry.name !== 'N/A' && 'name',
+            entry.category !== 'N/A' && 'category',
+            entry.rating !== 'N/A' && 'rating',
+            entry.reviews !== 'N/A' && 'reviews',
+            entry.address !== 'N/A' && 'address',
+            entry.website !== 'N/A' && 'website',
+            entry.phone !== 'N/A' && 'phone',
+            entry.hours !== 'N/A' && 'hours'
+        ].filter(Boolean).length;
+
+        console.log(`[Maps Scraper] 📤 Progress ${done}/${total}:`);
+        console.log(`    Name: "${entry.name}"`);
+        console.log(`    PlaceID: "${entry.placeId}"`);
+        console.log(`    Source: "${entry.source}"`);
+        console.log(`    Fields populated: ${fieldsFound}/8 (category, rating, reviews, address, website, phone, hours, placeId)`);
+        console.log(`    Full entry:`, {
+            name: entry.name,
+            category: entry.category,
+            rating: entry.rating,
+            reviews: entry.reviews,
+            address: entry.address,
+            website: entry.website,
+            phone: entry.phone,
+            hours: entry.hours,
+            plusCode: entry.plusCode,
+            status: entry.status,
+            priceRange: entry.priceRange,
+            placeId: entry.placeId,
+            source: entry.source
+        });
+    } else {
+        console.log(`[Maps Scraper] 📤 Progress ${done}/${total} - (no entry data)`);
+    }
+
     sendMessage({
         type: 'PROGRESS',
         done,
@@ -729,9 +922,10 @@ function sendProgress(done, total, entry) {
 // ============================================================================
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    console.log('[Maps Scraper] Message received:', message.type);
+    console.log(`[Maps Scraper] 📨 Message received: "${message.type}" at ${new Date().toLocaleTimeString()}`);
 
     if (message.type === 'ACTIVATE') {
+        console.log(`[Maps Scraper] 🔄 ACTIVATE: ${message.active ? 'Starting' : 'Stopping'} passive capture`);
         if (message.active) {
             initPassiveCapture();
         } else {
@@ -739,32 +933,43 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         }
         sendResponse({ success: true });
     } else if (message.type === 'BULK_SCRAPE') {
+        console.log(`[Maps Scraper] 🚀 BULK_SCRAPE started - scrollToBottom: ${message.scrollToBottom}, filter: ${message.statusFilter}`);
         if (!isScraping) {
             bulkScrape({
                 scrollToBottom: message.scrollToBottom,
                 statusFilter: message.statusFilter
-            }).catch(err => console.error(err));
+            }).catch(err => {
+                console.error('[Maps Scraper] ❌ BULK_SCRAPE error:', err);
+            });
+        } else {
+            console.log('[Maps Scraper] ⚠️ Scrape already in progress, ignoring new request');
         }
         sendResponse({ success: true });
     } else if (message.type === 'STOP_SCRAPE') {
+        console.log('[Maps Scraper] ⏹️ STOP_SCRAPE received');
         isScraping = false;
         sendResponse({ success: true });
     } else if (message.type === 'LOAD_CAPTURED') {
-        // Popup wants to know which names are already captured
+        console.log('[Maps Scraper] 📂 LOAD_CAPTURED requested');
         chrome.storage.local.get(['results'], ({ results = [] }) => {
             capturedNames = new Set(results.map(r => r.name.toLowerCase()));
+            console.log(`[Maps Scraper] ✅ Loaded ${results.length} existing results`);
             sendResponse({ count: results.length });
         });
-        return true; // async response
+        return true;
     } else if (message.type === 'ENRICH_SINGLE') {
-        // Enrich a single result using Google Maps URL or by finding and clicking it
-        enrichSingleResult(message.placeId, message.name, message.mapsUrl).catch(err => console.error(err));
+        console.log(`[Maps Scraper] 🔍 ENRICH_SINGLE requested: "${message.name}" (${message.placeId})`);
+        enrichSingleResult(message.placeId, message.name, message.mapsUrl).catch(err => {
+            console.error('[Maps Scraper] ❌ ENRICH_SINGLE error:', err);
+        });
         sendResponse({ success: true });
     } else if (message.type === 'SCROLL_TO_LISTING') {
-        // Scroll a listing into view on the Maps page
-        scrollListingIntoView(message.placeId, message.name).catch(err => console.error(err));
+        console.log(`[Maps Scraper] 📍 SCROLL_TO_LISTING requested: "${message.name}" (${message.placeId})`);
+        scrollListingIntoView(message.placeId, message.name).catch(err => {
+            console.error('[Maps Scraper] ❌ SCROLL_TO_LISTING error:', err);
+        });
         sendResponse({ success: true });
+    } else {
+        console.log(`[Maps Scraper] ⚠️ Unknown message type: "${message.type}"`);
     }
 });
-
-console.log('[Maps Scraper] Content script loaded');

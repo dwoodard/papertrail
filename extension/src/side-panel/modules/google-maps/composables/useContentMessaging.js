@@ -50,7 +50,41 @@ export function useContentMessaging(onProgressCallback, onEntryCapture) {
         isScraping.value = true
         const { done, total, entry } = message
         progress.value = { done, total }
-        console.log(`[Popup] 📥 Received: ${done}/${total} - ${entry?.name || 'N/A'}`)
+
+        if (entry) {
+          const fieldsPopulated = {
+            name: entry.name !== 'N/A' ? entry.name : null,
+            category: entry.category !== 'N/A',
+            rating: entry.rating !== 'N/A',
+            reviews: entry.reviews !== 'N/A',
+            address: entry.address !== 'N/A',
+            website: entry.website !== 'N/A',
+            phone: entry.phone !== 'N/A',
+            hours: entry.hours !== 'N/A',
+            placeId: entry.placeId !== 'N/A'
+          }
+          const populatedCount = Object.values(fieldsPopulated).filter(v => v === true || (typeof v === 'string' && v)).length
+
+          console.log(`[Popup] 📥 Received: ${done}/${total}`)
+          console.log(`    Name: "${entry.name}"`)
+          console.log(`    PlaceID: "${entry.placeId}"`)
+          console.log(`    Source: "${entry.source}"`)
+          console.log(`    Fields: ${populatedCount}/9 populated`)
+          console.log(`    Entry:`, {
+            name: entry.name,
+            category: entry.category,
+            rating: entry.rating,
+            reviews: entry.reviews,
+            address: entry.address,
+            website: entry.website,
+            phone: entry.phone,
+            hours: entry.hours,
+            placeId: entry.placeId,
+            source: entry.source
+          })
+        } else {
+          console.log(`[Popup] 📥 Received: ${done}/${total} - (no entry)`)
+        }
 
         if (entry) {
           if (onProgressCallback) {

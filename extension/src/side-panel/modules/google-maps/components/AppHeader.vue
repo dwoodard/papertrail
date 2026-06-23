@@ -18,7 +18,7 @@
           </select>
         </div>
         <button v-if="!isSidePanel" class="btn-header" @click="openSidePanel" title="Open side panel for persistent view">📍 Side Panel</button>
-        <DataManager @clean-done="$emit('clean-done')" />
+        <DataManager @clean-done="cleanDone" />
         <ExportDropdown :results="results" :keyword="selectedKeyword" />
       </div>
     </div>
@@ -27,7 +27,7 @@
         <input
           type="checkbox"
           :checked="active"
-          @change="$emit('toggle-active', $event.target.checked)"
+          @change="toggleActive($event.target.checked)"
         />
         <span :class="['indicator', active ? 'active' : 'inactive']"></span>
         <span id="statusText">{{ active ? 'Auto-Capture On' : 'Auto-Capture Off' }}</span>
@@ -51,10 +51,18 @@ defineProps({
   selectedProjectId: String,
 })
 
-defineEmits(['toggle-active', 'clean-done', 'select-project'])
+const emit = defineEmits(['toggle-active', 'clean-done', 'select-project'])
 
 function selectProject(event) {
-  $emit('select-project', event.target.value)
+  emit('select-project', event.target.value)
+}
+
+function toggleActive(checked) {
+  emit('toggle-active', checked)
+}
+
+function cleanDone() {
+  emit('clean-done')
 }
 
 async function openSidePanel() {
