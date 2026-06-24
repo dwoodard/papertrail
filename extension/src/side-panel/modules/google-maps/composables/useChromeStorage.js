@@ -6,20 +6,32 @@ function toPlain(value) {
 
 /**
  * Convert observation to result format for display
+ * Handles both flat and nested data structures
  */
 function observationToResult(observation) {
+  // Flatten nested data structure if it exists
+  const data = observation.data || observation
+
   return {
     id: observation.id,
-    name: observation.data?.name || 'N/A',
-    placeId: observation.data?.placeId,
-    phone: observation.data?.phone,
-    website: observation.data?.website,
-    address: observation.data?.address,
-    keyword: observation.data?.keyword || 'unknown',
-    captureMode: observation.captureMode,
-    capturedAt: observation.capturedAt,
-    projectId: observation.projectId,
-    source: observation.captureMode === 'bulk' ? 'bulk' : 'passive'
+    name: data.name || 'N/A',
+    placeId: data.placeId,
+    phone: data.phone,
+    website: data.website,
+    address: data.address,
+    keyword: data.keyword || 'unknown',
+    category: data.category,
+    rating: data.rating,
+    reviews: data.reviews,
+    hours: data.hours,
+    plusCode: data.plusCode,
+    priceRange: data.priceRange,
+    status: data.status,
+    mapsUrl: data.mapsUrl,
+    isSponsored: data.isSponsored ?? false,
+    source: data.source || 'unknown',
+    capturedAt: data.capturedAt,
+    projectId: observation.projectId || data.projectId
   }
 }
 

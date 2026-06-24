@@ -260,6 +260,13 @@ onMounted(async () => {
   activeToggle.value = true
   await messaging.activate(true)
 
+  // Listen for storage changes to update results in real-time
+  chrome.storage.local.onChanged.addListener((changes) => {
+    if (changes['pt.observations']) {
+      storage.load()
+    }
+  })
+
   // Initialize panel width and layout
   if (contentArea.value) {
     contentArea.value.style.setProperty('--left-panel-width', panelWidth.value + '%')

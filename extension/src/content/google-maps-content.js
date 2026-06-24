@@ -10,9 +10,9 @@ const CONFIG = {
         feedContainer: ['div[role="feed"]', 'div[role="main"] div[role="feed"]'],
         listing: ['div[role="feed"] div[role="article"]', 'div[role="feed"] [role="article"]'],
         listingName: ['div[role="article"] span', 'div[role="article"] h3'],
-        clickTarget: ['div[role="article"] a[href*="/maps/place"]', 'div[role="article"] a'],
+        clickTarget: ['div[role="article"] a', 'a.hfpxzc'],
         panelContainer: ['div[role="main"]', 'aside[role="complementary"]'],
-        name: ['h1', 'h1[data-item-id]', 'div[role="heading"] h1'],
+        name: ['h1.DUwDvf', 'h1[data-item-id]', 'div[role="heading"] h1'],
         category: ['button[aria-label*="category"]', 'button span:not(:empty)'],
         rating: ['[role="img"][aria-label*="star"]', 'span[aria-label*="star rating"]', 'span[aria-label*="stars"]'],
         address: ['button[aria-label*="address"]', 'a[aria-label*="address"]', 'div[aria-label*="address"]'],
@@ -220,9 +220,22 @@ function extractDetails() {
         };
     }
 
-    // Name: Get the FIRST h1 INSIDE the panel (not the whole document)
-    const nameEl = panelContainer.querySelector('h1');
-    const name = nameEl?.innerText?.trim() || 'N/A';
+    // Name: Try multiple selectors, skip "Results" if found
+    let nameEl = findElement(CONFIG.SELECTORS.name, panelContainer);
+    let name = nameEl?.innerText?.trim() || 'N/A';
+
+    // If we got "Results" (the Maps UI), look for the actual business name
+    if (name === 'Results') {
+        const allH1s = Array.from(panelContainer.querySelectorAll('h1'));
+        for (const h1 of allH1s) {
+            const text = h1.innerText?.trim() || '';
+            if (text && text !== 'Results') {
+                nameEl = h1;
+                name = text;
+                break;
+            }
+        }
+    }
     console.log(`[Maps Scraper]   Name: "${name}" ${nameEl ? '✓' : '✗'}`);
 
     let isSponsored = false;
@@ -249,31 +262,65 @@ function extractDetails() {
     }
     console.log(`[Maps Scraper]   Reviews: "${reviews}" ${reviews !== 'N/A' ? '✓' : '✗'}`);
 
-    // Address: Find button/link with "Address:" text within panel
-    const addressEl = findElementByText('button, a', 'address', panelContainer);
+    // Address: Look for buttons/links starting with address or containing street patterns
     let address = 'N/A';
-    if (addressEl) {
-        const fullText = addressEl.innerText?.trim() || '';
-        address = fullText.replace(/^address:\s*/i, '').trim();
-    }
-    console.log(`[Maps Scraper]   Address: "${address}" ${addressEl ? '✓' : '✗'}`);
+    const addressButtons = Array.from(panelContainer.querySelectorAll('button, a')).filter(el => {
+        const text = el.innerText?.toLowerCase() || '';
+        return text.includes('address') || text.match(/\d+.*(?:st|ave|rd|ln|way|blvd|drive|dr\.)/i);
+    });
 
-    // Website: Find link with "Website:" text within panel
-    const websiteEl = findElementByText('a', 'website', panelContainer);
+    if (addressButtons.length > 0) {
+        // Prefer the one with most text (likely to be actual address)
+        const addressBtn = addressButtons.reduce((prev, curr) =>
+            (curr.innerText?.length || 0) > (prev.innerText?.length || 0) ? curr : prev
+        );
+        if (addressBtn) {
+            const fullText = addressBtn.innerText?.trim() || '';
+            address = fullText.replace(/^address:\s*/i, '').trim();
+            console.log(`[Maps Scraper]   Address: "${address}" ✓`);
+        }
+    }
+    if (address === 'N/A') {
+        console.log(`[Maps Scraper]   Address: "N/A" ✗`);
+    }
+
+    // Website: Find link with "Website" text (prefer href over text)
     let website = 'N/A';
+    const websiteEl = panelContainer.querySelector('a[href*="http"]');
     if (websiteEl) {
         website = websiteEl.href || websiteEl.innerText?.trim() || 'N/A';
     }
     console.log(`[Maps Scraper]   Website: "${website}" ${websiteEl ? '✓' : '✗'}`);
 
-    // Phone: Find button/link with "Phone:" text within panel
-    const phoneEl = findElementByText('button, a', 'phone', panelContainer);
+    // Phone: Look for phone number pattern (###) ### - #### or similar
     let phone = 'N/A';
-    if (phoneEl) {
-        const fullText = phoneEl.innerText?.trim() || '';
-        phone = fullText.replace(/^phone:\s*/i, '').trim();
+    const allText = panelContainer.innerText || '';
+    const phoneMatch = allText.match(/\(?(\d{3})\)?[\s.-]?(\d{3})[\s.-]?(\d{4})/);
+    if (phoneMatch) {
+        phone = `${phoneMatch[1]}-${phoneMatch[2]}-${phoneMatch[3]}`;
+        console.log(`[Maps Scraper]   Phone: "${phone}" ✓`);
+    } else {
+        // Fallback: look for button with "phone" that contains a number
+        const phoneButtons = Array.from(panelContainer.querySelectorAll('button, a')).filter(el => {
+            const text = el.innerText?.toLowerCase() || '';
+            return text.includes('phone') || text.match(/\d/);
+        });
+        if (phoneButtons.length > 0) {
+            // Find the one most likely to be a phone number (has digits, not "send to phone")
+            const phoneBtn = phoneButtons.find(btn => {
+                const text = btn.innerText?.trim() || '';
+                return text.match(/\d/) && !text.toLowerCase().includes('send');
+            });
+            if (phoneBtn) {
+                const fullText = phoneBtn.innerText?.trim() || '';
+                phone = fullText.replace(/^phone:\s*/i, '').trim();
+                console.log(`[Maps Scraper]   Phone: "${phone}" ✓`);
+            }
+        }
+        if (phone === 'N/A') {
+            console.log(`[Maps Scraper]   Phone: "N/A" ✗`);
+        }
     }
-    console.log(`[Maps Scraper]   Phone: "${phone}" ${phoneEl ? '✓' : '✗'}`);
 
     // Plus Code: Find button with "Plus code:" text within panel
     const plusEl = findElementByText('button', 'plus code', panelContainer);
@@ -404,7 +451,7 @@ function stopPassiveCapture() {
 
 async function loadCapturedNames() {
     return new Promise((resolve) => {
-        chrome.storage.local.get(['results'], ({ results = [] }) => {
+        chrome.storage.local.get(['pt.observations'], ({ 'pt.observations': results = [] }) => {
             // Load all captured names and placeIds to skip duplicates efficiently
             capturedNames = new Set(results.map(r => r.name.toLowerCase()));
             console.log(`[Maps Scraper] Loaded ${results.length} existing results to check against`);
@@ -556,7 +603,7 @@ async function bulkScrape(options = {}) {
 
     // Pre-load results into a map for fast lookups in Phase 2
     const placeIdMap = await new Promise((resolve) => {
-        chrome.storage.local.get(['results'], ({ results = [] }) => {
+        chrome.storage.local.get(['pt.observations'], ({ 'pt.observations': results = [] }) => {
             const map = new Map(results.map(r => [r.placeId, r]));
             resolve(map);
         });
@@ -752,7 +799,9 @@ async function phase1ScrollCollect() {
         const allListings = Array.from(listings);
         for (const listing of allListings) {
             const placeId = extractPlaceIdFromListing(listing);
-            const name = listing.querySelector(CONFIG.SELECTORS.listingName)?.innerText?.trim() || 'N/A';
+            // Extract name from the link's aria-label (contains "Name · Visited link" format)
+            const clickTarget = listing.querySelector(CONFIG.SELECTORS.clickTarget);
+            const name = clickTarget?.getAttribute('aria-label')?.split('·')[0].trim() || 'N/A';
 
             // Only save if we haven't already processed this placeId
             if (placeId && placeId !== 'N/A' && !processedPlaceIds.has(placeId)) {
@@ -784,13 +833,13 @@ async function phase1ScrollCollect() {
 
                 // Save immediately so results appear in UI as we scroll
                 await new Promise((resolve) => {
-                    chrome.storage.local.get(['results'], ({ results = [] }) => {
+                    chrome.storage.local.get(['pt.observations'], ({ 'pt.observations': results = [] }) => {
                         const existingIndex = results.findIndex(r => r.placeId === placeId);
                         if (existingIndex === -1) {
                             results.push(basicEntry);
                             console.log(`[Maps Scraper] 📝 Saved partial entry: "${name}" (${placeId})`);
                         }
-                        chrome.storage.local.set({ results }, resolve);
+                        chrome.storage.local.set({ 'pt.observations': results }, resolve);
                     });
                 });
             }
@@ -821,7 +870,7 @@ async function phase1ScrollCollect() {
 
 async function mergeEntry(fullDetails) {
     return new Promise((resolve) => {
-        chrome.storage.local.get(['results'], ({ results = [] }) => {
+        chrome.storage.local.get(['pt.observations'], ({ 'pt.observations': results = [] }) => {
             const sanitized = sanitizeEntry(fullDetails);
             const placeId = sanitized.placeId;
             console.log(`[Maps Scraper] 💾 Merging entry: "${sanitized.name}" (PlaceID: ${placeId})`);
@@ -831,28 +880,28 @@ async function mergeEntry(fullDetails) {
                 if (existingIndex !== -1) {
                     results[existingIndex] = { ...results[existingIndex], ...sanitized };
                     console.log(`[Maps Scraper] ✅ Merged into existing entry at index ${existingIndex}`);
-                    chrome.storage.local.set({ results }, resolve);
+                    chrome.storage.local.set({ 'pt.observations': results }, resolve);
                     return;
                 }
             }
 
             results.push(sanitized);
             console.log(`[Maps Scraper] ✅ Saved as new entry (total: ${results.length})`);
-            chrome.storage.local.set({ results }, resolve);
+            chrome.storage.local.set({ 'pt.observations': results }, resolve);
         });
     });
 }
 
 async function saveEntry(entry) {
     return new Promise((resolve) => {
-        chrome.storage.local.get(['results'], ({ results = [] }) => {
+        chrome.storage.local.get(['pt.observations'], ({ 'pt.observations': results = [] }) => {
             const sanitized = sanitizeEntry(entry);
             console.log(`[Maps Scraper] 💾 Saving entry: "${sanitized.name}" (PlaceID: ${sanitized.placeId})`);
             const exists = results.some(r => r.placeId && r.placeId === sanitized.placeId);
             if (!exists) {
                 results.push(sanitized);
                 console.log(`[Maps Scraper] ✅ Saved successfully (total: ${results.length})`);
-                chrome.storage.local.set({ results }, resolve);
+                chrome.storage.local.set({ 'pt.observations': results }, resolve);
             } else {
                 console.log(`[Maps Scraper] ⏭️ Entry already exists, skipping`);
                 resolve();
@@ -951,7 +1000,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         sendResponse({ success: true });
     } else if (message.type === 'LOAD_CAPTURED') {
         console.log('[Maps Scraper] 📂 LOAD_CAPTURED requested');
-        chrome.storage.local.get(['results'], ({ results = [] }) => {
+        chrome.storage.local.get(['pt.observations'], ({ 'pt.observations': results = [] }) => {
             capturedNames = new Set(results.map(r => r.name.toLowerCase()));
             console.log(`[Maps Scraper] ✅ Loaded ${results.length} existing results`);
             sendResponse({ count: results.length });
