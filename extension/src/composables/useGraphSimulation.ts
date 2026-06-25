@@ -551,7 +551,7 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
 
         onNodeSelect(d)
       })
-      .on('mouseenter', (event, d) => {
+      .on('mouseenter', (event: PointerEvent, d: GraphNode) => {
         highlightNeighbors(d.id, filteredLinks)
         updateLinkOpacity()
         updateLabelOpacity()
