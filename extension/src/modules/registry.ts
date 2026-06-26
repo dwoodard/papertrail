@@ -8,8 +8,6 @@ const modules: CollectorModule[] = Object.values(moduleRegistry)
 const unknownDescriptor: ModuleDescriptor = {
     id: 'unknown',
     label: 'No module',
-    supportsPassiveCapture: false,
-    supportsBulkCollect: false,
 }
 
 /** Resolve the collector module that handles a URL, or null if none match. */

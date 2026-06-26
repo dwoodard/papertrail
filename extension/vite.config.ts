@@ -9,6 +9,9 @@ import manifest from './manifest.config'
 // This directory is intended to be copyable and runnable on its own.
 export default defineConfig({
     plugins: [vue(), crx({ manifest })],
+    define: {
+        __LIVE_RELOAD__: false,
+    },
     resolve: {
         alias: {
             '@contracts': fileURLToPath(new URL('./src/contracts', import.meta.url)),
@@ -26,6 +29,6 @@ export default defineConfig({
     },
     server: {
         port: 5174,
-        strictPort: false,
+        strictPort: true,
     },
 })

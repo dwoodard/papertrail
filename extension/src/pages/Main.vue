@@ -695,7 +695,6 @@ import {
   getGroupedRowModel,
   getExpandedRowModel,
   createColumnHelper,
-  type ColumnDef,
   type SortingState,
   type GroupingState,
   type ExpandedState,
@@ -830,7 +829,7 @@ function handleSort(sortBy: 'Name' | 'Size') {
   graphSortBy.value = sortBy
 }
 
-function toggleTableSort(column: 'name' | 'type' | 'connections' | 'project' | 'confidence') {
+function toggleTableSort(column: 'name' | 'type' | 'connections' | 'project') {
   if (tableSortBy.value === column) {
     tableSortAsc.value = !tableSortAsc.value
   } else {
@@ -1123,21 +1122,21 @@ function handleGroupDrop(event: DragEvent) {
   }
 }
 
-const columns: ColumnDef<GraphNode>[] = [
+const columns = [
   columnHelper.accessor('name', {
     header: 'Name',
-  } as any),
+  }),
   columnHelper.accessor('type', {
     header: 'Type',
-  } as any),
+  }),
   columnHelper.accessor('value', {
     header: 'Connections',
-  } as any),
+  }),
   columnHelper.accessor((row: GraphNode) => row.project?.name || '—', {
     id: 'project',
     header: 'Project',
-  } as any),
-] as ColumnDef<GraphNode>[]
+  }),
+]
 
 const table = computed(() =>
   useVueTable({

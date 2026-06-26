@@ -15,7 +15,6 @@ export async function fetchProjects(): Promise<Project[]> {
     headers: {
       'Content-Type': 'application/json',
     },
-    credentials: 'include',
   })
 
   if (!response.ok) {

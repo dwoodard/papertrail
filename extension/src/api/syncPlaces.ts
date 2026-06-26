@@ -18,7 +18,6 @@ export async function syncPlaces(
       project_id: projectId,
       places,
     }),
-    credentials: 'include',
   })
 
   if (!response.ok) {

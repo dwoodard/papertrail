@@ -7,6 +7,11 @@ use App\Http\Controllers\Api\PlaceSyncController;
 use App\Http\Controllers\Api\ProjectController;
 use Illuminate\Support\Facades\Route;
 
+// Handle CORS preflight requests
+Route::options('/{path?}', function () {
+    return response('', 200);
+})->where('path', '.*');
+
 Route::get('/projects', [ProjectController::class, 'index']);
 Route::post('/projects', [ProjectController::class, 'store']);
 Route::post('/places/sync', [PlaceSyncController::class, 'sync']);

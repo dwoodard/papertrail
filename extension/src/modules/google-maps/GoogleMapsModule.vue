@@ -3,7 +3,7 @@
     <header class="scraper-topbar">
       <div class="title-group">
         <div class="eyebrow"><span class="eyebrow-dot"></span> Live Maps Collector</div>
-        <h1>Maps Scraper</h1>
+        <h1>Maps Scraper TESTTESTTEST</h1>
       </div>
 
       <div class="top-actions">
@@ -223,6 +223,42 @@
         <button class="button secondary" type="button" @click="clearResults">Clear</button>
       </div>
     </footer>
+
+    <!-- Sync Section -->
+    <div v-if="results.length > 0" class="sync-section">
+      <div class="sync-controls">
+        <div class="project-selector">
+          <label class="project-label">Project:</label>
+          <select
+            v-model="selectedProjectId"
+            class="project-select"
+            @change="(e) => handleSelectProject((e.target as HTMLSelectElement).value)"
+            :disabled="syncState.isSyncing.value || loadingProjects"
+          >
+            <option value="" disabled>{{ loadingProjects ? 'Loading...' : 'Select a project' }}</option>
+            <option v-for="project in projects" :key="project.id" :value="project.id">
+              {{ project.name }}
+            </option>
+          </select>
+        </div>
+        <button
+          class="button sync-button"
+          type="button"
+          @click="handleSync"
+          :disabled="syncState.isSyncing.value || !selectedProjectId || !hasResults"
+        >
+          <span v-if="syncState.isSyncing.value" class="spinner">⟳</span>
+          {{ syncState.isSyncing.value ? 'Syncing...' : 'Sync to Papertrail' }}
+        </button>
+      </div>
+
+      <div v-if="syncState.syncMessage.value" class="sync-message success">
+        {{ syncState.syncMessage.value }}
+      </div>
+      <div v-if="syncState.syncError.value" class="sync-message error">
+        ✗ {{ syncState.syncError.value }}
+      </div>
+    </div>
   </main>
 </template>
 
@@ -235,6 +271,8 @@ import {
   useVueTable,
 } from '@tanstack/vue-table'
 import { sendRuntimeMessage, sendToActiveTab, onMessage } from '@/utils/messaging'
+import { fetchProjects, type Project } from '@/api/projects'
+import { useSyncPlaces } from '@/composables/useSyncPlaces'
 
 interface SavedSearchTerm {
   term: string
@@ -259,6 +297,12 @@ const totalListings = ref(0)
 const exportMenuOpen = ref(false)
 const statusMessage = ref('Ready. Click Start Scrape to collect Google Maps listings.')
 const scrollToLoadAll = ref(true)
+
+// Projects and sync
+const projects = ref<Project[]>([])
+const selectedProjectId = ref<string>('')
+const loadingProjects = ref(false)
+const syncState = useSyncPlaces()
 
 const columnHelper = createColumnHelper()
 
@@ -438,9 +482,46 @@ onMessage((message) => {
   }
 })
 
+async function loadProjects() {
+  loadingProjects.value = true
+  try {
+    console.log('[Papertrail] Attempting to load projects...')
+    console.log('[Papertrail] API_BASE:', import.meta.env.VITE_API_BASE)
+    const fetchedProjects = await fetchProjects()
+    console.log('[Papertrail] Projects fetched:', fetchedProjects)
+    projects.value = fetchedProjects
+    // Auto-select first project if available
+    if (fetchedProjects.length > 0 && !selectedProjectId.value) {
+      selectedProjectId.value = fetchedProjects[0].id
+      console.log('[Papertrail] Auto-selected project:', fetchedProjects[0].name)
+    }
+    console.log(`[Papertrail] Loaded ${fetchedProjects.length} projects`)
+  } catch (error) {
+    console.error('[Papertrail] Error loading projects:', error)
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    syncState.syncError.value = `Failed to load projects: ${errorMessage}`
+  } finally {
+    loadingProjects.value = false
+  }
+}
+
+function handleSelectProject(projectId: string) {
+  selectedProjectId.value = projectId
+  syncState.clearMessages()
+}
+
+async function handleSync() {
+  if (!selectedProjectId.value || results.value.length === 0) {
+    syncState.syncError.value = 'Select a project and collect results first'
+    return
+  }
+  await syncState.handleSync(selectedProjectId.value, results.value)
+}
+
 // On component mount, load saved search terms and request current search
 onMounted(async () => {
   loadSearchTermsFromStorage()
+  await loadProjects()
   await sendRuntimeMessage({ type: 'REQUEST_CURRENT_SEARCH_TERM' })
 })
 
@@ -1569,6 +1650,106 @@ function handleResize(e) {
     cursor: not-allowed;
     }
 
+    .sync-section {
+    padding: 14px 16px;
+    background: #f0f1f7;
+    border-top: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    }
+
+    .sync-controls {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    }
+
+    .project-selector {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 0 1 auto;
+    }
+
+    .project-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+    white-space: nowrap;
+    }
+
+    .project-select {
+    height: 36px;
+    border: 1.5px solid var(--border-strong);
+    background: #ffffff;
+    color: var(--text);
+    border-radius: 8px;
+    padding: 0 10px;
+    font-size: 12px;
+    outline: none;
+    transition: all 0.2s ease;
+    font-weight: 500;
+    min-width: 150px;
+    }
+
+    .project-select:hover:not(:disabled) {
+    border-color: var(--blue);
+    background: #f9fbff;
+    }
+
+    .project-select:focus:not(:disabled) {
+    border-color: var(--blue);
+    background: #ffffff;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, .1);
+    }
+
+    .project-select:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    }
+
+    .sync-button {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 160px;
+    justify-content: center;
+    }
+
+    .spinner {
+    display: inline-block;
+    animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+    }
+
+    .sync-message {
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    }
+
+    .sync-message.success {
+    background: #ecfdf5;
+    color: #047857;
+    border: 1px solid #d1fae5;
+    }
+
+    .sync-message.error {
+    background: #fef2f2;
+    color: #dc2626;
+    border: 1px solid #fee2e2;
+    }
+
     @media (max-width: 760px) {
     .scraper-topbar,
     .scraper-footer {
@@ -1613,6 +1794,16 @@ function handleResize(e) {
 
     .result-badge {
         grid-column: 2;
+    }
+
+    .sync-controls {
+        flex-direction: column;
+    }
+
+    .project-select,
+    .sync-button {
+        width: 100%;
+        min-width: auto;
     }
     }
 </style>

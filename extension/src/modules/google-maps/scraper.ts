@@ -132,7 +132,14 @@ export async function scrapeAllMaps(scrollToLoadAll: boolean = true) {
       }
 
       const listing = listings[i] as HTMLElement
-      const name = listing.getAttribute('aria-label') || 'N/A'
+      let name = listing.getAttribute('aria-label') || 'N/A'
+
+      // Remove "Visited link" indicator from the name
+      if (name !== 'N/A') {
+        name = name
+          .replace(/\s*·\s*Visited link\s*$/, '') // Remove "· Visited link" suffix
+          .trim()
+      }
 
       console.log(`[Papertrail] [${i + 1}/${listings.length}] Scraping: ${name}`)
 
@@ -193,13 +200,63 @@ export async function scrapeAllMaps(scrollToLoadAll: boolean = true) {
 
         // Extract ID from the listing URL (Google Maps format: 0x...:0x...)
         let id = 'N/A'
-        const listingLink = listing.closest('a') || (listing as any).href
-        if (typeof listingLink === 'string') {
-          const match = listingLink.match(/0x[a-f0-9]+:0x[a-f0-9]+/i)
-          if (match) id = match[0]
-        } else if (listingLink instanceof HTMLAnchorElement) {
-          const match = listingLink.href.match(/0x[a-f0-9]+:0x[a-f0-9]+/i)
-          if (match) id = match[0]
+
+        // Method 1: Try to get the link from the listing element or its closest anchor
+        let linkElement = (listing instanceof HTMLAnchorElement ? listing : listing.closest('a')) as HTMLAnchorElement | null
+
+        // Method 2: If not found, try to find the anchor within the listing
+        if (!linkElement) {
+          linkElement = listing.querySelector('a') as HTMLAnchorElement | null
+        }
+
+        // Method 3: Try to get from parent elements
+        if (!linkElement) {
+          let parent = listing.parentElement
+          while (parent && !linkElement) {
+            if (parent instanceof HTMLAnchorElement) {
+              linkElement = parent
+              break
+            }
+            const anchor = parent.querySelector('a')
+            if (anchor) {
+              linkElement = anchor
+              break
+            }
+            parent = parent.parentElement
+          }
+        }
+
+        if (linkElement?.href) {
+          const href = linkElement.href
+          console.log(`[Papertrail] Extracted URL for "${name}": ${href}`)
+
+          // Try multiple patterns to extract place ID
+          let match = href.match(/0x[a-f0-9]+:0x[a-f0-9]+/i)
+          if (match) {
+            id = match[0]
+          } else {
+            // Try place/ID pattern
+            match = href.match(/place\/([^/?&]+)/)
+            if (match) {
+              id = match[1]
+            } else {
+              // Try data parameter pattern
+              match = href.match(/data=([^&]+)/)
+              if (match) {
+                id = match[1]
+              }
+            }
+          }
+        } else {
+          console.warn(`[Papertrail] Could not find link element for listing "${name}"`)
+        }
+
+        // If still no ID, log detailed warning
+        if (id === 'N/A') {
+          console.warn(`[Papertrail] Could not extract place ID for "${name}". Link URL was:`, linkElement?.href)
+          console.warn(`[Papertrail] Listing element HTML:`, listing.outerHTML.substring(0, 200))
+        } else {
+          console.log(`[Papertrail] Extracted ID for "${name}": ${id}`)
         }
 
         const info: ScrapedListing = {
