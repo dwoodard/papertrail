@@ -13,6 +13,7 @@ export function useActiveModule() {
 
     async function refresh(): Promise<void> {
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+
         if (tab?.id != null && tab.url) {
             context.value = buildModuleContext(tab.id, tab.url)
         } else {

@@ -7,18 +7,21 @@ let shouldScrollToLoadAll = true
 export function extractSearchTerm(): string {
   // Try to extract from URL: https://www.google.com/maps/search/query+here
   const urlMatch = window.location.pathname.match(/\/maps\/search\/([^/?]+)/)
+
   if (urlMatch?.[1]) {
     return decodeURIComponent(urlMatch[1]).replace(/\+/g, ' ')
   }
 
   // Fallback: try to find the search input element
   const searchInput = document.querySelector('input[aria-label*="Search"]') as HTMLInputElement | null
+
   if (searchInput?.value) {
     return searchInput.value
   }
 
   // Last resort: check the page title
   const titleMatch = document.title.match(/(.+?)\s*[-–]\s*Google Maps/)
+
   if (titleMatch?.[1]) {
     return titleMatch[1]
   }
@@ -56,6 +59,7 @@ export async function scrapeAllMaps(scrollToLoadAll: boolean = true) {
     if (!scrollContainer) {
       console.error('[Papertrail] Scrollable container not found. Make sure the results list is visible.')
       clearTimeout(timeoutId)
+
       return
     }
 
@@ -89,8 +93,12 @@ export async function scrapeAllMaps(scrollToLoadAll: boolean = true) {
             collectedCount: scrapedCount,
           })
           await new Promise((r) => setTimeout(r, waitMs2))
-          if (scrollContainer.scrollHeight === lastHeight) break
+
+          if (scrollContainer.scrollHeight === lastHeight) {
+break
+}
         }
+
         lastHeight = scrollContainer.scrollHeight
         console.log(`[Papertrail] Loading more listings... (attempt ${scrollAttempts}/${maxScrollAttempts})`)
       }
@@ -101,14 +109,17 @@ export async function scrapeAllMaps(scrollToLoadAll: boolean = true) {
     if (!isScraping) {
       console.log('[Papertrail] Scrape cancelled by user during scroll phase')
       clearTimeout(timeoutId)
+
       return
     }
 
     // 1a. Grab all final listings (Google Maps selector - can break if DOM changes)
     const listings = document.querySelectorAll('.hfpxzc')
+
     if (listings.length === 0) {
       console.error('[Papertrail] No listings found. The selector ".hfpxzc" may have changed.')
       clearTimeout(timeoutId)
+
       return
     }
 
@@ -156,7 +167,10 @@ export async function scrapeAllMaps(scrollToLoadAll: boolean = true) {
       try {
         // Helper to clean whitespace, newlines, and unwanted text
         const cleanText = (text?: string): string => {
-          if (!text) return 'N/A'
+          if (!text) {
+return 'N/A'
+}
+
           return text
             .trim()
             .replace(/\n/g, ' ')
@@ -169,6 +183,7 @@ export async function scrapeAllMaps(scrollToLoadAll: boolean = true) {
         let websiteUrl = ''
         let website = 'N/A'
         const websiteElement = document.querySelector('a[data-item-id*="authority"]') as HTMLAnchorElement | null
+
         if (websiteElement?.href) {
           try {
             websiteUrl = new URL(websiteElement.href, window.location.href).href
@@ -184,6 +199,7 @@ export async function scrapeAllMaps(scrollToLoadAll: boolean = true) {
           document.querySelector('button[data-item-id*="address"]') ||
           document.querySelector('[data-item-id="address"]')
         ) as HTMLElement | null
+
         if (addressElement) {
           address = cleanText(addressElement.innerText)
         }
@@ -194,6 +210,7 @@ export async function scrapeAllMaps(scrollToLoadAll: boolean = true) {
           document.querySelector('button[data-item-id*="phone"]') ||
           document.querySelector('[data-item-id="phone"]')
         ) as HTMLElement | null
+
         if (phoneElement) {
           phone = cleanText(phoneElement.innerText)
         }
@@ -212,16 +229,20 @@ export async function scrapeAllMaps(scrollToLoadAll: boolean = true) {
         // Method 3: Try to get from parent elements
         if (!linkElement) {
           let parent = listing.parentElement
+
           while (parent && !linkElement) {
             if (parent instanceof HTMLAnchorElement) {
               linkElement = parent
               break
             }
+
             const anchor = parent.querySelector('a')
+
             if (anchor) {
               linkElement = anchor
               break
             }
+
             parent = parent.parentElement
           }
         }
@@ -232,16 +253,19 @@ export async function scrapeAllMaps(scrollToLoadAll: boolean = true) {
 
           // Try multiple patterns to extract place ID
           let match = href.match(/0x[a-f0-9]+:0x[a-f0-9]+/i)
+
           if (match) {
             id = match[0]
           } else {
             // Try place/ID pattern
             match = href.match(/place\/([^/?&]+)/)
+
             if (match) {
               id = match[1]
             } else {
               // Try data parameter pattern
               match = href.match(/data=([^&]+)/)
+
               if (match) {
                 id = match[1]
               }

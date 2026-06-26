@@ -22,7 +22,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import {
   MapPin,
   Star,
@@ -47,7 +47,6 @@ import {
   BarChart3,
   Map,
   Globe,
-  Paperclip
 } from '@lucide/vue'
 
 const modules = [

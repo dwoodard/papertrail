@@ -2,7 +2,7 @@
   <ModuleLayout :active-module-id="activeModuleId" :current-url="currentUrl" @navigate-home="handleNavigateHome" />
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import ModuleLayout from './ModuleLayout.vue'
 
@@ -13,9 +13,11 @@ const activeModuleId = computed(() => {
   if (forceHomeModule.value) {
     return null
   }
+
   if (currentUrl.value.includes('google.com/maps')) {
     return 'google-maps'
   }
+
   return null
 })
 
@@ -24,9 +26,12 @@ function handleNavigateHome() {
 }
 
 onMounted(async () => {
-  if (!chrome?.tabs) return
+  if (!chrome?.tabs) {
+return
+}
 
   const tab = (await chrome.tabs.query({ active: true, currentWindow: true }))[0]
+
   if (tab) {
     currentUrl.value = tab.url || ''
   }

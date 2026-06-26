@@ -24,6 +24,7 @@ export async function syncPlaces(
     const error = await response.json().catch(() => ({
       message: response.statusText,
     }))
+
     throw new Error(error.message || `Sync failed: ${response.statusText}`)
   }
 

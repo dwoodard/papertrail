@@ -1,5 +1,6 @@
 import { ref } from 'vue'
-import { syncPlaces, type SyncResult } from '@/api/syncPlaces'
+import { syncPlaces  } from '@/api/syncPlaces'
+import type {SyncResult} from '@/api/syncPlaces';
 
 export function useSyncPlaces() {
   const isSyncing = ref(false)
@@ -10,6 +11,7 @@ export function useSyncPlaces() {
   async function handleSync(projectId: string, places: Record<string, unknown>[]) {
     if (!projectId || places.length === 0) {
       syncError.value = 'Project and places required'
+
       return
     }
 
@@ -22,14 +24,17 @@ export function useSyncPlaces() {
       const placesWithValidIds = places.filter((place) => {
         if (place.id === 'N/A' || !place.id) {
           console.warn('[Papertrail] Skipping place without valid ID:', place.name)
+
           return false
         }
+
         return true
       })
 
       if (placesWithValidIds.length === 0) {
         syncError.value = 'No places with valid IDs to sync'
         isSyncing.value = false
+
         return
       }
 
@@ -44,17 +49,49 @@ export function useSyncPlaces() {
         }
 
         // Add optional fields if present
-        if (place.category) transformed.category = place.category
-        if (place.plusCode) transformed.plusCode = place.plusCode
-        if (place.hours) transformed.hours = place.hours
-        if (place.priceRange) transformed.priceRange = place.priceRange
-        if (place.mapsUrl) transformed.mapsUrl = place.mapsUrl
-        if (place.rating) transformed.rating = place.rating
-        if (place.reviews) transformed.reviews = place.reviews
-        if (place.isSponsored) transformed.isSponsored = place.isSponsored
-        if (place.keyword) transformed.keyword = place.keyword
-        if (place.source) transformed.source = place.source
-        if (place.capturedAt) transformed.capturedAt = place.capturedAt
+        if (place.category) {
+transformed.category = place.category
+}
+
+        if (place.plusCode) {
+transformed.plusCode = place.plusCode
+}
+
+        if (place.hours) {
+transformed.hours = place.hours
+}
+
+        if (place.priceRange) {
+transformed.priceRange = place.priceRange
+}
+
+        if (place.mapsUrl) {
+transformed.mapsUrl = place.mapsUrl
+}
+
+        if (place.rating) {
+transformed.rating = place.rating
+}
+
+        if (place.reviews) {
+transformed.reviews = place.reviews
+}
+
+        if (place.isSponsored) {
+transformed.isSponsored = place.isSponsored
+}
+
+        if (place.keyword) {
+transformed.keyword = place.keyword
+}
+
+        if (place.source) {
+transformed.source = place.source
+}
+
+        if (place.capturedAt) {
+transformed.capturedAt = place.capturedAt
+}
 
         return transformed
       })

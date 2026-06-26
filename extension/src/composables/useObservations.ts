@@ -1,9 +1,10 @@
 import type { Observation } from '@contracts'
-import { computed, type Ref } from 'vue'
-
-import { STORAGE_KEYS } from '@/stores/keys'
+import { computed  } from 'vue'
+import type {Ref} from 'vue';
 
 import { useChromeStorage } from './useChromeStorage'
+import { STORAGE_KEYS } from '@/stores/keys'
+
 
 /**
  * Reactive view of captured observations, scoped to the active project. Backed

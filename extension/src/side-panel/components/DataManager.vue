@@ -11,7 +11,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { STORAGE_KEYS } from '@/stores/keys'
 
@@ -43,6 +43,7 @@ async function cleanDuplicates() {
             seen.set(placeId, entry)
           } else {
             const existing = seen.get(placeId)
+
             // Keep the more recent one
             if (new Date(entry.capturedAt) > new Date(existing.capturedAt)) {
               seen.set(placeId, entry)

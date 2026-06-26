@@ -12,8 +12,10 @@ export function sendRuntimeMessage(message: PtMessage): Promise<void> {
         if (!chrome?.runtime) {
             console.log('[Dev Mode] Skipping message:', message.type)
             resolve()
+
             return
         }
+
         chrome.runtime.sendMessage(message, () => {
             // Swallow "receiving end does not exist" when no listener is open.
             void chrome.runtime.lastError
@@ -28,14 +30,17 @@ export function sendTabMessage(tabId: number, message: PtMessage): Promise<void>
         if (!chrome?.tabs) {
             console.log('[Dev Mode] Skipping tab message:', message.type)
             resolve()
+
             return
         }
+
         chrome.tabs.sendMessage(tabId, message, () => {
             if (chrome.runtime.lastError) {
                 console.error('[Messaging] Send error to tab', tabId, ':', chrome.runtime.lastError.message)
             } else {
                 console.log('[Messaging] Message sent to tab', tabId, ':', message.type)
             }
+
             resolve()
         })
     })
@@ -45,10 +50,13 @@ export function sendTabMessage(tabId: number, message: PtMessage): Promise<void>
 export async function sendToActiveTab(message: PtMessage): Promise<void> {
     if (!chrome?.tabs) {
         console.log('[Dev Mode] Skipping active tab message:', message.type)
+
         return
     }
+
     const tabs = await chrome.tabs.query({ active: true })
     const tab = tabs[0]
+
     if (tab?.id != null) {
         await sendTabMessage(tab.id, message)
     }
@@ -61,10 +69,13 @@ export function onMessage(handler: (message: PtMessage) => void): () => void {
             handler(message as PtMessage)
         }
     }
+
     if (!chrome?.runtime) {
         return () => {} // No-op in dev mode
     }
+
     chrome.runtime.onMessage.addListener(listener)
+
     return () => chrome.runtime.onMessage.removeListener(listener)
 }
 

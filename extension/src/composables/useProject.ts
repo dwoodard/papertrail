@@ -1,12 +1,11 @@
 import type { NewProjectInput, Project } from '@contracts'
 import { computed } from 'vue'
 
-import { sendRuntimeMessage } from '@/utils/messaging'
-import { uuid } from '@/utils/id'
-import { STORAGE_KEYS } from '@/stores/keys'
-import { createProject as createProjectOnBackend } from '@/api/projects'
-
 import { useChromeStorage } from './useChromeStorage'
+import { STORAGE_KEYS } from '@/stores/keys'
+import { uuid } from '@/utils/id'
+import { sendRuntimeMessage } from '@/utils/messaging'
+
 
 const PROJECTS_KEY = STORAGE_KEYS.projects
 const ACTIVE_PROJECT_KEY = STORAGE_KEYS.activeProjectId
@@ -20,9 +19,11 @@ function asProjectArray(value: unknown): Project[] {
     if (Array.isArray(value)) {
         return value as Project[]
     }
+
     if (value && typeof value === 'object') {
         return Object.values(value as Record<string, Project>)
     }
+
     return []
 }
 
@@ -62,6 +63,7 @@ export function useProject() {
         }
         projects.value = [...projectList.value, project]
         void selectProject(project.id)
+
         return project
     }
 
@@ -73,6 +75,7 @@ export function useProject() {
     function removeProject(id: string): void {
         const remaining = projectList.value.filter((project) => project.id !== id)
         projects.value = remaining
+
         if (activeProjectId.value === id) {
             void selectProject(remaining[0]?.id ?? null)
         }

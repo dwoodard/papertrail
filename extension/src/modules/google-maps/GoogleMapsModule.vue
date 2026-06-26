@@ -263,16 +263,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
 import {
   createColumnHelper,
   getCoreRowModel,
   getSortedRowModel,
   useVueTable,
 } from '@tanstack/vue-table'
-import { sendRuntimeMessage, sendToActiveTab, onMessage } from '@/utils/messaging'
-import { fetchProjects, type Project } from '@/api/projects'
+import { ref, computed, onMounted } from 'vue'
+import { fetchProjects  } from '@/api/projects'
+import type {Project} from '@/api/projects';
 import { useSyncPlaces } from '@/composables/useSyncPlaces'
+import { sendRuntimeMessage, sendToActiveTab, onMessage } from '@/utils/messaging'
 
 interface SavedSearchTerm {
   term: string
@@ -346,6 +347,7 @@ function loadSearchTermsFromStorage() {
         const term = k.replace('maps_results_', '')
         const stored = localStorage.getItem(k)
         const parsed = stored ? JSON.parse(stored) : []
+
         return {
           term: term,
           count: parsed.length,
@@ -364,6 +366,7 @@ function loadSearchTermsFromStorage() {
 function loadResultsFromStorage(searchTerm: string) {
   try {
     const stored = localStorage.getItem(`maps_results_${searchTerm}`)
+
     if (stored) {
       const parsed = JSON.parse(stored)
       results.value = parsed
@@ -425,6 +428,7 @@ onMessage((message) => {
     totalListings.value = message.totalListings || 0
     // Add or update search term in the list
     const existingIndex = savedSearchTerms.value.findIndex((t) => t.term === message.searchTerm)
+
     if (existingIndex === -1) {
       // New search term - add to top of list
       savedSearchTerms.value.unshift({
@@ -438,12 +442,15 @@ onMessage((message) => {
       term.lastUpdated = Date.now()
       savedSearchTerms.value.unshift(term)
     }
+
     statusMessage.value = `Starting scrape for "${message.searchTerm}"...`
   } else if (message.type === 'MAPS_RESULT') {
     // Check if listing already exists by ID
     const exists = results.value.some((r) => r.id === message.listing.id)
+
     if (!exists) {
       results.value.push(message.listing)
+
       // Save immediately after adding
       if (message.searchTerm) {
         saveResultsToStorage(message.searchTerm, results.value)
@@ -459,6 +466,7 @@ onMessage((message) => {
     } else {
       console.log(`[Papertrail] Skipped duplicate: ${message.listing.name} (ID: ${message.listing.id})`)
     }
+
     statusMessage.value = totalListings.value > 0
       ? `Collected ${results.value.length} of ${totalListings.value} results...`
       : `Collected ${results.value.length} results...`
@@ -484,17 +492,20 @@ onMessage((message) => {
 
 async function loadProjects() {
   loadingProjects.value = true
+
   try {
     console.log('[Papertrail] Attempting to load projects...')
     console.log('[Papertrail] API_BASE:', import.meta.env.VITE_API_BASE)
     const fetchedProjects = await fetchProjects()
     console.log('[Papertrail] Projects fetched:', fetchedProjects)
     projects.value = fetchedProjects
+
     // Auto-select first project if available
     if (fetchedProjects.length > 0 && !selectedProjectId.value) {
       selectedProjectId.value = fetchedProjects[0].id
       console.log('[Papertrail] Auto-selected project:', fetchedProjects[0].name)
     }
+
     console.log(`[Papertrail] Loaded ${fetchedProjects.length} projects`)
   } catch (error) {
     console.error('[Papertrail] Error loading projects:', error)
@@ -513,8 +524,10 @@ function handleSelectProject(projectId: string) {
 async function handleSync() {
   if (!selectedProjectId.value || results.value.length === 0) {
     syncState.syncError.value = 'Select a project and collect results first'
+
     return
   }
+
   await syncState.handleSync(selectedProjectId.value, results.value)
 }
 
@@ -549,29 +562,14 @@ const progressPercent = computed(() => {
   return total.value ? Math.round((current.value / total.value) * 100) : 0
 })
 
-function wait(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms))
-}
-
 function toggleExportMenu() {
   exportMenuOpen.value = !exportMenuOpen.value
 }
 
-function formatTime(date) {
-  const now = new Date()
-  const diffMs = now.getTime() - date.getTime()
-  const diffMins = Math.floor(diffMs / 60000)
-  const diffHours = Math.floor(diffMs / 3600000)
-  const diffDays = Math.floor(diffMs / 86400000)
-
-  if (diffMins < 1) return 'just now'
-  if (diffMins < 60) return `${diffMins}m ago`
-  if (diffHours < 24) return `${diffHours}h ago`
-  return `${diffDays}d ago`
-}
-
 async function startScrape() {
-  if (running.value) return
+  if (running.value) {
+return
+}
 
   running.value = true
   stopped.value = false
@@ -599,11 +597,14 @@ function clearResults() {
     localStorage.removeItem(`maps_results_${currentSearchTerm.value}`)
     // Remove from search terms list
     const index = savedSearchTerms.value.findIndex((t) => t.term === currentSearchTerm.value)
+
     if (index > -1) {
       savedSearchTerms.value.splice(index, 1)
     }
+
     console.log(`[Papertrail] Cleared results for "${currentSearchTerm.value}"`)
   }
+
   running.value = false
   stopped.value = false
   results.value = []
@@ -615,6 +616,7 @@ function clearResults() {
 
 function deleteResult(id: string) {
   const index = results.value.findIndex((r) => r.id === id)
+
   if (index > -1) {
     const deleted = results.value.splice(index, 1)[0]
     console.log(`[Papertrail] Deleted result: ${deleted.name}`)
@@ -628,9 +630,11 @@ function deleteResult(id: string) {
         // If no results left, remove the search term entirely
         localStorage.removeItem(`maps_results_${term}`)
         const termIndex = savedSearchTerms.value.findIndex((t) => t.term === term)
+
         if (termIndex > -1) {
           savedSearchTerms.value.splice(termIndex, 1)
         }
+
         console.log(`[Papertrail] Removed empty search term from storage: "${term}"`)
       } else {
         // Save the updated results directly to localStorage
@@ -665,6 +669,7 @@ function deleteSearchTerm(term: string) {
 
   // Remove from search terms list
   const index = savedSearchTerms.value.findIndex((t) => t.term === term)
+
   if (index > -1) {
     savedSearchTerms.value.splice(index, 1)
   }
@@ -684,6 +689,7 @@ function deleteSearchTerm(term: string) {
 
 async function copyJson() {
   const json = JSON.stringify(results.value, null, 2)
+
   try {
     await navigator.clipboard.writeText(json)
     statusMessage.value = 'JSON copied to clipboard.'
@@ -743,7 +749,9 @@ function stopResize() {
 }
 
 function handleResize(e) {
-  if (!isResizing.value) return
+  if (!isResizing.value) {
+return
+}
 
   const container = e.currentTarget
   const containerWidth = container.clientWidth

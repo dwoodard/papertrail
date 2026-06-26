@@ -1,8 +1,8 @@
 import type { Observation } from '@contracts'
 
+import { appendObservations } from './store'
 import { sendRuntimeMessage } from '@/utils/messaging'
 
-import { appendObservations } from './store'
 
 /**
  * Optional backend sink. Phase 1 leaves this unconfigured — observations live

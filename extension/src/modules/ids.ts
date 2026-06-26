@@ -3,7 +3,7 @@
  * This is the single source of truth for all module identifiers.
  */
 
-import { moduleRegistry } from './config'
+import type { moduleRegistry } from './config'
 
 /** All dynamically registered module IDs. */
 export type DynamicModuleId = keyof typeof moduleRegistry

@@ -12,6 +12,7 @@ async function broadcastActiveModule(tabId: number, url: string | undefined): Pr
     if (!url) {
         return
     }
+
     await sendRuntimeMessage({ type: 'MODULE_ACTIVE', context: buildModuleContext(tabId, url) })
 }
 

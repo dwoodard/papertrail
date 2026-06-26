@@ -1,4 +1,5 @@
-import { ref, watch, type Ref } from 'vue'
+import { ref, watch  } from 'vue'
+import type {Ref} from 'vue';
 
 export interface ChromeStorageHandle<T> {
     /** Reactive value, two-way bound to `chrome.storage.local[key]`. */
@@ -41,6 +42,7 @@ export function useChromeStorage<T>(key: string, defaultValue: T): ChromeStorage
                 lastSynced = JSON.stringify(result[key])
                 state.value = result[key] as T
             }
+
             resolve()
         })
     })
@@ -48,11 +50,16 @@ export function useChromeStorage<T>(key: string, defaultValue: T): ChromeStorage
     const stopWatch = watch(
         state,
         (value) => {
-            if (!chrome.storage) return
+            if (!chrome.storage) {
+                return
+            }
+
             const json = JSON.stringify(value)
+
             if (json === lastSynced) {
                 return
             }
+
             lastSynced = json
             chrome.storage.local.set({ [key]: toPlain(value) }, () => {
                 void chrome.runtime.lastError
@@ -68,13 +75,17 @@ export function useChromeStorage<T>(key: string, defaultValue: T): ChromeStorage
         if (areaName !== 'local' || !(key in changes)) {
             return
         }
+
         const json = JSON.stringify(changes[key].newValue)
+
         if (json === lastSynced) {
             return
         }
+
         lastSynced = json
         state.value = changes[key].newValue as T
     }
+
     if (chrome.storage) {
         chrome.storage.onChanged.addListener(onChanged)
     }

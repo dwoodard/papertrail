@@ -64,7 +64,11 @@ export const graphApiClient = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id, name, goal }),
     })
-    if (!response.ok) throw new Error('Failed to create project')
+
+    if (!response.ok) {
+throw new Error('Failed to create project')
+}
+
     return response.json()
   },
 
@@ -73,8 +77,13 @@ export const graphApiClient = {
    */
   async getProjects(): Promise<GraphProject[]> {
     const response = await fetch(`${API_BASE}/api/graph/projects`)
-    if (!response.ok) throw new Error('Failed to fetch projects')
+
+    if (!response.ok) {
+throw new Error('Failed to fetch projects')
+}
+
     const data = await response.json()
+
     return data.projects
   },
 
@@ -90,17 +99,26 @@ export const graphApiClient = {
     }
   ): Promise<GraphProjectData> {
     const params = new URLSearchParams()
-    if (options?.search) params.append('search', options.search)
+
+    if (options?.search) {
+params.append('search', options.search)
+}
+
     if (options?.types?.length) {
       options.types.forEach(type => params.append('types[]', type))
     }
+
     if (options?.minConnections) {
       params.append('minConnections', String(options.minConnections))
     }
 
     const query = params.toString() ? `?${params}` : ''
     const response = await fetch(`${API_BASE}/api/graph/project/${projectId}${query}`)
-    if (!response.ok) throw new Error('Failed to fetch project graph')
+
+    if (!response.ok) {
+throw new Error('Failed to fetch project graph')
+}
+
     return response.json()
   },
 
@@ -109,8 +127,13 @@ export const graphApiClient = {
    */
   async getNodeRelations(nodeId: string): Promise<NodeRelation[]> {
     const response = await fetch(`${API_BASE}/api/graph/node/${nodeId}/relations`)
-    if (!response.ok) throw new Error('Failed to fetch node relations')
+
+    if (!response.ok) {
+throw new Error('Failed to fetch node relations')
+}
+
     const data = await response.json()
+
     return data.relations
   },
 
@@ -119,8 +142,13 @@ export const graphApiClient = {
    */
   async getSharedNodes() {
     const response = await fetch(`${API_BASE}/api/graph/shared-nodes`)
-    if (!response.ok) throw new Error('Failed to fetch shared nodes')
+
+    if (!response.ok) {
+throw new Error('Failed to fetch shared nodes')
+}
+
     const data = await response.json()
+
     return data.sharedNodes
   },
 }

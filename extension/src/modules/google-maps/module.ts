@@ -7,7 +7,7 @@ export const googleMapsModule: CollectorModule = {
     label: 'Google Maps',
   },
   matches: (url: string): boolean => /^https:\/\/www\.google\.com\/maps/.test(url),
-  createRuntime: (emit) => ({
+  createRuntime: () => ({
     scrapeAllMaps,
     stopMapsScrape,
   }),

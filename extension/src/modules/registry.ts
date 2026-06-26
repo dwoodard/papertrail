@@ -15,6 +15,7 @@ export function resolveModule(url: string | undefined | null): CollectorModule |
     if (!url) {
         return null
     }
+
     return modules.find((module) => module.matches(url)) ?? null
 }
 
@@ -26,5 +27,6 @@ export function resolveDescriptor(url: string | undefined | null): ModuleDescrip
 /** Build the side-panel-facing context for the active tab. */
 export function buildModuleContext(tabId: number, url: string): ActiveModuleContext {
     const descriptor = resolveDescriptor(url)
+
     return { moduleId: descriptor.id, label: descriptor.label, url, tabId }
 }

@@ -82,6 +82,7 @@ function submit(): void {
     if (!form.name.trim()) {
         return
     }
+
     createProject({ name: form.name, goal: form.goal, startingTarget: form.startingTarget })
     form.name = ''
     form.goal = ''
@@ -89,17 +90,25 @@ function submit(): void {
 }
 
 async function openMain(): Promise<void> {
-    if (!chrome?.runtime) return
+    if (!chrome?.runtime) {
+return
+}
+
     const mainUrl = chrome.runtime.getURL('src/pages/main.html')
     const window = await chrome.windows.getCurrent()
+
     if (window.id != null) {
         chrome.tabs.create({ url: mainUrl })
     }
 }
 
 async function openWorkspace(): Promise<void> {
-    if (!chrome?.windows) return
+    if (!chrome?.windows) {
+return
+}
+
     const currentWindow = await chrome.windows.getCurrent()
+
     if (currentWindow.id != null) {
         await chrome.sidePanel.open({ windowId: currentWindow.id })
     }

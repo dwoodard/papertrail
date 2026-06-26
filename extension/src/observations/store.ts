@@ -57,11 +57,13 @@ export async function appendObservations(incoming: Observation[]): Promise<Obser
             if (key !== null) {
                 indexByKey.set(key, existing.length)
             }
+
             existing.push(observation)
         }
     }
 
     await setObservations(existing)
+
     return existing
 }
 

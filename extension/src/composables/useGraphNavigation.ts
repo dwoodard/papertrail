@@ -1,4 +1,4 @@
-import { ref, watch } from 'vue'
+import { ref } from 'vue'
 
 export interface GraphNavigationState {
   currentView: 'hub' | 'project'
@@ -38,6 +38,7 @@ export function useGraphNavigation() {
 
   function getRestoreZoom(context: 'hub' | string): { k: number; x: number; y: number } | null {
     const key = context === 'hub' ? '__hub' : context
+
     return state.value.zoomStateCache[key] || null
   }
 

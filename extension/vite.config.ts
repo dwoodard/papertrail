@@ -1,6 +1,6 @@
+import { fileURLToPath, URL } from 'node:url'
 import { crx } from '@crxjs/vite-plugin'
 import vue from '@vitejs/plugin-vue'
-import { fileURLToPath, URL } from 'node:url'
 import { defineConfig } from 'vite'
 
 import manifest from './manifest.config'

@@ -72,8 +72,12 @@ onMounted(() => {
 })
 
 const filteredProjects = computed(() => {
-  if (!filterText.value) return allProjects.value
+  if (!filterText.value) {
+return allProjects.value
+}
+
   const lowerText = filterText.value.toLowerCase()
+
   return allProjects.value.filter(project =>
     project.toLowerCase().includes(lowerText)
   )
@@ -104,7 +108,10 @@ function delayedCloseSuggestions() {
 
 // Implement AG-Grid filter interface
 function getModel() {
-  if (!filterText.value) return null
+  if (!filterText.value) {
+return null
+}
+
   return { filter: filterText.value, filterType: 'text', type: 'contains' }
 }
 

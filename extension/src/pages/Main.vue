@@ -685,7 +685,6 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { FlipHorizontal, LockOpen } from '@lucide/vue'
 import {
   useVueTable,
@@ -694,14 +693,14 @@ import {
   getFilteredRowModel,
   getGroupedRowModel,
   getExpandedRowModel,
-  createColumnHelper,
-  type SortingState,
-  type GroupingState,
-  type ExpandedState,
+  createColumnHelper
 } from '@tanstack/vue-table'
-import ProjectDetail from './ProjectDetail.vue'
-import { useGraphSimulation, type GraphData, type GraphNode, type ViewModeId } from '../composables/useGraphSimulation'
+import type {SortingState, GroupingState, ExpandedState} from '@tanstack/vue-table';
+import { ref, reactive, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { useGraphSimulation    } from '../composables/useGraphSimulation'
+import type {GraphData, GraphNode, ViewModeId} from '../composables/useGraphSimulation';
 import { graphApiClient } from '../services/graphApiClient'
+import ProjectDetail from './ProjectDetail.vue'
 
 const activeTab = ref('Overview')
 const tabs = ['Overview', 'Graph', 'Table', 'Entities', 'Timeline']
@@ -774,7 +773,7 @@ const graphConfig = {
   visibleTypes: graphVisibleTypes,
 }
 
-const { initializeGraph, centerNode, setViewMode, updateForces, setGridConfig, resetLockedNodes, lockedNodes, selectNodeById, selectNodeReactively, fitToView } = useGraphSimulation(hubGraphContainer, graphConfig)
+const { initializeGraph, centerNode, setViewMode, updateForces, setGridConfig, resetLockedNodes, lockedNodes, selectNodeReactively, fitToView } = useGraphSimulation(hubGraphContainer, graphConfig)
 
 function closeGraphControls() {
   showGraphControls.value = false
@@ -798,27 +797,22 @@ function getEntityTypeColor(type: string): string {
     location: '#10b981',
     contact: '#f59e0b',
   }
+
   return colors[type] || '#6b7280'
 }
 
 function toggleTypeFilter(type: string) {
   const newTypes = new Set(graphVisibleTypes.value)
+
   if (newTypes.has(type)) {
     newTypes.delete(type)
   } else {
     newTypes.add(type)
   }
+
   graphVisibleTypes.value = newTypes
 }
 
-
-function toggleAllTypes(show: boolean) {
-  if (show) {
-    graphVisibleTypes.value = new Set(['business', 'person', 'location', 'website', 'contact'])
-  } else {
-    graphVisibleTypes.value = new Set()
-  }
-}
 
 function handleViewModeChange(mode: ViewModeId) {
   currentViewMode.value = mode
@@ -827,15 +821,6 @@ function handleViewModeChange(mode: ViewModeId) {
 
 function handleSort(sortBy: 'Name' | 'Size') {
   graphSortBy.value = sortBy
-}
-
-function toggleTableSort(column: 'name' | 'type' | 'connections' | 'project') {
-  if (tableSortBy.value === column) {
-    tableSortAsc.value = !tableSortAsc.value
-  } else {
-    tableSortBy.value = column
-    tableSortAsc.value = true
-  }
 }
 
 function toggleTableType(type: 'business' | 'person' | 'location' | 'website' | 'contact') {
@@ -855,37 +840,6 @@ function resetTableFilters() {
     contact: true,
   }
 }
-
-function highlightSearchMatch(text: string): string {
-  if (!tableSearch.value) return text
-  const regex = new RegExp(`(${tableSearch.value})`, 'gi')
-  return text.replace(regex, '<strong style="background: rgba(251, 191, 36, 0.3); font-weight: 600;">$1</strong>')
-}
-
-function getNodeConnectionTypes(nodeId: string): Record<string, boolean> {
-  const types: Record<string, boolean> = {
-    business: false,
-    person: false,
-    location: false,
-    website: false,
-    contact: false,
-  }
-
-  const node = sortedTableNodes.value.find(n => n.id === nodeId)
-  if (!node || !selectedNodeRelations.value) return types
-
-  // Check the selected node's relations (if this node is selected)
-  if (selectedGraphNode.value?.id === nodeId) {
-    selectedNodeRelations.value.forEach(rel => {
-      if (types.hasOwnProperty(rel.nodeType)) {
-        types[rel.nodeType] = true
-      }
-    })
-  }
-
-  return types
-}
-
 
 onMounted(async () => {
   console.log('[Papertrail] Extension mounted, initializing...')
@@ -938,6 +892,7 @@ onMounted(async () => {
     }
   } catch (err: unknown) {
     console.error('[Papertrail] Failed to load graph projects:', err)
+
     if (err instanceof Error) {
       console.error('[Papertrail] Error details:', err.message, err.stack)
     }
@@ -980,6 +935,7 @@ watch(selectedProject, (newProject) => {
 // Debug: Log when projects load
 watch(allGraphProjects, (newProjects) => {
   console.log(`[Papertrail] Graph projects updated: ${newProjects.length} projects`)
+
   if (newProjects.length > 0) {
     console.log('[Papertrail] First project:', {
       name: newProjects[0].name,
@@ -1035,7 +991,7 @@ function saveProjectsToStorage(): void {
 }
 
 function debugStorage(): void {
-  chrome.storage.local.get(null, (allData) => {
+  chrome.storage.local.get(null, () => {
     // console.log('[DEBUG] All Chrome Storage:', allData)
     // console.log('[DEBUG] pt.activeProjectId:', allData['pt.activeProjectId'])
     // console.log('[DEBUG] pt.projects:', allData['pt.projects'])
@@ -1044,9 +1000,12 @@ function debugStorage(): void {
 }
 
 async function createProject(): Promise<void> {
-  if (!form.name.trim()) return
+  if (!form.name.trim()) {
+return
+}
 
   console.log(`[Papertrail] Creating project: "${form.name}"`)
+
   try {
     // Generate UUID for project (same format as backend)
     const projectId = crypto.randomUUID()
@@ -1084,15 +1043,6 @@ async function createProject(): Promise<void> {
     alert('Failed to create project. Please try again.')
   }
 }
-
-// Graph view functions
-const totalEntitiesCount = computed(() => {
-  return allGraphProjects.value.reduce((sum, project) => sum + (project.nodeCount || 0), 0)
-})
-
-const totalRelationshipsCount = computed(() => {
-  return allGraphProjects.value.reduce((sum, project) => sum + (project.edgeCount || 0), 0)
-})
 
 const selectedNodeRelations = ref<any[]>([])
 const sortedTableNodes = ref<GraphNode[]>([])
@@ -1166,8 +1116,10 @@ const table = computed(() =>
       rowSelection.value = newSelection
 
       const rowIndex = Object.keys(newSelection).find(key => newSelection[key] === true)
+
       if (rowIndex !== undefined) {
         const selectedNode = sortedTableNodes.value[parseInt(rowIndex)]
+
         if (selectedNode) {
           selectNodeInGraph(selectedNode.id).catch(err => console.error('Error selecting node:', err))
         }
@@ -1195,12 +1147,14 @@ function normalizeNodeType(dbType: string): string {
     'city': 'location',
     'category': 'business',
   }
+
   return typeMap[dbType] || dbType
 }
 
 const loadNodeRelations = async () => {
   if (!selectedGraphNode.value) {
     selectedNodeRelations.value = []
+
     return
   }
 
@@ -1234,7 +1188,9 @@ async function resetGraphFilters(): Promise<void> {
 }
 
 function navigateToProjectGraph(): void {
-  if (!selectedGraphNode.value) return
+  if (!selectedGraphNode.value) {
+return
+}
 
   // Set selected graph project and switch to graph tab
   selectedGraphProject.value = selectedGraphNode.value.project?.id || ''
@@ -1257,10 +1213,13 @@ async function selectNodeInGraph(nodeId: string | null): Promise<void> {
   if (!nodeId) {
     selectedGraphNode.value = null
     const container = hubGraphContainer.value
+
     if (container) {
       const svg = container.querySelector('svg')
+
       if (svg) {
         const d3 = (window as any).d3
+
         if (d3) {
           d3.select(svg).selectAll('.node')
             .classed('is-selected', false)
@@ -1272,15 +1231,17 @@ async function selectNodeInGraph(nodeId: string | null): Promise<void> {
         }
       }
     }
+
     return
   }
 
-  let hubData = await buildHubGraphData()
+  const hubData = await buildHubGraphData()
   let nodeToSelect = hubData.nodes.find((n) => String(n.id) === String(nodeId))
 
   if (!nodeToSelect) {
     // Node might be from a different project. Load all projects without filters
     const allNodes: GraphNode[] = []
+
     for (const project of allGraphProjects.value) {
       try {
         const projectData = await graphApiClient.getProjectGraph(project.id, { types: [] })
@@ -1297,6 +1258,7 @@ async function selectNodeInGraph(nodeId: string | null): Promise<void> {
         console.error(`Failed to load project ${project.id}:`, error)
       }
     }
+
     nodeToSelect = allNodes.find((n) => String(n.id) === String(nodeId))
   }
 
@@ -1315,44 +1277,72 @@ async function selectNodeInGraph(nodeId: string | null): Promise<void> {
 
 function highlightNodeInGraph(nodeId: string): void {
   const container = hubGraphContainer.value
-  if (!container) return
+
+  if (!container) {
+return
+}
 
   const svg = container.querySelector('svg')
-  if (!svg) return
+
+  if (!svg) {
+return
+}
 
   // Use D3 to select and highlight the node
   const d3 = (window as any).d3
-  if (!d3) return
+
+  if (!d3) {
+return
+}
 
   d3.select(svg).selectAll('.node').style('opacity', (d: any) => {
     if (d.id === nodeId) {
       return '1'
     }
+
     return (d.confidence || 1) * 0.4
   }).attr('stroke-width', (d: any) => {
-    if (d.id === nodeId) return '6'
+    if (d.id === nodeId) {
+return '6'
+}
+
     return selectedGraphNode.value?.id === d.id ? '8' : '2'
   }).attr('fill', (d: any) => {
      return d.id === nodeId ? '#fbbf24' : selectedGraphNode.value?.id === d.id ? '#06b6d4' : '#3a4557'
   })
   .attr('stroke', (d: any) => {
-    if (d.id === nodeId) return '#fbbf24'
+    if (d.id === nodeId) {
+return '#fbbf24'
+}
+
     return selectedGraphNode.value?.id === d.id ? '#06b6d4' : '#3a4557'
   }).attr('filter', (d: any) => {
-    if (d.id === nodeId) return 'drop-shadow(0 0 12px rgba(251, 191, 36, 0.8))'
+    if (d.id === nodeId) {
+return 'drop-shadow(0 0 12px rgba(251, 191, 36, 0.8))'
+}
+
     return selectedGraphNode.value?.id === d.id ? 'drop-shadow(0 0 12px rgba(6, 182, 212, 0.9)) drop-shadow(0 0 20px rgba(6, 182, 212, 0.4))' : 'none'
   })
 }
 
 async function clearGraphHighlight(): Promise<void> {
   const container = hubGraphContainer.value
-  if (!container) return
+
+  if (!container) {
+return
+}
 
   const svg = container.querySelector('svg')
-  if (!svg) return
+
+  if (!svg) {
+return
+}
 
   const d3 = (window as any).d3
-  if (!d3) return
+
+  if (!d3) {
+return
+}
 
   const hubData = await buildHubGraphData()
   const selectedNodeId = selectedGraphNode.value?.id
@@ -1366,6 +1356,7 @@ async function clearGraphHighlight(): Promise<void> {
       if (sourceId === selectedNodeId) {
         connectedNodeIds.add(targetId)
       }
+
       if (targetId === selectedNodeId) {
         connectedNodeIds.add(sourceId)
       }
@@ -1374,29 +1365,54 @@ async function clearGraphHighlight(): Promise<void> {
 
   d3.select(svg).selectAll('.node')
     .style('opacity', (d: any) => {
-      if (d.id === selectedNodeId) return '1'
-      if (connectedNodeIds.has(d.id)) return (d.confidence || 1) * 0.95
+      if (d.id === selectedNodeId) {
+return '1'
+}
+
+      if (connectedNodeIds.has(d.id)) {
+return (d.confidence || 1) * 0.95
+}
+
       return (d.confidence || 1) * 0.5
     })
     .attr('stroke-width', (d: any) => {
-      if (d.id === selectedNodeId) return '8'
-      if (connectedNodeIds.has(d.id)) return '5'
+      if (d.id === selectedNodeId) {
+return '8'
+}
+
+      if (connectedNodeIds.has(d.id)) {
+return '5'
+}
+
       return '2'
     })
     .attr('stroke', (d: any) => {
-      if (d.id === selectedNodeId) return '#06b6d4'
-      if (connectedNodeIds.has(d.id)) return '#fbbf24'
+      if (d.id === selectedNodeId) {
+return '#06b6d4'
+}
+
+      if (connectedNodeIds.has(d.id)) {
+return '#fbbf24'
+}
+
       return '#3a4557'
     })
     .attr('filter', (d: any) => {
-      if (d.id === selectedNodeId) return 'drop-shadow(0 0 12px rgba(6, 182, 212, 0.9)) drop-shadow(0 0 20px rgba(6, 182, 212, 0.4))'
-      if (connectedNodeIds.has(d.id)) return 'drop-shadow(0 0 8px rgba(251, 191, 36, 0.7))'
+      if (d.id === selectedNodeId) {
+return 'drop-shadow(0 0 12px rgba(6, 182, 212, 0.9)) drop-shadow(0 0 20px rgba(6, 182, 212, 0.4))'
+}
+
+      if (connectedNodeIds.has(d.id)) {
+return 'drop-shadow(0 0 8px rgba(251, 191, 36, 0.7))'
+}
+
       return 'none'
     })
 }
 
 function centerStatsPanel(): void {
   const header = document.querySelector('.stats-header')
+
   if (header) {
     header.scrollIntoView({
       behavior: 'smooth',
@@ -1447,6 +1463,7 @@ async function buildHubGraphData(): Promise<GraphData> {
 
       // Sort nodes
       const sortedNodes = [...allNodes]
+
       if (graphSortBy.value === 'Name') {
         sortedNodes.sort((a, b) => a.name.localeCompare(b.name))
       } else if (graphSortBy.value === 'Size') {
@@ -1488,6 +1505,7 @@ async function buildHubGraphData(): Promise<GraphData> {
     }
   } catch (error) {
     console.error('Failed to build hub graph data:', error)
+
     return { nodes: [], links: [] }
   }
 }
@@ -1509,6 +1527,7 @@ watch(
 
         try {
           initializeGraph(hubData, clickHandler, true)
+
           if (hubData.nodes.length > 0) {
             setViewMode(currentViewMode.value)
           }
@@ -1528,6 +1547,7 @@ watch(
     if (activeTab.value === 'Table') {
       const requestId = ++tableRequestId.value
       console.log(`[Table] Loading data... Request #${requestId}. Projects:`, allGraphProjects.value.length)
+
       try {
         const allNodes: GraphNode[] = []
         const nodeMap = new Map<string, GraphNode>()
@@ -1543,6 +1563,7 @@ watch(
         // If no types are selected, show nothing
         if (visibleTypesList.length === 0) {
           sortedTableNodes.value = []
+
           return
         }
 
@@ -1569,6 +1590,7 @@ watch(
 
               // Apply connection count filter
               const connections = graphNode.value || 0
+
               if (connections >= tableMinConnections.value && connections <= tableMaxConnections.value) {
                 allNodes.push(graphNode)
                 nodeMap.set(node.id, graphNode)
@@ -1577,7 +1599,9 @@ watch(
           })
         }
 
-        if (requestId !== tableRequestId.value) return
+        if (requestId !== tableRequestId.value) {
+return
+}
 
         // Sort nodes
         const sorted = [...allNodes]

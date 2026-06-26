@@ -26,11 +26,11 @@
   </div>
 </template>
 
-<script setup>
-import { computed, ref, onMounted } from 'vue'
+<script setup lang="ts">
 import { Paperclip } from '@lucide/vue'
-import { GoogleMapsModule } from '@/modules/google-maps'
+import { computed, ref, onMounted } from 'vue'
 import DefaultLayout from './layouts/DefaultModule.vue'
+import { GoogleMapsModule } from '@/modules/google-maps'
 
 const props = defineProps({
   activeModuleId: String,
@@ -69,6 +69,7 @@ const activeModule = computed(() => {
   if (props.activeModuleId === 'google-maps') {
     return GoogleMapsModule
   }
+
   return DefaultLayout
 })
 

@@ -1,5 +1,6 @@
-import { ref, onMounted, onUnmounted, Ref } from 'vue'
 import * as d3 from 'd3'
+import type { Ref } from 'vue';
+import { ref, onUnmounted } from 'vue'
 
 export interface GraphNode {
   id: string
@@ -126,10 +127,15 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
 
     function force(alpha: number) {
       const targetNode = nodes.find((n) => n.id === targetNodeId)
-      if (!targetNode) return
+
+      if (!targetNode) {
+return
+}
 
       nodes.forEach((node) => {
-        if (!connectedNodeIds.has(node.id) || node.id === targetNodeId) return
+        if (!connectedNodeIds.has(node.id) || node.id === targetNodeId) {
+return
+}
 
         const dx = targetNode.x! - node.x!
         const dy = targetNode.y! - node.y!
@@ -151,8 +157,11 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
   }
 
   function initializeGraph(data: GraphData, onNodeSelect: (node: GraphNode | null) => void, isHubView = false) {
+    void isHubView
+
     if (!container.value) {
       console.error('Container not available')
+
       return
     }
 
@@ -161,6 +170,7 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
     const filteredNodes = data.nodes.filter(n => {
       const meetsConfidence = (n.confidence || 1) >= activeConfig.minConfidence.value
       const isVisibleType = !visibleTypes || visibleTypes.size === 0 || visibleTypes.has(n.type)
+
       return meetsConfidence && isVisibleType
     })
 
@@ -261,7 +271,7 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
     // Restore previous zoom state if available
     if (viewState.value.zoom.k !== 1 || viewState.value.zoom.x !== 0 || viewState.value.zoom.y !== 0) {
       const transform = d3.zoomIdentity.translate(viewState.value.zoom.x, viewState.value.zoom.y).scale(viewState.value.zoom.k)
-      svg.call(zoomBehavior.transform, transform)
+      svg.call(zoomBehavior.value.transform, transform)
     }
 
     // Find central node (most connected node, prefer person or business type)
@@ -277,6 +287,7 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
     let maxConnections = 0
     filteredNodes.forEach((node) => {
       const connections = connectionCounts.get(node.id) || 0
+
       if (connections > maxConnections || (connections === maxConnections && (node.type === 'business' || node.type === 'person'))) {
         maxConnections = connections
         centralNode = node
@@ -287,9 +298,11 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
     const projectGroups = new Map<string, GraphNode[]>()
     filteredNodes.forEach((node) => {
       const projectId = node.project?.id || 'unknown'
+
       if (!projectGroups.has(projectId)) {
         projectGroups.set(projectId, [])
       }
+
       projectGroups.get(projectId)!.push(node)
     })
 
@@ -322,10 +335,12 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
         filteredNodes.forEach((node) => {
           const projectId = node.project?.id || 'unknown'
           const centroid = projectCentroids.get(projectId)
+
           if (centroid && node.x !== undefined && node.y !== undefined) {
             const dx = centroid.x - node.x
             const dy = centroid.y - node.y
             const distance = Math.sqrt(dx * dx + dy * dy)
+
             if (distance > 0) {
               const strength = 0.2 * alpha
               node.x += (dx / distance) * strength * 30
@@ -353,10 +368,10 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
       .on('click', (event: any, d: GraphLink) => {
         event.stopPropagation()
         // Store link info for display
-        const sourceId = typeof d.source === 'string' ? d.source : (d.source as any).id
         const targetId = typeof d.target === 'string' ? d.target : (d.target as any).id
         // const sourceNode = nodeById.get(sourceId)
         const targetNode = nodeById.get(targetId)
+
         // Select the target node
         if (targetNode) {
           // Reset old selection first
@@ -378,6 +393,7 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
             if (sId === targetNode.id) {
               connectedNodeIds.add(tId)
             }
+
             if (tId === targetNode.id) {
               connectedNodeIds.add(sId)
             }
@@ -388,20 +404,34 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
             .classed('is-selected', (n: GraphNode) => n.id === targetNode.id)
             .classed('is-connected', (n: GraphNode) => connectedNodeIds.has(n.id) && n.id !== targetNode.id)
             .attr('stroke-width', (n: GraphNode) => {
-              if (n.id === targetNode.id) return 8
-              if (connectedNodeIds.has(n.id)) return 5
+              if (n.id === targetNode.id) {
+return 8
+}
+
+              if (connectedNodeIds.has(n.id)) {
+return 5
+}
+
               return 2
             })
             .style('opacity', (n: GraphNode) => {
-              if (n.id === targetNode.id) return 1
-              if (connectedNodeIds.has(n.id)) return (n.confidence || 1) * 0.95
+              if (n.id === targetNode.id) {
+return 1
+}
+
+              if (connectedNodeIds.has(n.id)) {
+return (n.confidence || 1) * 0.95
+}
+
               return (n.confidence || 1) * 0.5
             })
 
           onNodeSelect(targetNode)
         }
       })
-      .on('mouseenter', function (this: SVGLineElement, _event: any, d: GraphLink) {
+      .on('mouseenter', function (this: SVGLineElement, event: any, d: GraphLink) {
+        void event
+
         d3.select(this).attr('stroke-width', 4).attr('class', 'link link-active')
 
         // Highlight connected nodes
@@ -411,15 +441,21 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
         node
           .classed('node-connected', (n: GraphNode) => n.id === sourceId || n.id === targetId)
           .attr('stroke-width', (n: GraphNode) => {
-            if (n.id === sourceId || n.id === targetId) return 5
+            if (n.id === sourceId || n.id === targetId) {
+return 5
+}
+
             return n.id === selectedNode.value?.id ? 4 : 2
           })
           .attr('stroke', (n: GraphNode) => {
-            if (n.id === sourceId || n.id === targetId) return '#fbbf24'
+            if (n.id === sourceId || n.id === targetId) {
+return '#fbbf24'
+}
+
             return n.id === selectedNode.value?.id ? '#06b6d4' : '#3a4557'
           })
       })
-      .on('mouseleave', function (this: SVGLineElement, _event: any, d: GraphLink) {
+      .on('mouseleave', function (this: SVGLineElement) {
         d3.select(this).attr('stroke-width', 2.5).attr('class', 'link')
 
         // Remove highlight from nodes
@@ -474,8 +510,12 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
       .enter()
       .append('circle')
       .attr('r', (d: GraphNode) => {
-        if (d.id === centralNode.id) return 45
+        if (d.id === centralNode.id) {
+return 45
+}
+
         const baseSize = 25
+
         return baseSize + (d.value || 0) * 5
       })
       .attr('class', (d: GraphNode) => `node node-${d.type}${d.id === centralNode.id ? ' node-central' : ''}`)
@@ -504,6 +544,7 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
           if (sourceId === d.id) {
             connectedNodeIds.add(targetId)
           }
+
           if (targetId === d.id) {
             connectedNodeIds.add(sourceId)
           }
@@ -529,6 +570,7 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
           }
 
           sim.alpha(0.3).restart()
+
           return
         }
 
@@ -540,12 +582,19 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
           .classed('is-selected', (n: GraphNode) => n.id === d.id)
           .classed('is-connected', (n: GraphNode) => connectedNodeIds.has(n.id) && n.id !== d.id)
           .attr('stroke-width', (n: GraphNode) => {
-            if (n.id === d.id) return 8
-            if (connectedNodeIds.has(n.id)) return 5
+            if (n.id === d.id) {
+return 8
+}
+
+            if (connectedNodeIds.has(n.id)) {
+return 5
+}
+
             return 2
           })
           .attr('opacity', (n: GraphNode) => {
             const opacity = n.id === d.id ? 1 : connectedNodeIds.has(n.id) ? (n.confidence || 1) * 0.95 : (n.confidence || 1) * 0.5
+
             return opacity
           })
 
@@ -591,7 +640,10 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
 
     function updateNodeStyle() {
       const selectedNodeId = selectedNode.value?.id
-      if (!node) return
+
+      if (!node) {
+return
+}
 
       const connectedNodeIds = new Set<string>()
 
@@ -603,6 +655,7 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
           if (sourceId === selectedNodeId) {
             connectedNodeIds.add(targetId)
           }
+
           if (targetId === selectedNodeId) {
             connectedNodeIds.add(sourceId)
           }
@@ -613,24 +666,38 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
         .classed('is-selected', (d: GraphNode) => d.id === selectedNodeId)
         .classed('is-connected', (d: GraphNode) => connectedNodeIds.has(d.id) && d.id !== selectedNodeId)
         .attr('stroke-width', (d: GraphNode) => {
-          if (d.id === selectedNodeId) return 8
-          if (connectedNodeIds.has(d.id)) return 5
+          if (d.id === selectedNodeId) {
+return 8
+}
+
+          if (connectedNodeIds.has(d.id)) {
+return 5
+}
+
           return 2
         })
         .attr('opacity', (d: GraphNode) => {
           let opacity = (d.confidence || 1) * 0.5
-          if (d.id === selectedNodeId) opacity = 1
-          else if (connectedNodeIds.has(d.id)) opacity = (d.confidence || 1) * 0.95
+
+          if (d.id === selectedNodeId) {
+opacity = 1
+} else if (connectedNodeIds.has(d.id)) {
+opacity = (d.confidence || 1) * 0.95
+}
+
           return opacity
         })
     }
 
     function updateLinkOpacity() {
-      if (!node || !link) return
+      if (!node || !link) {
+return
+}
 
       link.attr('opacity', (d: GraphLink) => {
         const sourceId = typeof d.source === 'string' ? d.source : d.source.id
         const targetId = typeof d.target === 'string' ? d.target : d.target.id
+
         return highlightedNodes.value.has(sourceId) || highlightedNodes.value.has(targetId)
           ? 1
           : 0.2
@@ -638,18 +705,23 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
 
       node.attr('opacity', (d: GraphNode) => {
         let opacity = (d.confidence || 1) * 0.5
+
         if (d.id === selectedNode.value?.id) {
           opacity = 1
         } else if (highlightedNodes.value.has(d.id)) {
           opacity = 1
         }
+
         return opacity
       })
     }
 
     function updateLabelOpacity() {
       labels.style('opacity', (d: GraphNode) => {
-        if (d.id === centralNode.id) return 1
+        if (d.id === centralNode.id) {
+return 1
+}
+
         return highlightedNodes.value.has(d.id) ? 1 : 0
       })
     }
@@ -662,13 +734,21 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
         const sourceId = typeof link.source === 'string' ? link.source : link.source.id
         const targetId = typeof link.target === 'string' ? link.target : link.target.id
 
-        if (sourceId === nodeId) highlightedNodes.value.add(targetId)
-        if (targetId === nodeId) highlightedNodes.value.add(sourceId)
+        if (sourceId === nodeId) {
+highlightedNodes.value.add(targetId)
+}
+
+        if (targetId === nodeId) {
+highlightedNodes.value.add(sourceId)
+}
       })
     }
 
     function dragStarted(event: d3.D3DragEvent<SVGCircleElement, GraphNode, GraphNode>) {
-      if (!event.active) sim.alphaTarget(1).restart()
+      if (!event.active) {
+sim.alphaTarget(1).restart()
+}
+
       event.subject.fx = event.subject.x
       event.subject.fy = event.subject.y
     }
@@ -679,7 +759,10 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
     }
 
     function dragEnded(event: d3.D3DragEvent<SVGCircleElement, GraphNode, GraphNode>) {
-      if (!event.active) sim.alphaTarget(0)
+      if (!event.active) {
+sim.alphaTarget(0)
+}
+
       // Lock the node in place
       lockedNodes.value.add(event.subject.id)
     }
@@ -692,6 +775,7 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
       // Update cluster centroids based on current node positions
       projectGroups.forEach((nodes, project) => {
         const centroid = projectCentroids.get(project)
+
         if (centroid) {
           let sumX = 0
           let sumY = 0
@@ -715,21 +799,25 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
         .attr('x1', (d: any) => {
           const sourceId = typeof d.source === 'string' ? d.source : (d.source as GraphNode).id
           const source = nodeById.get(sourceId)
+
           return source?.x || 0
         })
         .attr('y1', (d: any) => {
           const sourceId = typeof d.source === 'string' ? d.source : (d.source as GraphNode).id
           const source = nodeById.get(sourceId)
+
           return source?.y || 0
         })
         .attr('x2', (d: any) => {
           const targetId = typeof d.target === 'string' ? d.target : (d.target as GraphNode).id
           const target = nodeById.get(targetId)
+
           return target?.x || 0
         })
         .attr('y2', (d: any) => {
           const targetId = typeof d.target === 'string' ? d.target : (d.target as GraphNode).id
           const target = nodeById.get(targetId)
+
           return target?.y || 0
         })
 
@@ -742,6 +830,7 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
           const target = nodeById.get(targetId)
           const sourceX = source?.x || 0
           const targetX = target?.x || 0
+
           return (sourceX + targetX) / 2
         })
         .attr('y', (d: any) => {
@@ -751,6 +840,7 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
           const target = nodeById.get(targetId)
           const sourceY = source?.y || 0
           const targetY = target?.y || 0
+
           return (sourceY + targetY) / 2
         })
 
@@ -771,18 +861,28 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
       location: '#10b981',
       contact: '#f59e0b',
     }
+
     return colors[type] || '#6b7280'
   }
 
   onUnmounted(() => {
-    if (simulation.value) simulation.value.stop()
+    if (simulation.value) {
+simulation.value.stop()
+}
   })
 
-  function centerNode(nodeId: string, _data?: GraphData) {
-    if (!container.value) return
+  function centerNode(nodeId: string, data?: GraphData) {
+    void data
+
+    if (!container.value) {
+return
+}
 
     const svg = d3.select(container.value).select('svg')
-    if (svg.empty()) return
+
+    if (svg.empty()) {
+return
+}
 
     // Find the rendered node element directly in the SVG
     let foundX = 0
@@ -797,7 +897,9 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
       }
     })
 
-    if (!found || (foundX === 0 && foundY === 0)) return
+    if (!found || (foundX === 0 && foundY === 0)) {
+return
+}
 
     const width = container.value.clientWidth || 800
     const height = container.value.clientHeight || 600
@@ -823,9 +925,12 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
   }
 
   function updateForces() {
-    if (!simulation.value) return
+    if (!simulation.value) {
+return
+}
 
     const chargeForce = simulation.value.force('charge') as d3.ForceManyBody<GraphNode>
+
     if (chargeForce) {
       chargeForce.strength(activeConfig.repulsion.value)
     }
@@ -835,10 +940,15 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
   }
 
   function applyViewModeForces(modeId: ViewModeId, width: number, height: number) {
-    if (!simulation.value) return
+    if (!simulation.value) {
+return
+}
 
     const config = VIEW_MODES[modeId]
-    if (!config) return
+
+    if (!config) {
+return
+}
 
     simulation.value.force('center', d3.forceCenter(width / 2, height / 2))
     simulation.value.alpha(1).restart()
@@ -849,7 +959,9 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
   }
 
   function applyProjectRowLayout() {
-    if (!simulation.value) return
+    if (!simulation.value) {
+return
+}
 
     const nodes = simulation.value.nodes() as GraphNode[]
     const uniqueProjects = Array.from(new Set(nodes.map((n) => n.project?.id).filter((id): id is string => Boolean(id))))
@@ -885,6 +997,7 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
         d3
           .forceX((d: GraphNode) => {
             const projectId = d.project?.id || 'unknown'
+
             return projectPositions.get(projectId)?.x || 0
           })
           .strength(forceStrength),
@@ -894,6 +1007,7 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
         d3
           .forceY((d: GraphNode) => {
             const projectId = d.project?.id || 'unknown'
+
             return projectPositions.get(projectId)?.y || 0
           })
           .strength(forceStrength),
@@ -905,7 +1019,9 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
   }
 
   function applyTypeRowLayout() {
-    if (!simulation.value) return
+    if (!simulation.value) {
+return
+}
 
     const nodes = simulation.value.nodes() as GraphNode[]
     const uniqueTypes = Array.from(new Set(nodes.map((n) => n.type).filter(Boolean)))
@@ -952,7 +1068,9 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
   }
 
   function applyLocationRowLayout() {
-    if (!simulation.value) return
+    if (!simulation.value) {
+return
+}
 
     const nodes = simulation.value.nodes() as GraphNode[]
     const uniqueLocations = Array.from(
@@ -991,6 +1109,7 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
         d3
           .forceX((d: GraphNode) => {
             const locationId = d.location?.id
+
             return locationId ? locationPositions.get(locationId)?.x || 0 : 0
           })
           .strength(forceStrength),
@@ -1000,6 +1119,7 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
         d3
           .forceY((d: GraphNode) => {
             const locationId = d.location?.id
+
             return locationId ? locationPositions.get(locationId)?.y || 0 : 0
           })
           .strength(forceStrength),
@@ -1011,7 +1131,9 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
   }
 
   function applyClusterLayout() {
-    if (!simulation.value) return
+    if (!simulation.value) {
+return
+}
 
     const nodes = simulation.value.nodes() as GraphNode[]
     const width = container.value?.clientWidth || 800
@@ -1033,8 +1155,15 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
     nodes.forEach((node) => {
       const degree = node.value || 0
       let cluster = 1
-      if (degree >= highDegreeThreshold) cluster = 0
-      if (degree < mediumDegreeThreshold) cluster = 2
+
+      if (degree >= highDegreeThreshold) {
+cluster = 0
+}
+
+      if (degree < mediumDegreeThreshold) {
+cluster = 2
+}
+
       degreeGroups.set(node.id, cluster)
     })
 
@@ -1062,6 +1191,7 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
         d3
           .forceX((d: GraphNode) => {
             const cluster = degreeGroups.get(d.id) || 1
+
             return clusterCenters.get(cluster)?.x || width / 2
           })
           .strength(0.2),
@@ -1071,6 +1201,7 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
         d3
           .forceY((d: GraphNode) => {
             const cluster = degreeGroups.get(d.id) || 1
+
             return clusterCenters.get(cluster)?.y || height / 2
           })
           .strength(0.2),
@@ -1083,8 +1214,10 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
 
   function setViewMode(modeId: ViewModeId) {
     const config = VIEW_MODES[modeId]
+
     if (!config) {
       console.warn(`Unknown view mode: ${modeId}`)
+
       return
     }
 
@@ -1107,6 +1240,7 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
       nodes.attr('fill', (d: GraphNode) => {
         const project = d.project || 'unknown'
         const colorIndex = projectList.indexOf(project)
+
         return projectColors[colorIndex % projectColors.length]
       })
     } else if (config.colorBy === 'cluster') {
@@ -1121,6 +1255,7 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
     if (container.value && simulation.value) {
       const width = container.value.clientWidth || 800
       const height = container.value.clientHeight || 600
+
       if (modeId === 'Project') {
         applyProjectRowLayout()
       } else if (modeId === 'Type') {
@@ -1136,7 +1271,9 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
   }
 
   function resetLockedNodes() {
-    if (!simulation.value) return
+    if (!simulation.value) {
+return
+}
 
     const nodes = simulation.value.nodes() as GraphNode[]
     nodes.forEach((node) => {
@@ -1162,6 +1299,7 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
       const filteredLinks = data.links.filter((l) => {
         const sId = typeof l.source === 'string' ? l.source : (l.source as any).id
         const tId = typeof l.target === 'string' ? l.target : (l.target as any).id
+
         return data.nodes.some((n) => n.id === sId) && data.nodes.some((n) => n.id === tId)
       })
 
@@ -1183,6 +1321,7 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
           if (sourceId === selectedNodeId) {
             connectedNodeIds.add(targetId)
           }
+
           if (targetId === selectedNodeId) {
             connectedNodeIds.add(sourceId)
           }
@@ -1193,13 +1332,25 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
         .classed('is-selected', (d: GraphNode) => d.id === selectedNodeId)
         .classed('is-connected', (d: GraphNode) => connectedNodeIds.has(d.id) && d.id !== selectedNodeId)
         .attr('stroke-width', (d: GraphNode) => {
-          if (d.id === selectedNodeId) return 8
-          if (connectedNodeIds.has(d.id)) return 5
+          if (d.id === selectedNodeId) {
+return 8
+}
+
+          if (connectedNodeIds.has(d.id)) {
+return 5
+}
+
           return 2
         })
         .style('opacity', (d: GraphNode) => {
-          if (d.id === selectedNodeId) return 1
-          if (connectedNodeIds.has(d.id)) return (d.confidence || 1) * 0.95
+          if (d.id === selectedNodeId) {
+return 1
+}
+
+          if (connectedNodeIds.has(d.id)) {
+return (d.confidence || 1) * 0.95
+}
+
           return (d.confidence || 1) * 0.5
         })
     }
@@ -1219,6 +1370,7 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
       .each(function (this: SVGSVGElement) {
         const svgSelection = d3.select(this)
         const nodeCount = svgSelection.selectAll('.node').size()
+
         if (nodeCount > maxNodes) {
           maxNodes = nodeCount
           targetSvg = svgSelection
@@ -1245,7 +1397,9 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
       }
     })
 
-    if (!hasNodes) { return }
+    if (!hasNodes) {
+      return
+    }
 
     const width = container.value.clientWidth || 800
     const height = container.value.clientHeight || 600
@@ -1270,6 +1424,7 @@ export function useGraphSimulation(container: Ref<HTMLElement | null>, config?: 
   function selectNodeReactively(nodeToSelect: GraphNode | null) {
     selectedNode.value = nodeToSelect
     highlightedNodes.value.clear()
+
     if (updateNodeStyleCallback) {
       updateNodeStyleCallback()
     }

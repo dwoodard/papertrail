@@ -15,6 +15,7 @@ export function useContentMessaging() {
     function startCollect(options: BulkCollectOptions = {}): Promise<void> {
         collecting.value = true
         progress.value = { done: 0, total: 0 }
+
         return sendToActiveTab({ type: 'BULK_COLLECT', options })
     }
 
