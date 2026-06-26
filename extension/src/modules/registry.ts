@@ -1,10 +1,9 @@
-import type { ActiveModuleContext, ModuleDescriptor } from '@contracts'
+import type { ActiveModuleContext, CollectorModule, ModuleDescriptor } from '@contracts'
 
-import { googleMapsModule } from './googleMaps'
-import type { CollectorModule } from './types'
+import { moduleRegistry } from './config'
 
 /** Ordered list of modules. First match wins (product spec §6). */
-const modules: CollectorModule[] = [googleMapsModule]
+const modules: CollectorModule[] = Object.values(moduleRegistry)
 
 const unknownDescriptor: ModuleDescriptor = {
     id: 'unknown',
