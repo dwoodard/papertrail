@@ -3,7 +3,7 @@
     <header class="scraper-topbar">
       <div class="title-group">
         <div class="eyebrow"><span class="eyebrow-dot"></span> Live Maps Collector</div>
-        <h1>Maps Scraper TESTTESTTEST</h1>
+        <h1>Maps Scraper </h1>
       </div>
 
       <div class="top-actions">

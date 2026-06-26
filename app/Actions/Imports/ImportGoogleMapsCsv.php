@@ -20,6 +20,10 @@ class ImportGoogleMapsCsv
         private string $keyword,
     ) {}
 
+    /**
+     * @param  array<int, array<string, mixed>>  $rows
+     * @return array{total: int, created: int, errors: list<string>}
+     */
     public function execute(array $rows): array
     {
         $stats = [
@@ -52,10 +56,13 @@ class ImportGoogleMapsCsv
         return $stats;
     }
 
+    /**
+     * @param  array<string, mixed>  $row
+     */
     private function importRow(array $row): void
     {
         // 1. Save raw data as evidence
-        $checksum = hash('sha256', json_encode($row));
+        $checksum = hash('sha256', json_encode($row, JSON_THROW_ON_ERROR));
         $evidence = EvidenceRecord::updateOrCreate(
             [
                 'project_id' => $this->project->id,
@@ -218,10 +225,12 @@ class ImportGoogleMapsCsv
 
             // Create city node
             if (! empty($row['city'])) {
+                $cityState = ! empty($row['state']) ? ":{$row['state']}" : '';
+
                 $cityNode = $this->upsertNode(
                     type: 'city',
-                    label: $row['city'] . ($row['state'] ? ", {$row['state']}" : ''),
-                    key: "city:{$row['city']}:{$row['state'] ?? ''}",
+                    label: $row['city'].(! empty($row['state']) ? ", {$row['state']}" : ''),
+                    key: "city:{$row['city']}".$cityState,
                     source: 'google_maps',
                     properties: []
                 );
@@ -236,6 +245,9 @@ class ImportGoogleMapsCsv
         }
     }
 
+    /**
+     * @param  array<string, mixed>  $properties
+     */
     private function upsertNode(
         string $type,
         string $label,
@@ -287,6 +299,9 @@ class ImportGoogleMapsCsv
         return "search-query:$slug";
     }
 
+    /**
+     * @param  array<string, mixed>  $row
+     */
     private function addressKey(array $row): string
     {
         return implode('|', [
