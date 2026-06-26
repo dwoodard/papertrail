@@ -215,6 +215,59 @@ return 'N/A'
           phone = cleanText(phoneElement.innerText)
         }
 
+        // Extract rating and review count from aria-label
+        let rating = 'N/A'
+        let reviewCount = 'N/A'
+        const ratingElement = document.querySelector('span[aria-label*="stars"]')
+
+        if (ratingElement) {
+          const ariaLabel = ratingElement.getAttribute('aria-label') || ''
+          // Format: "4.2 stars 1,730 Reviews"
+          const ratingMatch = ariaLabel.match(/^([\d.]+)\s+stars/)
+          const reviewMatch = ariaLabel.match(/([\d,]+)\s+Reviews?$/)
+
+          if (ratingMatch) {
+rating = ratingMatch[1]
+}
+
+          if (reviewMatch) {
+reviewCount = reviewMatch[1]
+}
+        }
+
+        // Extract metadata from .W4Efsd rows
+        const detailRows = Array.from(document.querySelectorAll('.W4Efsd')) as HTMLElement[]
+        let priceRange = 'N/A'
+        let category = 'N/A'
+        let status = 'N/A'
+        let description = 'N/A'
+
+        if (detailRows.length > 0) {
+          // Price range: first row with $ pattern
+          const priceText = detailRows[0]?.innerText || ''
+          const priceMatch = priceText.match(/\$[0-9–]+/)
+
+          if (priceMatch) {
+priceRange = priceMatch[0]
+}
+
+          // Category: second row, first segment
+          if (detailRows[1]) {
+            const categoryText = cleanText(detailRows[1].innerText)
+            category = categoryText.split('·')[0].trim()
+          }
+
+          // Status: third row
+          if (detailRows[2]) {
+            status = cleanText(detailRows[2].innerText)
+          }
+
+          // Description: last row
+          if (detailRows.length > 3) {
+            description = cleanText(detailRows[detailRows.length - 1].innerText)
+          }
+        }
+
         // Extract ID from the listing URL (Google Maps format: 0x...:0x...)
         let id = 'N/A'
 
@@ -290,6 +343,12 @@ return 'N/A'
           website: website,
           websiteUrl: websiteUrl,
           id: id,
+          rating: rating,
+          reviewCount: reviewCount,
+          priceRange: priceRange,
+          category: category,
+          status: status,
+          description: description,
         }
 
         scrapedCount++

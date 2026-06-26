@@ -61,7 +61,7 @@ onMessage(async (message: PtMessage) => {
           runtime.stopMapsScrape?.()
         } else if (message.type === 'REQUEST_CURRENT_SEARCH_TERM') {
           try {
-            const { extractSearchTerm } = await import('./modules/google-maps/scraper')
+            const { extractSearchTerm } = await import('../modules/google-maps/scraper')
             const searchTerm = extractSearchTerm()
             console.log(`[Papertrail] Sending current search term: "${searchTerm}"`)
             void sendRuntimeMessage({ type: 'CURRENT_SEARCH_TERM', searchTerm: searchTerm })

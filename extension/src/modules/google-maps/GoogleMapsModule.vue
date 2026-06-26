@@ -191,6 +191,30 @@
             <span v-else class="detail-value">{{ selectedListing.website }}</span>
           </div>
           <div class="detail-row">
+            <span class="detail-label">Rating:</span>
+            <span class="detail-value">{{ selectedListing.rating }}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Reviews:</span>
+            <span class="detail-value">{{ selectedListing.reviewCount }}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Price Range:</span>
+            <span class="detail-value">{{ selectedListing.priceRange }}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Category:</span>
+            <span class="detail-value">{{ selectedListing.category }}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Status:</span>
+            <span class="detail-value">{{ selectedListing.status }}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Description:</span>
+            <span class="detail-value">{{ selectedListing.description }}</span>
+          </div>
+          <div class="detail-row">
             <span class="detail-label">Place ID:</span>
             <span class="detail-value detail-monospace">{{ selectedListing.id }}</span>
           </div>
@@ -305,7 +329,7 @@ const selectedProjectId = ref<string>('')
 const loadingProjects = ref(false)
 const syncState = useSyncPlaces()
 
-const columnHelper = createColumnHelper()
+const columnHelper = createColumnHelper<any>()
 
 const columns = [
   columnHelper.accessor((row, index) => index + 1, {
@@ -328,6 +352,30 @@ const columns = [
   columnHelper.accessor('website', {
     header: 'Website',
     size: 140,
+  }),
+  columnHelper.accessor('rating', {
+    header: 'Rating',
+    size: 80,
+  }),
+  columnHelper.accessor('reviewCount', {
+    header: 'Reviews',
+    size: 80,
+  }),
+  columnHelper.accessor('priceRange', {
+    header: 'Price',
+    size: 80,
+  }),
+  columnHelper.accessor('category', {
+    header: 'Category',
+    size: 120,
+  }),
+  columnHelper.accessor('status', {
+    header: 'Status',
+    size: 120,
+  }),
+  columnHelper.accessor('description', {
+    header: 'Description',
+    size: 200,
   }),
   columnHelper.accessor('id', {
     header: 'ID',
@@ -720,13 +768,19 @@ function downloadJson() {
 
 function downloadCsv() {
   const rows = [
-    ['name', 'phone', 'website', 'websiteUrl', 'address', 'id'],
+    ['name', 'address', 'phone', 'website', 'websiteUrl', 'rating', 'reviewCount', 'priceRange', 'category', 'status', 'description', 'id'],
     ...results.value.map(item => [
       item.name,
+      item.address,
       item.phone,
       item.website,
       item.websiteUrl,
-      item.address,
+      item.rating,
+      item.reviewCount,
+      item.priceRange,
+      item.category,
+      item.status,
+      item.description,
       item.id
     ])
   ]

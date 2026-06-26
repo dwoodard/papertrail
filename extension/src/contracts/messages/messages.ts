@@ -27,6 +27,12 @@ export interface ScrapedListing {
     website: string
     websiteUrl: string
     id: string
+    rating: string
+    reviewCount: string
+    priceRange: string
+    category: string
+    status: string
+    description: string
 }
 
 export type PtMessage =
