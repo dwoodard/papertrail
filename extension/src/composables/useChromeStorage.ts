@@ -26,6 +26,15 @@ export function useChromeStorage<T>(key: string, defaultValue: T): ChromeStorage
     const state = ref(defaultValue) as Ref<T>
     let lastSynced = JSON.stringify(defaultValue)
 
+    // In dev mode or non-extension context, chrome is undefined
+    if (typeof chrome === 'undefined' || !chrome.storage) {
+        return {
+            state,
+            ready: Promise.resolve(),
+            dispose: () => {},
+        }
+    }
+
     const ready = new Promise<void>((resolve) => {
         chrome.storage.local.get([key], (result) => {
             if (result[key] !== undefined) {
@@ -39,6 +48,7 @@ export function useChromeStorage<T>(key: string, defaultValue: T): ChromeStorage
     const stopWatch = watch(
         state,
         (value) => {
+            if (!chrome.storage) return
             const json = JSON.stringify(value)
             if (json === lastSynced) {
                 return
@@ -65,7 +75,9 @@ export function useChromeStorage<T>(key: string, defaultValue: T): ChromeStorage
         lastSynced = json
         state.value = changes[key].newValue as T
     }
-    chrome.storage.onChanged.addListener(onChanged)
+    if (chrome.storage) {
+        chrome.storage.onChanged.addListener(onChanged)
+    }
 
     return {
         state,

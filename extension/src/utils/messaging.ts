@@ -9,6 +9,11 @@ import type { PtMessage, PtMessageOf, PtMessageType } from '@contracts'
 /** Broadcast to the extension (background + any open panel/popup). */
 export function sendRuntimeMessage(message: PtMessage): Promise<void> {
     return new Promise((resolve) => {
+        if (!chrome?.runtime) {
+            console.log('[Dev Mode] Skipping message:', message.type)
+            resolve()
+            return
+        }
         chrome.runtime.sendMessage(message, () => {
             // Swallow "receiving end does not exist" when no listener is open.
             void chrome.runtime.lastError
@@ -20,8 +25,17 @@ export function sendRuntimeMessage(message: PtMessage): Promise<void> {
 /** Send to a specific tab's content script. */
 export function sendTabMessage(tabId: number, message: PtMessage): Promise<void> {
     return new Promise((resolve) => {
+        if (!chrome?.tabs) {
+            console.log('[Dev Mode] Skipping tab message:', message.type)
+            resolve()
+            return
+        }
         chrome.tabs.sendMessage(tabId, message, () => {
-            void chrome.runtime.lastError
+            if (chrome.runtime.lastError) {
+                console.error('[Messaging] Send error to tab', tabId, ':', chrome.runtime.lastError.message)
+            } else {
+                console.log('[Messaging] Message sent to tab', tabId, ':', message.type)
+            }
             resolve()
         })
     })
@@ -29,7 +43,12 @@ export function sendTabMessage(tabId: number, message: PtMessage): Promise<void>
 
 /** Send to the content script of the active tab in the current window. */
 export async function sendToActiveTab(message: PtMessage): Promise<void> {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+    if (!chrome?.tabs) {
+        console.log('[Dev Mode] Skipping active tab message:', message.type)
+        return
+    }
+    const tabs = await chrome.tabs.query({ active: true })
+    const tab = tabs[0]
     if (tab?.id != null) {
         await sendTabMessage(tab.id, message)
     }
@@ -41,6 +60,9 @@ export function onMessage(handler: (message: PtMessage) => void): () => void {
         if (message && typeof message === 'object' && 'type' in message) {
             handler(message as PtMessage)
         }
+    }
+    if (!chrome?.runtime) {
+        return () => {} // No-op in dev mode
     }
     chrome.runtime.onMessage.addListener(listener)
     return () => chrome.runtime.onMessage.removeListener(listener)

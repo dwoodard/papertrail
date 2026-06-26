@@ -1,4 +1,5 @@
 import type { CollectorModule } from '@contracts'
+import { scrapeAllMaps, stopMapsScrape } from './scraper'
 
 export const googleMapsModule: CollectorModule = {
   descriptor: {
@@ -7,6 +8,7 @@ export const googleMapsModule: CollectorModule = {
   },
   matches: (url: string): boolean => /^https:\/\/www\.google\.com\/maps/.test(url),
   createRuntime: (emit) => ({
-    //
+    scrapeAllMaps,
+    stopMapsScrape,
   }),
 }

@@ -20,17 +20,35 @@ export interface CollectProgress {
     total: number
 }
 
+export interface ScrapedListing {
+    name: string
+    address: string
+    phone: string
+    website: string
+    websiteUrl: string
+    id: string
+}
+
 export type PtMessage =
     // --- side panel / popup -> content ---
     | { type: 'ACTIVATE_PASSIVE'; active: boolean }
     | { type: 'BULK_COLLECT'; options: BulkCollectOptions }
     | { type: 'STOP_COLLECT' }
     | { type: 'REQUEST_MODULE_CONTEXT' }
+    | { type: 'START_MAPS_SCRAPE'; scrollToLoadAll?: boolean }
+    | { type: 'STOP_MAPS_SCRAPE' }
+    | { type: 'REQUEST_CURRENT_SEARCH_TERM' }
+    | { type: 'SET_SEARCH_TERM'; searchTerm: string }
     // --- content -> side panel / popup / background ---
     | { type: 'OBSERVATIONS'; observations: Observation[] }
     | { type: 'COLLECT_PROGRESS'; progress: CollectProgress }
     | { type: 'COLLECT_DONE' }
     | { type: 'MODULE_ACTIVE'; context: ActiveModuleContext }
+    | { type: 'MAPS_SCRAPE_STARTING'; searchTerm: string; totalListings?: number }
+    | { type: 'MAPS_RESULT'; listing: ScrapedListing; index: number; total: number; searchTerm: string }
+    | { type: 'MAPS_SCRAPE_WAITING'; waitSeconds: number; collectedCount: number }
+    | { type: 'MAPS_SCRAPE_DONE'; totalCount: number; searchTerm: string }
+    | { type: 'CURRENT_SEARCH_TERM'; searchTerm: string }
     // --- background / popup -> all ---
     | { type: 'ACTIVE_PROJECT_CHANGED'; projectId: string | null }
 

@@ -89,6 +89,7 @@ function submit(): void {
 }
 
 async function openMain(): Promise<void> {
+    if (!chrome?.runtime) return
     const mainUrl = chrome.runtime.getURL('src/pages/main.html')
     const window = await chrome.windows.getCurrent()
     if (window.id != null) {
@@ -97,6 +98,7 @@ async function openMain(): Promise<void> {
 }
 
 async function openWorkspace(): Promise<void> {
+    if (!chrome?.windows) return
     const currentWindow = await chrome.windows.getCurrent()
     if (currentWindow.id != null) {
         await chrome.sidePanel.open({ windowId: currentWindow.id })

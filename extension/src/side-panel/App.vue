@@ -24,6 +24,8 @@ function handleNavigateHome() {
 }
 
 onMounted(async () => {
+  if (!chrome?.tabs) return
+
   const tab = (await chrome.tabs.query({ active: true, currentWindow: true }))[0]
   if (tab) {
     currentUrl.value = tab.url || ''

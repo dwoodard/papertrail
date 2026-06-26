@@ -21,6 +21,8 @@ export interface ModuleRuntime {
     stopPassiveCapture?(): void
     bulkCollect?(options: BulkCollectOptions): Promise<void>
     stopCollect?(): void
+    scrapeAllMaps?(): Promise<void>
+    stopMapsScrape?(): void
 }
 
 /**
