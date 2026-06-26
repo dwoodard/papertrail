@@ -28,11 +28,11 @@ class PlaceSyncController extends Controller
             'places.*' => ['array'],
         ]);
 
-        $projectId = $validated['project_id'];
+        $projectId = (string) $validated['project_id'];
         $placesData = $validated['places'];
 
         // Verify project exists
-        $project = Project::findOrFail($projectId);
+        $project = Project::query()->whereKey($projectId)->firstOrFail();
 
         $created = 0;
         $updated = 0;

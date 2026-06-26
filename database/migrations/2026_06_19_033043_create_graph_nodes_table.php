@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('graph_nodes', function (Blueprint $table) {
             $table->id();
-            $table->uuid('project_id')->constrained('projects', 'id')->onDelete('cascade');
+            $table->foreignUuid('project_id')->constrained('projects')->onDelete('cascade');
             $table->string('type', 50); // business, category, phone, domain, search_query, address, city, etc
             $table->text('label'); // Display name
             $table->string('normalized_key')->index(); // Deduplication key

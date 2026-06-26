@@ -17,6 +17,9 @@ class PlaceToGraphImporter
 {
     private ?string $currentProjectId = null;
 
+    /**
+     * @return array{success: bool, nodes?: int, edges?: int, error?: string}
+     */
     public function execute(Place $place): array
     {
         $this->currentProjectId = $place->project_id;
@@ -127,11 +130,7 @@ class PlaceToGraphImporter
 
             // 6. Create address and city nodes
             if ($place->street_address) {
-                $coords = GoogleMapsCoordinateExtractor::validate(
-                    $place->maps_url,
-                    $place->latitude,
-                    $place->longitude
-                );
+                $coords = GoogleMapsCoordinateExtractor::fromUrl($place->maps_url);
 
                 $addressKey = implode('|', [
                     strtolower(trim($place->street_address ?? '')),
@@ -221,7 +220,8 @@ class PlaceToGraphImporter
             'maps_url' => $place->maps_url,
         ];
 
-        $checksum = hash('sha256', json_encode($rawData));
+        $encodedRawData = json_encode($rawData, JSON_THROW_ON_ERROR);
+        $checksum = hash('sha256', $encodedRawData);
 
         return EvidenceRecord::updateOrCreate(
             [
@@ -238,6 +238,9 @@ class PlaceToGraphImporter
         );
     }
 
+    /**
+     * @param  array<string, mixed>  $properties
+     */
     private function upsertNode(
         string $type,
         string $label,

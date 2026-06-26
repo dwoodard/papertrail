@@ -8,6 +8,7 @@ use App\Models\Project;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
+use Illuminate\Support\Collection;
 
 class GraphController extends Controller
 {
@@ -18,7 +19,7 @@ class GraphController extends Controller
     {
         $projects = Project::with('places')
             ->get()
-            ->map(function ($project) {
+            ->map(function (Project $project) {
                 $nodeCount = GraphNode::where('project_id', $project->id)->count();
                 $edgeCount = GraphEdge::where('project_id', $project->id)->count();
 
@@ -41,10 +42,10 @@ class GraphController extends Controller
      * Get graph data for a project (nodes and edges).
      * Supports filtering by search query and node types.
      */
-    public function projectGraph(Request $request, $projectId): JsonResponse
+    public function projectGraph(Request $request, string $projectId): JsonResponse
     {
-        $project = Project::findOrFail($projectId);
-        $search = $request->query('search', '');
+        $project = Project::query()->whereKey($projectId)->firstOrFail();
+        $search = (string) $request->query('search', '');
         $types = $request->query('types', []); // array of node types to include
         $minConnections = (int) $request->query('minConnections', 0);
 
@@ -62,7 +63,7 @@ class GraphController extends Controller
             $query->where('label', 'ilike', "%{$search}%");
         }
 
-        $nodes = $query->get()->map(fn ($node) => [
+        $nodes = $query->get()->map(fn (GraphNode $node) => [
             'id' => $node->id,
             'label' => $node->label,
             'type' => $this->normalizeNodeType($node->type),
@@ -90,7 +91,7 @@ class GraphController extends Controller
         }
 
         // Add location info to nodes
-        $nodes = $nodes->map(function ($node) use ($nodeLocations) {
+        $nodes = $nodes->map(function (array $node) use ($nodeLocations) {
             return array_merge($node, [
                 'location' => $nodeLocations[$node['id']] ?? null,
             ]);
@@ -99,7 +100,7 @@ class GraphController extends Controller
         // Get edges between nodes (only those within visible node set)
         $edges = $allEdges
             ->whereIn('to_node_id', $nodes->keys())
-            ->map(fn ($edge) => [
+            ->map(fn (GraphEdge $edge) => [
                 'id' => $edge->id,
                 'source' => (int) $edge->from_node_id,
                 'target' => (int) $edge->to_node_id,
@@ -109,33 +110,23 @@ class GraphController extends Controller
 
         // Count connections and filter by minConnections if specified
         if ($minConnections > 0) {
-            $connectionCounts = collect($edges)->reduce(function ($carry, $edge) {
-                $carry[$edge['source']] = ($carry[$edge['source']] ?? 0) + 1;
-                $carry[$edge['target']] = ($carry[$edge['target']] ?? 0) + 1;
-
-                return $carry;
-            }, []);
+            $connectionCounts = $this->connectionCounts($edges);
 
             // Filter nodes
-            $nodes = $nodes->filter(function ($node) use ($connectionCounts, $minConnections) {
+            $nodes = $nodes->filter(function (array $node) use ($connectionCounts, $minConnections) {
                 return ($connectionCounts[$node['id']] ?? 0) >= $minConnections;
             });
 
             // Filter edges
-            $edges = $edges->filter(function ($edge) use ($nodes) {
+            $edges = $edges->filter(function (array $edge) use ($nodes) {
                 return $nodes->has($edge['source']) && $nodes->has($edge['target']);
             });
         }
 
         // Add connection count to each node
-        $connectionCounts = collect($edges)->reduce(function ($carry, $edge) {
-            $carry[$edge['source']] = ($carry[$edge['source']] ?? 0) + 1;
-            $carry[$edge['target']] = ($carry[$edge['target']] ?? 0) + 1;
+        $connectionCounts = $this->connectionCounts($edges);
 
-            return $carry;
-        }, []);
-
-        $nodesWithCounts = $nodes->map(function ($node) use ($connectionCounts) {
+        $nodesWithCounts = $nodes->map(function (array $node) use ($connectionCounts) {
             return array_merge($node, [
                 'value' => $connectionCounts[$node['id']] ?? 0,
                 'confidence' => 1,
@@ -154,11 +145,25 @@ class GraphController extends Controller
     }
 
     /**
+     * @param  Collection<int, array{id: int, source: int, target: int, type: string, confidence: float}>  $edges
+     * @return array<int, int>
+     */
+    private function connectionCounts(Collection $edges): array
+    {
+        return $edges->reduce(function (array $carry, array $edge): array {
+            $carry[$edge['source']] = ($carry[$edge['source']] ?? 0) + 1;
+            $carry[$edge['target']] = ($carry[$edge['target']] ?? 0) + 1;
+
+            return $carry;
+        }, []);
+    }
+
+    /**
      * Get all relations for a specific node.
      */
-    public function nodeRelations(Request $request, $nodeId): JsonResponse
+    public function nodeRelations(Request $request, string $nodeId): JsonResponse
     {
-        $node = GraphNode::findOrFail($nodeId);
+        $node = GraphNode::query()->whereKey($nodeId)->firstOrFail();
 
         $relations = [];
 
@@ -250,6 +255,9 @@ class GraphController extends Controller
     /**
      * Map frontend types (what user selected) to database types.
      * Reverses the normalization for queries.
+     *
+     * @param  array<int, string>  $frontendTypes
+     * @return array<int, string>
      */
     private function mapFrontendTypesToDbTypes(array $frontendTypes): array
     {

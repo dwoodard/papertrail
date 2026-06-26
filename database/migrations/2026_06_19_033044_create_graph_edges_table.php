@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('graph_edges', function (Blueprint $table) {
             $table->id();
-            $table->uuid('project_id')->constrained('projects', 'id')->onDelete('cascade');
+            $table->foreignUuid('project_id')->constrained('projects')->onDelete('cascade');
             $table->foreignId('from_node_id')->constrained('graph_nodes')->onDelete('cascade');
             $table->foreignId('to_node_id')->constrained('graph_nodes')->onDelete('cascade');
             $table->string('type', 75); // RETURNED_RESULT, CATEGORIZED_AS, HAS_PHONE, USES_DOMAIN, etc

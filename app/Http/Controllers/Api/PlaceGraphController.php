@@ -28,7 +28,7 @@ class PlaceGraphController extends Controller
             'project_id' => ['required', 'uuid', Rule::exists('projects', 'id')],
         ]);
 
-        $project = Project::findOrFail($validated['project_id']);
+        $project = Project::query()->whereKey((string) $validated['project_id'])->firstOrFail();
         $this->authorize('view', $project);
 
         $connections = $this->queryService->findSharedPhoneConnections($project->id);
@@ -48,7 +48,7 @@ class PlaceGraphController extends Controller
             'project_id' => ['required', 'uuid', Rule::exists('projects', 'id')],
         ]);
 
-        $project = Project::findOrFail($validated['project_id']);
+        $project = Project::query()->whereKey((string) $validated['project_id'])->firstOrFail();
         $this->authorize('view', $project);
 
         $connections = $this->queryService->findSharedAddresses($project->id);
@@ -68,7 +68,7 @@ class PlaceGraphController extends Controller
             'project_id' => ['required', 'uuid', Rule::exists('projects', 'id')],
         ]);
 
-        $project = Project::findOrFail($validated['project_id']);
+        $project = Project::query()->whereKey((string) $validated['project_id'])->firstOrFail();
         $this->authorize('view', $project);
 
         $connections = $this->queryService->findSharedWebsites($project->id);
@@ -107,12 +107,12 @@ class PlaceGraphController extends Controller
         ]);
 
         // Verify user has access to the place through project
-        $place = Place::findOrFail($validated['place_id']);
+        $place = Place::query()->whereKey((string) $validated['place_id'])->firstOrFail();
         $this->authorize('view', $place->project);
 
         $network = $this->queryService->getPlaceNetwork(
             $place->id,
-            $validated['max_hops'] ?? 2
+            (int) ($validated['max_hops'] ?? 2)
         );
 
         return response()->json([
@@ -135,12 +135,12 @@ class PlaceGraphController extends Controller
             'min_connections' => ['integer', 'min:1', 'max:10'],
         ]);
 
-        $project = Project::findOrFail($validated['project_id']);
+        $project = Project::query()->whereKey((string) $validated['project_id'])->firstOrFail();
         $this->authorize('view', $project);
 
         $clusters = $this->queryService->findConnectedClusters(
             $project->id,
-            $validated['min_connections'] ?? 2
+            (int) ($validated['min_connections'] ?? 2)
         );
 
         return response()->json([
@@ -158,7 +158,7 @@ class PlaceGraphController extends Controller
             'project_id' => ['required', 'uuid', Rule::exists('projects', 'id')],
         ]);
 
-        $project = Project::findOrFail($validated['project_id']);
+        $project = Project::query()->whereKey((string) $validated['project_id'])->firstOrFail();
         $this->authorize('view', $project);
 
         $stats = $this->queryService->getProjectGraphStats($project->id);

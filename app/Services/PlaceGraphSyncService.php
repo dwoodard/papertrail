@@ -43,6 +43,9 @@ class PlaceGraphSyncService
         }
     }
 
+    /**
+     * @param  array<int, Place>  $places
+     */
     public function syncPlaces(array $places): void
     {
         foreach ($places as $place) {
@@ -172,14 +175,14 @@ class PlaceGraphSyncService
     private function normalizePhone(string $phone): string
     {
         // Remove all non-digit characters
-        return preg_replace('/\D/', '', $phone);
+        return preg_replace('/\D/', '', $phone) ?? '';
     }
 
     private function normalizeUrl(string $url): string
     {
         // Remove protocol and www for consistent matching
-        $url = preg_replace('~^https?://~', '', strtolower($url));
-        $url = preg_replace('~^www\.~', '', $url);
+        $url = preg_replace('~^https?://~', '', strtolower($url)) ?? '';
+        $url = preg_replace('~^www\.~', '', $url) ?? '';
 
         return rtrim($url, '/');
     }

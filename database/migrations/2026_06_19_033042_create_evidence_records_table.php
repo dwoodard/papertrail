@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('evidence_records', function (Blueprint $table) {
             $table->id();
-            $table->uuid('project_id')->constrained('projects', 'id')->onDelete('cascade');
+            $table->foreignUuid('project_id')->constrained('projects')->onDelete('cascade');
             $table->string('source', 50); // google_maps, facebook, linkedin, etc
             $table->string('source_module', 75); // maps_search, maps_details, etc
             $table->text('source_url')->nullable(); // Original URL/link

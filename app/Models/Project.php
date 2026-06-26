@@ -9,6 +9,14 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+/**
+ * @property string $id
+ * @property int $user_id
+ * @property string $name
+ * @property string $slug
+ * @property string|null $goal
+ * @property string $status
+ */
 class Project extends Model
 {
     /** @use HasFactory<ProjectFactory> */
@@ -30,11 +38,17 @@ class Project extends Model
         'updated_at' => 'datetime',
     ];
 
+    /**
+     * @return BelongsTo<User, $this>
+     */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
+    /**
+     * @return HasMany<Place, $this>
+     */
     public function places(): HasMany
     {
         return $this->hasMany(Place::class);

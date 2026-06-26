@@ -5,7 +5,18 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 
+/**
+ * @property int $id
+ * @property string $project_id
+ * @property string $source
+ * @property string $source_module
+ * @property string|null $source_url
+ * @property Carbon|null $captured_at
+ * @property string|null $checksum
+ * @property array<string, mixed> $raw_data
+ */
 class EvidenceRecord extends Model
 {
     protected $fillable = [
@@ -25,11 +36,17 @@ class EvidenceRecord extends Model
         'updated_at' => 'datetime',
     ];
 
+    /**
+     * @return BelongsTo<Project, $this>
+     */
     public function project(): BelongsTo
     {
         return $this->belongsTo(Project::class);
     }
 
+    /**
+     * @return HasMany<GraphEdge, $this>
+     */
     public function edges(): HasMany
     {
         return $this->hasMany(GraphEdge::class, 'evidence_id');

@@ -75,7 +75,7 @@ class GraphConnectionPatternsSeeder extends Seeder
         $this->command->info('✓ All multi-level connection patterns created!');
     }
 
-    private function createBusiness($project, $name, $key): GraphNode
+    private function createBusiness(Project $project, string $name, string $key): GraphNode
     {
         return GraphNode::updateOrCreate(
             ['project_id' => $project->id, 'type' => 'business', 'normalized_key' => 'business:'.$key],
@@ -83,7 +83,7 @@ class GraphConnectionPatternsSeeder extends Seeder
         );
     }
 
-    private function createPhone($project, $key, $label): GraphNode
+    private function createPhone(Project $project, string $key, string $label): GraphNode
     {
         return GraphNode::updateOrCreate(
             ['project_id' => $project->id, 'type' => 'phone', 'normalized_key' => 'phone:'.$key],
@@ -91,7 +91,7 @@ class GraphConnectionPatternsSeeder extends Seeder
         );
     }
 
-    private function createDomain($project, $domain): GraphNode
+    private function createDomain(Project $project, string $domain): GraphNode
     {
         return GraphNode::updateOrCreate(
             ['project_id' => $project->id, 'type' => 'domain', 'normalized_key' => 'domain:'.$domain],
@@ -99,7 +99,7 @@ class GraphConnectionPatternsSeeder extends Seeder
         );
     }
 
-    private function createWebsite($project, $url): GraphNode
+    private function createWebsite(Project $project, string $url): GraphNode
     {
         return GraphNode::updateOrCreate(
             ['project_id' => $project->id, 'type' => 'website', 'normalized_key' => 'website:'.$url],
@@ -107,7 +107,7 @@ class GraphConnectionPatternsSeeder extends Seeder
         );
     }
 
-    private function createAddress($project, $address): GraphNode
+    private function createAddress(Project $project, string $address): GraphNode
     {
         $key = strtolower(trim($address));
 
@@ -117,7 +117,7 @@ class GraphConnectionPatternsSeeder extends Seeder
         );
     }
 
-    private function createCity($project, $city, $state): GraphNode
+    private function createCity(Project $project, string $city, string $state): GraphNode
     {
         $key = "city:{$city}:{$state}";
 
@@ -127,7 +127,7 @@ class GraphConnectionPatternsSeeder extends Seeder
         );
     }
 
-    private function createCategory($project, $category): GraphNode
+    private function createCategory(Project $project, string $category): GraphNode
     {
         $key = 'category:'.strtolower(str_replace(' ', '-', $category));
 
@@ -137,7 +137,7 @@ class GraphConnectionPatternsSeeder extends Seeder
         );
     }
 
-    private function createEdge($project, $fromNode, $toNode, $type): GraphEdge
+    private function createEdge(Project $project, GraphNode $fromNode, GraphNode $toNode, string $type): GraphEdge
     {
         return GraphEdge::updateOrCreate(
             [

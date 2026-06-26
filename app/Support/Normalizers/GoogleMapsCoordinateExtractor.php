@@ -12,6 +12,8 @@ class GoogleMapsCoordinateExtractor
      * - Actual place: !3d{lat}!4d{lng}
      *
      * We want the actual place coordinates (!3d and !4d), not the viewport.
+     *
+     * @return array{latitude: float, longitude: float}|null
      */
     public static function fromUrl(?string $mapsUrl): ?array
     {
@@ -60,6 +62,8 @@ class GoogleMapsCoordinateExtractor
      * Validate and return corrected coordinates.
      *
      * Falls back to provided lat/lng if URL extraction fails.
+     *
+     * @return array{latitude: float, longitude: float}|null
      */
     public static function validate(?string $mapsUrl, ?float $fallbackLat, ?float $fallbackLng): ?array
     {

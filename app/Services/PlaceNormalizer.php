@@ -4,6 +4,10 @@ namespace App\Services;
 
 class PlaceNormalizer
 {
+    /**
+     * @param  array<string, mixed>  $place
+     * @return array<string, mixed>
+     */
     public static function normalize(array $place): array
     {
         return [
@@ -68,6 +72,9 @@ class PlaceNormalizer
         return $cleaned === '' ? null : $cleaned;
     }
 
+    /**
+     * @return array{street: string|null, city: string|null, state: string|null, zip: string|null}
+     */
     private static function normalizeAddress(?string $address): array
     {
         $result = ['street' => null, 'city' => null, 'state' => null, 'zip' => null];
@@ -115,7 +122,7 @@ class PlaceNormalizer
         return $result;
     }
 
-    private static function normalizeRating($value): ?float
+    private static function normalizeRating(mixed $value): ?float
     {
         if ($value === null || $value === 'N/A') {
             return null;
@@ -126,7 +133,7 @@ class PlaceNormalizer
         return $float > 0 ? $float : null;
     }
 
-    private static function normalizeReviewsCount($value): ?int
+    private static function normalizeReviewsCount(mixed $value): ?int
     {
         if ($value === null || $value === 'N/A') {
             return null;
@@ -139,7 +146,7 @@ class PlaceNormalizer
         return $int > 0 ? $int : null;
     }
 
-    private static function normalizeCapturedAt($value): ?string
+    private static function normalizeCapturedAt(mixed $value): ?string
     {
         if ($value === null) {
             return null;

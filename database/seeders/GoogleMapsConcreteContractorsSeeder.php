@@ -75,7 +75,6 @@ class GoogleMapsConcreteContractorsSeeder extends Seeder
                 $values = array_pad($values, count($headers), null);
                 $values = array_slice($values, 0, count($headers));
                 $record = array_combine($headers, $values);
-
                 // Map CSV columns to Place fields
                 $placeData = $this->mapCsvToPlace($record, $project->id);
 
@@ -114,6 +113,10 @@ class GoogleMapsConcreteContractorsSeeder extends Seeder
         }
     }
 
+    /**
+     * @param  array<string, string|null>  $record
+     * @return array<string, mixed>
+     */
     private function mapCsvToPlace(array $record, string $projectId): array
     {
         return [
@@ -180,7 +183,7 @@ class GoogleMapsConcreteContractorsSeeder extends Seeder
         return empty($hours) ? null : $hours;
     }
 
-    private function parseTimestamp(string $timestamp): ?string
+    private function parseTimestamp(string $timestamp): string
     {
         if (! $timestamp || $timestamp === 'N/A') {
             return now()->toIso8601String();

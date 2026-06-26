@@ -10,7 +10,6 @@ use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
-use League\Csv\Reader;
 
 class CsvImportController extends Controller
 {
@@ -33,12 +32,21 @@ class CsvImportController extends Controller
             'csv_file' => ['required', 'file', 'mimes:csv,txt'],
         ]);
 
-        $project = Project::findOrFail($validated['project_id']);
+        $projectId = (string) $validated['project_id'];
+        $keyword = (string) $validated['keyword'];
+        $project = Project::query()->whereKey($projectId)->firstOrFail();
         $this->authorize('update', $project);
 
         try {
-            $csv = Reader::createFromPath($request->file('csv_file')->getRealPath(), 'r');
-            $csv->setHeaderOffset(0);
+            $path = $request->file('csv_file')?->getRealPath();
+            if ($path === false || $path === null) {
+                throw new \RuntimeException('Unable to read uploaded CSV file.');
+            }
+
+            $file = fopen($path, 'r');
+            if ($file === false) {
+                throw new \RuntimeException('Unable to open uploaded CSV file.');
+            }
 
             $stats = [
                 'total' => 0,
@@ -47,13 +55,24 @@ class CsvImportController extends Controller
                 'errors' => [],
             ];
 
-            foreach ($csv->getRecords() as $index => $record) {
+            $headers = fgetcsv($file);
+            if ($headers === false) {
+                throw new \RuntimeException('CSV file is empty.');
+            }
+
+            $index = 0;
+            while (($values = fgetcsv($file)) !== false) {
                 try {
+                    $values = array_pad($values, count($headers), null);
+                    $values = array_slice($values, 0, count($headers));
+                    $record = array_combine($headers, $values);
+
                     // Map CSV columns to Place fields
-                    $placeData = $this->mapCsvToPaceData($record, $validated['keyword']);
+                    $placeData = $this->mapCsvToPaceData($record, $keyword);
 
                     if (! $placeData['place_id']) {
                         $stats['errors'][] = 'Row '.($index + 2).': No place_id found';
+                        $index++;
 
                         continue;
                     }
@@ -79,15 +98,23 @@ class CsvImportController extends Controller
                 } catch (\Exception $e) {
                     $stats['errors'][] = 'Row '.($index + 2).": {$e->getMessage()}";
                 }
+
+                $index++;
             }
+
+            fclose($file);
 
             return response()->json([
                 'success' => true,
                 'project_id' => $project->id,
-                'keyword' => $validated['keyword'],
+                'keyword' => $keyword,
                 'stats' => $stats,
             ]);
         } catch (\Exception $e) {
+            if (isset($file) && is_resource($file)) {
+                fclose($file);
+            }
+
             return response()->json([
                 'success' => false,
                 'error' => $e->getMessage(),
@@ -95,6 +122,10 @@ class CsvImportController extends Controller
         }
     }
 
+    /**
+     * @param  array<string, string|null>  $row
+     * @return array<string, mixed>
+     */
     private function mapCsvToPaceData(array $row, string $keyword): array
     {
         return [

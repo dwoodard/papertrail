@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use Illuminate\Support\Facades\DB;
+use stdClass;
 
 class PlaceGraphQueryService
 {
@@ -11,6 +12,8 @@ class PlaceGraphQueryService
     /**
      * Find all places in a project that share the same phone number.
      * Useful for identifying multiple businesses under same decision-maker.
+     *
+     * @return array<int, array<string, mixed>>
      */
     public function findSharedPhoneConnections(string $projectId): array
     {
@@ -39,6 +42,8 @@ class PlaceGraphQueryService
     /**
      * Find addresses with multiple places (business complex or shared suite).
      * Indicates coordinated operations or legitimate business sharing.
+     *
+     * @return array<int, array<string, mixed>>
      */
     public function findSharedAddresses(string $projectId): array
     {
@@ -70,6 +75,8 @@ class PlaceGraphQueryService
     /**
      * Find phone numbers that appear across multiple projects.
      * Critical for cross-project intelligence: same decision-maker in different projects.
+     *
+     * @return array<int, array<string, mixed>>
      */
     public function findCrossProjectPhoneConnections(): array
     {
@@ -95,6 +102,8 @@ class PlaceGraphQueryService
     /**
      * Find websites that appear across multiple places in the same project.
      * Suggests franchises, parent company, or coordinated network.
+     *
+     * @return array<int, array<string, mixed>>
      */
     public function findSharedWebsites(string $projectId): array
     {
@@ -122,6 +131,8 @@ class PlaceGraphQueryService
     /**
      * Get the full network around a place (1-2 hops).
      * Shows all directly connected and second-degree connections.
+     *
+     * @return array<int, array<string, mixed>>
      */
     public function getPlaceNetwork(string $placeId, int $maxHops = 2): array
     {
@@ -147,6 +158,8 @@ class PlaceGraphQueryService
     /**
      * Find tightly connected clusters of places.
      * Identifies business networks that share multiple contact points.
+     *
+     * @return array<int, array<string, mixed>>
      */
     public function findConnectedClusters(string $projectId, int $minConnections = 2): array
     {
@@ -175,6 +188,8 @@ class PlaceGraphQueryService
 
     /**
      * Get summary statistics for a project's graph.
+     *
+     * @return array{total_places?: mixed, places_with_phone?: mixed, places_with_address?: mixed, places_with_website?: mixed}
      */
     public function getProjectGraphStats(string $projectId): array
     {
@@ -210,6 +225,10 @@ class PlaceGraphQueryService
         return [];
     }
 
+    /**
+     * @param  array<int, stdClass>  $results
+     * @return array<int, array<string, mixed>>
+     */
     private function parseResults(array $results): array
     {
         return array_map(fn ($row) => (array) $row, $results);

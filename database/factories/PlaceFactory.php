@@ -25,7 +25,7 @@ class PlaceFactory extends Factory
             'category' => fake()->randomElement(['Contractor', 'Builder', 'Home Services', 'Construction']),
             'street_address' => fake()->streetAddress(),
             'city' => fake()->city(),
-            'state' => fake()->stateAbbr(),
+            'state' => fake()->randomElement(['AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'FL', 'GA', 'ID', 'IL', 'NY', 'TX', 'UT', 'WA']),
             'zip' => fake()->postcode(),
             'phone' => fake()->phoneNumber(),
             'website' => fake()->url(),
