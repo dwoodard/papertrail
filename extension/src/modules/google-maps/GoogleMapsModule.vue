@@ -99,7 +99,7 @@
                   :key="header.id"
                   :style="{ width: header.getSize() }"
                   :class="['table-header', { sortable: header.column.getCanSort() }]"
-                  @click="header.column.getToggleSortingHandler?.()"
+                  @click="header.column.getToggleSortingHandler()?.($event)"
                 >
                   <div class="header-content">
                     <span>{{ header.column.columnDef.header }}</span>
@@ -331,46 +331,67 @@ const columns = [
     id: 'index',
     header: '#',
     size: 40,
+    enableSorting: true,
   }),
   columnHelper.accessor('name', {
     header: 'Name',
     size: 180,
+    enableSorting: true,
+    sortingFn: 'alphanumeric',
   }),
   columnHelper.accessor('address', {
     header: 'Address',
     size: 200,
+    enableSorting: true,
+    sortingFn: 'alphanumeric',
   }),
   columnHelper.accessor('phone', {
     header: 'Phone',
     size: 120,
+    enableSorting: true,
+    sortingFn: 'alphanumeric',
   }),
   columnHelper.accessor('website', {
     header: 'Website',
     size: 140,
+    enableSorting: true,
+    sortingFn: 'alphanumeric',
   }),
   columnHelper.accessor('rating', {
     header: 'Rating',
     size: 80,
+    enableSorting: true,
+    sortingFn: 'basic',
   }),
   columnHelper.accessor('reviews', {
     header: 'Reviews',
     size: 80,
+    enableSorting: true,
+    sortingFn: 'basic',
   }),
   columnHelper.accessor('priceRange', {
     header: 'Price',
     size: 80,
+    enableSorting: true,
+    sortingFn: 'alphanumeric',
   }),
   columnHelper.accessor('category', {
     header: 'Category',
     size: 120,
+    enableSorting: true,
+    sortingFn: 'alphanumeric',
   }),
   columnHelper.accessor('description', {
     header: 'Description',
     size: 200,
+    enableSorting: true,
+    sortingFn: 'alphanumeric',
   }),
   columnHelper.accessor('id', {
     header: 'ID',
     size: 180,
+    enableSorting: true,
+    sortingFn: 'alphanumeric',
   }),
 ]
 

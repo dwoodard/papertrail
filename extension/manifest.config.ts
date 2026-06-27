@@ -24,10 +24,11 @@ export default defineManifest({
     side_panel: {
         default_path: 'src/side-panel/index.html',
     },
-    background: {
-        service_worker: 'src/background/service-worker.ts',
-        type: 'module',
-    },
+    // for now this is commented out so npm run dev will work
+    // background: {
+    //     service_worker: 'src/background/service-worker.ts',
+    //     type: 'module',
+    // },
     content_scripts: [
         {
             matches: ['https://www.google.com/maps/*'],
