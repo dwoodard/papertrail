@@ -94,9 +94,7 @@ export async function scrapeAllMaps(scrollToLoadAll: boolean = true) {
           })
           await new Promise((r) => setTimeout(r, waitMs2))
 
-          if (scrollContainer.scrollHeight === lastHeight) {
-break
-}
+          if (scrollContainer.scrollHeight === lastHeight) { break }
         }
 
         lastHeight = scrollContainer.scrollHeight
@@ -165,190 +163,95 @@ break
       await new Promise((r) => setTimeout(r, detailWaitMs)) // Wait 2-10s for panel to render
 
       try {
-        // Helper to clean whitespace, newlines, and unwanted text
-        const cleanText = (text?: string): string => {
-          if (!text) {
-return 'N/A'
-}
-
-          return text
-            .trim()
-            .replace(/\n/g, ' ')
-            .replace(/\s+/g, ' ')
-            .replace(/\s*·\s*Visited link\s*$/, '') // Remove "· Visited link" suffix
-            .trim()
+        const cleanText = (text?: string): string | null => {
+          if (!text) return null
+          const cleaned = text.trim().replace(/\n/g, ' ').replace(/\s+/g, ' ').replace(/\s*·\s*Visited link\s*$/, '').trim()
+          return cleaned || null
         }
 
-        // Extract website with fallbacks
-        let websiteUrl = ''
-        let website = 'N/A'
-        const websiteElement = document.querySelector('a[data-item-id*="authority"]') as HTMLAnchorElement | null
+        const getMapsValue = (selector: string, textSelector = '.Io6YTe'): string | null => {
+          const el = document.querySelector(selector) as HTMLElement | null
+          if (!el) return null
+          const textEl = el.querySelector(textSelector)
+          return cleanText(textEl?.textContent ?? el.innerText)
+        }
 
-        if (websiteElement?.href) {
-          try {
-            websiteUrl = new URL(websiteElement.href, window.location.href).href
-            website = cleanText(websiteElement.innerText)
-          } catch {
-            website = cleanText(websiteElement.innerText)
+        const extractId = (href: string): string | null => {
+          const patterns = [
+            /0x[a-f0-9]+:0x[a-f0-9]+/i,
+            /place\/([^/?&]+)/,
+            /data=([^&]+)/,
+          ]
+          for (const pattern of patterns) {
+            const match = href.match(pattern)
+            if (match) return match[match.length - 1]
           }
+          return null
         }
 
-        // Extract address with fallback selectors
-        let address = 'N/A'
-        const addressElement = (
-          document.querySelector('button[data-item-id*="address"]') ||
-          document.querySelector('[data-item-id="address"]')
-        ) as HTMLElement | null
-
-        if (addressElement) {
-          address = cleanText(addressElement.innerText)
-        }
-
-        // Extract phone with fallback selectors
-        let phone = 'N/A'
-        const phoneElement = (
-          document.querySelector('button[data-item-id*="phone"]') ||
-          document.querySelector('[data-item-id="phone"]')
-        ) as HTMLElement | null
-
-        if (phoneElement) {
-          phone = cleanText(phoneElement.innerText)
-        }
-
-        // Extract rating and review count from aria-label
-        let rating = 'N/A'
-        let reviewCount = 'N/A'
-        const ratingElement = document.querySelector('span[aria-label*="stars"]')
-
-        if (ratingElement) {
-          const ariaLabel = ratingElement.getAttribute('aria-label') || ''
-          // Format: "4.2 stars 1,730 Reviews"
-          const ratingMatch = ariaLabel.match(/^([\d.]+)\s+stars/)
-          const reviewMatch = ariaLabel.match(/([\d,]+)\s+Reviews?$/)
-
-          if (ratingMatch) {
-rating = ratingMatch[1]
-}
-
-          if (reviewMatch) {
-reviewCount = reviewMatch[1]
-}
-        }
-
-        // Extract metadata from .W4Efsd rows
-        const detailRows = Array.from(document.querySelectorAll('.W4Efsd')) as HTMLElement[]
-        let priceRange = 'N/A'
-        let category = 'N/A'
-        let status = 'N/A'
-        let description = 'N/A'
-
-        if (detailRows.length > 0) {
-          // Price range: first row with $ pattern
-          const priceText = detailRows[0]?.innerText || ''
-          const priceMatch = priceText.match(/\$[0-9–]+/)
-
-          if (priceMatch) {
-priceRange = priceMatch[0]
-}
-
-          // Category: second row, first segment
-          if (detailRows[1]) {
-            const categoryText = cleanText(detailRows[1].innerText)
-            category = categoryText.split('·')[0].trim()
-          }
-
-          // Status: third row
-          if (detailRows[2]) {
-            status = cleanText(detailRows[2].innerText)
-          }
-
-          // Description: last row
-          if (detailRows.length > 3) {
-            description = cleanText(detailRows[detailRows.length - 1].innerText)
-          }
-        }
-
-        // Extract ID from the listing URL (Google Maps format: 0x...:0x...)
-        let id = 'N/A'
-
-        // Method 1: Try to get the link from the listing element or its closest anchor
-        let linkElement = (listing instanceof HTMLAnchorElement ? listing : listing.closest('a')) as HTMLAnchorElement | null
-
-        // Method 2: If not found, try to find the anchor within the listing
-        if (!linkElement) {
-          linkElement = listing.querySelector('a') as HTMLAnchorElement | null
-        }
-
-        // Method 3: Try to get from parent elements
-        if (!linkElement) {
-          let parent = listing.parentElement
-
-          while (parent && !linkElement) {
-            if (parent instanceof HTMLAnchorElement) {
-              linkElement = parent
-              break
-            }
-
+        const findListingLink = (el: HTMLElement): HTMLAnchorElement | null => {
+          if (el instanceof HTMLAnchorElement) return el
+          const closest = el.closest('a')
+          if (closest) return closest as HTMLAnchorElement
+          const querySelector = el.querySelector('a')
+          if (querySelector) return querySelector as HTMLAnchorElement
+          let parent = el.parentElement
+          while (parent) {
+            if (parent instanceof HTMLAnchorElement) return parent
             const anchor = parent.querySelector('a')
-
-            if (anchor) {
-              linkElement = anchor
-              break
-            }
-
+            if (anchor) return anchor as HTMLAnchorElement
             parent = parent.parentElement
           }
+          return null
         }
 
-        if (linkElement?.href) {
-          const href = linkElement.href
-          console.log(`[Papertrail] Extracted URL for "${name}": ${href}`)
+        // Extract data
+        const websiteElement = document.querySelector('a[data-item-id="authority"]') as HTMLAnchorElement | null
+        const linkElement = findListingLink(listing)
+        const detailRows = Array.from(document.querySelectorAll('.W4Efsd')) as HTMLElement[]
 
-          // Try multiple patterns to extract place ID
-          let match = href.match(/0x[a-f0-9]+:0x[a-f0-9]+/i)
+        // Extract data using consistent helpers
+        const website = getMapsValue('[data-item-id="authority"]')
+        const websiteUrl = websiteElement?.href ? new URL(websiteElement.href, window.location.href).href : ''
+        const address = getMapsValue('[data-item-id="address"]')
+        const phone = getMapsValue('button[data-tooltip="Copy phone number"]') ?? getMapsValue('[data-item-id^="phone:tel:"]')
+        const rating = getMapsValue('.F7nice [aria-hidden="true"]')
+        const reviews = getMapsValue('.F7nice [aria-label*="reviews"]')
+        const id = linkElement?.href ? extractId(linkElement.href) : null
 
-          if (match) {
-            id = match[0]
-          } else {
-            // Try place/ID pattern
-            match = href.match(/place\/([^/?&]+)/)
-
-            if (match) {
-              id = match[1]
-            } else {
-              // Try data parameter pattern
-              match = href.match(/data=([^&]+)/)
-
-              if (match) {
-                id = match[1]
-              }
-            }
-          }
-        } else {
-          console.warn(`[Papertrail] Could not find link element for listing "${name}"`)
+        const extracted = {
+          rating,
+          reviews,
+          priceRange: detailRows[0]?.innerText?.match(/\$[0-9–]+/)?.[0] ?? null,
+          category: detailRows[1]?.innerText ? cleanText(detailRows[1].innerText)?.split('·')[0].trim() ?? null : null,
+          status: cleanText(detailRows[2]?.innerText) ?? null,
+          description: detailRows.length > 3 ? cleanText(detailRows[detailRows.length - 1].innerText) : null,
         }
 
-        // If still no ID, log detailed warning
-        if (id === 'N/A') {
-          console.warn(`[Papertrail] Could not extract place ID for "${name}". Link URL was:`, linkElement?.href)
-          console.warn(`[Papertrail] Listing element HTML:`, listing.outerHTML.substring(0, 200))
-        } else {
+        if (rating || reviews) {
+          console.log(`[Papertrail] Rating: ${rating}, Reviews: ${reviews}`)
+        }
+
+        if (id) {
           console.log(`[Papertrail] Extracted ID for "${name}": ${id}`)
+        } else {
+          console.warn(`[Papertrail] Could not extract place ID for "${name}"`)
+          console.warn(`[Papertrail] Listing element HTML:`, listing.outerHTML.substring(0, 200))
         }
 
         const info: ScrapedListing = {
-          name: name,
-          address: address,
-          phone: phone,
-          website: website,
-          websiteUrl: websiteUrl,
-          id: id,
-          rating: rating,
-          reviewCount: reviewCount,
-          priceRange: priceRange,
-          category: category,
-          status: status,
-          description: description,
+          name,
+          address,
+          phone,
+          website,
+          websiteUrl,
+          id,
+          rating: extracted.rating,
+          reviews: extracted.reviews,
+          priceRange: extracted.priceRange,
+          category: extracted.category,
+          status: extracted.status,
+          description: extracted.description,
         }
 
         scrapedCount++

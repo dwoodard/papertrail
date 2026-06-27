@@ -21,18 +21,18 @@ export interface CollectProgress {
 }
 
 export interface ScrapedListing {
-    name: string
-    address: string
-    phone: string
-    website: string
+    name: string | null
+    address: string | null
+    phone: string | null
+    website: string | null
     websiteUrl: string
-    id: string
-    rating: string
-    reviewCount: string
-    priceRange: string
-    category: string
-    status: string
-    description: string
+    id: string | null
+    rating: string | null
+    reviews: string | null
+    priceRange: string | null
+    category: string | null
+    status: string | null
+    description: string | null
 }
 
 export type PtMessage =
