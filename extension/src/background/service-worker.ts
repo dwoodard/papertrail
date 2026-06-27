@@ -30,10 +30,22 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 })
 
 // Set up context menu
-chrome.contextMenus.create({
-    id: 'papertrail-main',
-    title: 'Papertrail Main',
-    contexts: ['action'],
+chrome.contextMenus.removeAll(() => {
+    if (chrome.runtime.lastError) {
+        console.warn('[Papertrail] Failed to clear context menus:', chrome.runtime.lastError)
+    }
+
+    chrome.contextMenus.create({
+        id: 'papertrail-main',
+        title: 'Papertrail Main',
+        contexts: ['action'],
+    }, () => {
+        if (chrome.runtime.lastError) {
+            console.warn('[Papertrail] Failed to create context menu:', chrome.runtime.lastError)
+        } else {
+            console.debug('[Papertrail] Context menu created successfully')
+        }
+    })
 })
 
 chrome.contextMenus.onClicked.addListener((info) => {
