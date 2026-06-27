@@ -37,22 +37,54 @@ chrome.contextMenus.removeAll(() => {
 
     chrome.contextMenus.create({
         id: 'papertrail-main',
-        title: 'Papertrail Main',
-        contexts: ['action'],
+        title: 'Papertrail',
+        contexts: ['all'],
     }, () => {
         if (chrome.runtime.lastError) {
             console.warn('[Papertrail] Failed to create context menu:', chrome.runtime.lastError)
-        } else {
-            console.debug('[Papertrail] Context menu created successfully')
+            return
         }
+
+        // Add submenu items
+        chrome.contextMenus.create({
+            id: 'papertrail-open-main',
+            parentId: 'papertrail-main',
+            title: 'Open Main',
+            contexts: ['all'],
+        })
+
+        chrome.contextMenus.create({
+            id: 'papertrail-open-sidebar',
+            parentId: 'papertrail-main',
+            title: 'Open Sidebar',
+            contexts: ['all'],
+        }, () => {
+            if (chrome.runtime.lastError) {
+                console.warn('[Papertrail] Failed to create context menus:', chrome.runtime.lastError)
+            } else {
+                console.debug('[Papertrail] Context menus created successfully')
+            }
+        })
     })
 })
 
-chrome.contextMenus.onClicked.addListener((info) => {
-    if (info.menuItemId === 'papertrail-main') {
-        void chrome.tabs.create({
-            url: chrome.runtime.getURL('src/pages/main.html'),
-        })
+chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+    if (!tab?.id) return
+
+    if (info.menuItemId === 'papertrail-open-sidebar') {
+        try {
+            await chrome.sidePanel.open({ tabId: tab.id })
+        } catch (error) {
+            console.error('[Papertrail] Failed to open sidebar:', error)
+        }
+    } else if (info.menuItemId === 'papertrail-open-main') {
+        try {
+            await chrome.tabs.create({
+                url: chrome.runtime.getURL('src/pages/main.html'),
+            })
+        } catch (error) {
+            console.error('[Papertrail] Failed to open main page:', error)
+        }
     }
 })
 
