@@ -137,10 +137,12 @@ function loadChannels() {
 </script>
 
 <style scoped>
+@import '../design-system.css';
+
 .dashboard {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--space-lg);
 }
 
 /* Header Stats */
