@@ -31,7 +31,6 @@ export interface ScrapedListing {
     reviews: string | null
     priceRange: string | null
     category: string | null
-    status: string | null
     description: string | null
 }
 

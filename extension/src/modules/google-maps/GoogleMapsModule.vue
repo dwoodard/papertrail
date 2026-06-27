@@ -207,10 +207,6 @@
             <span class="detail-value">{{ selectedListing.category }}</span>
           </div>
           <div class="detail-row">
-            <span class="detail-label">Status:</span>
-            <span class="detail-value">{{ selectedListing.status }}</span>
-          </div>
-          <div class="detail-row">
             <span class="detail-label">Description:</span>
             <span class="detail-value">{{ selectedListing.description }}</span>
           </div>
@@ -367,10 +363,6 @@ const columns = [
   }),
   columnHelper.accessor('category', {
     header: 'Category',
-    size: 120,
-  }),
-  columnHelper.accessor('status', {
-    header: 'Status',
     size: 120,
   }),
   columnHelper.accessor('description', {
@@ -768,7 +760,7 @@ function downloadJson() {
 
 function downloadCsv() {
   const rows = [
-    ['name', 'address', 'phone', 'website', 'websiteUrl', 'rating', 'reviews', 'priceRange', 'category', 'status', 'description', 'id'],
+    ['name', 'address', 'phone', 'website', 'websiteUrl', 'rating', 'reviews', 'priceRange', 'category', 'description', 'id'],
     ...results.value.map(item => [
       item.name,
       item.address,
@@ -779,7 +771,6 @@ function downloadCsv() {
       item.reviews,
       item.priceRange,
       item.category,
-      item.status,
       item.description,
       item.id
     ])

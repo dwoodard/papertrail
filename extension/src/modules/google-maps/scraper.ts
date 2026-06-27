@@ -224,7 +224,6 @@ export async function scrapeAllMaps(scrollToLoadAll: boolean = true) {
           reviews,
           priceRange: detailRows[0]?.innerText?.match(/\$[0-9–]+/)?.[0] ?? null,
           category: detailRows[1]?.innerText ? cleanText(detailRows[1].innerText)?.split('·')[0].trim() ?? null : null,
-          status: cleanText(detailRows[2]?.innerText) ?? null,
           description: detailRows.length > 3 ? cleanText(detailRows[detailRows.length - 1].innerText) : null,
         }
 
@@ -250,7 +249,6 @@ export async function scrapeAllMaps(scrollToLoadAll: boolean = true) {
           reviews: extracted.reviews,
           priceRange: extracted.priceRange,
           category: extracted.category,
-          status: extracted.status,
           description: extracted.description,
         }
 
