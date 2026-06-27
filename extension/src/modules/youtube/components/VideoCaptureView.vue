@@ -314,6 +314,8 @@ function handleSave() {
   font-weight: var(--font-weight-semibold);
   font-size: var(--font-size-base);
   color: var(--color-text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .count {
@@ -342,7 +344,7 @@ function handleSave() {
 
 .link-item {
   padding: 8px;
-  background: var(--color-bg-secondary);
+  background: linear-gradient(135deg, #fafafa 0%, #f5f5f5 100%);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   overflow: hidden;
@@ -371,7 +373,7 @@ function handleSave() {
 
 .lead-item {
   padding: 10px;
-  background: var(--color-bg-secondary);
+  background: linear-gradient(135deg, #fafafa 0%, #f5f5f5 100%);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   display: flex;

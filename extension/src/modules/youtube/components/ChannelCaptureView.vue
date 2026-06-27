@@ -28,28 +28,19 @@
     <!-- Links Section -->
     <div class="section">
       <div class="section-header">
-        <span class="section-title">🔗 Contact Links</span>
+        <span class="section-title">🔗 Links</span>
         <span class="count">{{ Object.keys(channelLinks).length }}</span>
       </div>
 
-      <div v-if="Object.keys(channelLinks).length > 0" class="links-grid">
-        <div v-for="(url, type) in channelLinks" :key="type" class="link-card">
+      <div v-if="Object.keys(channelLinks).length > 0" class="links-list">
+        <div v-for="(url, type) in channelLinks" :key="type" class="link-item">
           <div class="link-type">{{ type }}</div>
-          <a :href="url" target="_blank" class="link-value">
+          <a :href="url" target="_blank" class="link-url">
             {{ formatUrl(url) }}
           </a>
         </div>
       </div>
-      <div v-else class="empty-state">No links found in channel description</div>
-    </div>
-
-    <!-- Info Message -->
-    <div class="info-box">
-      <div class="info-icon">ℹ️</div>
-      <div class="info-text">
-        Save channel to start tracking commenters from videos.<br />
-        Capture videos to find high-value leads.
-      </div>
+      <div v-else class="empty-state">No links found</div>
     </div>
 
     <!-- Save Button -->
@@ -205,10 +196,10 @@ function handleSave() {
 }
 
 .channel-header {
-  padding: var(--space-lg) var(--space-md);
-  background: var(--yt-red);
-  border-radius: var(--radius-md);
-  color: white;
+  padding: var(--space-md);
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-sm);
+  border-left: 3px solid var(--yt-red);
 }
 
 .component-label {
@@ -236,17 +227,18 @@ function handleSave() {
 
 .channel-name {
   font-weight: var(--font-weight-semibold);
-  font-size: var(--font-size-xl);
+  font-size: var(--font-size-md);
+  color: var(--color-text-primary);
 }
 
 .channel-subs {
-  font-size: var(--font-size-md);
-  opacity: 0.9;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-tertiary);
 }
 
 .view-videos-btn {
   padding: var(--space-xs) var(--space-md);
-  background: rgba(255, 255, 255, 0.2);
+  background: var(--color-success);
   color: white;
   border-radius: var(--radius-sm);
   font-size: var(--font-size-base);
@@ -257,7 +249,7 @@ function handleSave() {
 }
 
 .view-videos-btn:hover {
-  background: rgba(255, 255, 255, 0.3);
+  background: var(--color-success-hover);
 }
 
 .section {
@@ -277,6 +269,8 @@ function handleSave() {
   font-weight: var(--font-weight-semibold);
   font-size: var(--font-size-base);
   color: var(--color-text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .count {
@@ -296,20 +290,21 @@ function handleSave() {
   border-radius: var(--radius-sm);
 }
 
-.links-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-sm);
-}
-
-.link-card {
-  padding: 10px;
-  background: var(--color-bg-secondary);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
+.links-list {
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
+}
+
+.link-item {
+  padding: 8px;
+  background: linear-gradient(135deg, #fafafa 0%, #f5f5f5 100%);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .link-type {
@@ -319,7 +314,7 @@ function handleSave() {
   text-transform: capitalize;
 }
 
-.link-value {
+.link-url {
   font-size: var(--font-size-base);
   color: var(--color-link);
   text-decoration: none;
@@ -328,28 +323,8 @@ function handleSave() {
   white-space: nowrap;
 }
 
-.link-value:hover {
+.link-url:hover {
   text-decoration: underline;
-}
-
-.info-box {
-  padding: 10px var(--space-md);
-  background: #e8f4f8;
-  border-left: 3px solid var(--color-link);
-  border-radius: var(--radius-sm);
-  display: flex;
-  gap: var(--space-sm);
-  font-size: var(--font-size-base);
-  color: var(--color-link);
-  line-height: 1.4;
-}
-
-.info-icon {
-  flex-shrink: 0;
-}
-
-.info-text {
-  flex: 1;
 }
 
 .save-button {
