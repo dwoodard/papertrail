@@ -3,6 +3,18 @@ import { resolveModule } from '@/modules/registry'
 import { dispatchObservations } from '@/observations/dispatcher'
 import { onMessage, sendRuntimeMessage } from '@/utils/messaging'
 
+// Load YouTube module content script if on YouTube
+if (window.location.hostname.includes('youtube.com')) {
+  console.log('[Papertrail] Attempting to load YouTube content script...')
+  import('@/modules/youtube/content')
+    .then(() => {
+      console.log('[Papertrail] YouTube content script loaded successfully')
+    })
+    .catch((error) => {
+      console.error('[Papertrail] Failed to load YouTube content script:', error)
+    })
+}
+
 /**
  * Resolve module → create runtime → listen for messages → route to runtime
  *

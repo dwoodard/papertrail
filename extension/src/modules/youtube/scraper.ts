@@ -3,7 +3,7 @@ import type { Commenter } from './storage'
 export interface ChannelInfo {
   handle: string
   subs: number
-  links: Record<string, string>
+  links?: Record<string, string>
 }
 
 export interface VideoData {
@@ -15,74 +15,239 @@ export interface VideoData {
 export interface ChannelData {
   handle: string
   subs: number
-  links: Record<string, string>
+  links?: Record<string, string>
 }
 
 /**
  * Extract commenter data from video page (YouTube /watch)
- * @returns Array of commenters with name, handle, channel URL
+ * Only extracts comments currently visible in DOM (infinite scroll)
+ * Based on live DOM analysis via Chrome DevTools
  *
- * TODO: Fill in DOM selectors using Chrome DOM AI
- * Need to extract from comments section:
- * - Commenter name (display name)
- * - Commenter handle (@handle if available)
- * - Link to commenter's channel (channel URL)
- * - Verification badge (if visible)
- * - Subscriber count of their channel (if visible in profile)
+ * @returns Array of commenters with name, handle, channel URL, verification status
  */
 export function extractVideoCommenters(): Omit<Commenter, 'tier'>[] {
-  // TODO: Implement with Chrome DOM AI
-  // Extract from ytd-comment-renderer elements in #comments section
-  // For each commenter: name, handle, channel link, verification status
-  console.warn('[YouTube] extractVideoCommenters not yet implemented')
-  return []
+  const commenters: Omit<Commenter, 'tier'>[] = []
+
+  try {
+    const commentThreads = document.querySelectorAll('ytd-comment-thread-renderer')
+    console.log('[YouTube] Found', commentThreads.length, 'comment threads')
+
+    commentThreads.forEach((thread) => {
+      const commentEl = thread.querySelector('ytd-comment-view-model')
+      if (!commentEl) {
+        return
+      }
+
+      let authorLinkEl = commentEl.querySelector('a#author-text') as HTMLAnchorElement | null
+
+      // Fallback: check yt-formatted-string if primary selector empty
+      if (!authorLinkEl) {
+        authorLinkEl = commentEl.querySelector('yt-formatted-string#text a') as HTMLAnchorElement | null
+      }
+
+      if (!authorLinkEl) {
+        return // Skip deleted/removed comments
+      }
+
+      const authorName = authorLinkEl.innerText.trim()
+      const href = authorLinkEl.getAttribute('href')
+
+      if (!href) {
+        return
+      }
+
+      // Extract handle from href (always most reliable)
+      let handle: string | undefined
+      const handleMatch = href.match(/@[\w.-]+/)
+      if (handleMatch) {
+        handle = handleMatch[0]
+      } else if (authorName.startsWith('@')) {
+        // Fallback to name if href parsing fails
+        handle = authorName
+      }
+
+      // Verify badge check using SVG path detection
+      const badge = commentEl.querySelector('ytd-author-comment-badge-renderer')
+      const isVerified = !!badge?.querySelector('path[d^="M9.03 2.242"]')
+
+      const commenter: Omit<Commenter, 'tier'> = {
+        name: authorName,
+        handle,
+        url: new URL(href, window.location.origin).href,
+        isVerified,
+        count: 1,
+        status: 'new',
+      }
+
+      commenters.push(commenter)
+    })
+
+    console.log('[YouTube] Extracted', commenters.length, 'commenters')
+  } catch (error) {
+    console.error('[YouTube] Error extracting commenters:', error)
+  }
+
+  return commenters
 }
 
 /**
  * Extract links from video description and comments
- * @returns Array of URLs found in video description and top comments
+ * Dedupes and filters to external links only (excludes youtube.com)
  *
- * TODO: Fill in DOM selectors using Chrome DOM AI
+ * @returns Array of unique external URLs
  */
 export function extractVideoLinks(): string[] {
-  // TODO: Implement with Chrome DOM AI
-  // Extract from:
-  // 1. Video description (#description-inner)
-  // 2. Top comments (ytd-comment-renderer)
-  // Parse URLs using URL pattern matching
-  console.warn('[YouTube] extractVideoLinks not yet implemented')
-  return []
+  const links: string[] = []
+
+  try {
+    // Extract from description
+    const descriptionLinks = Array.from(
+      document.querySelectorAll('#description a, ytd-text-inline-expander a'),
+    ).map((a) => (a as HTMLAnchorElement).href)
+
+    // Extract from comments
+    const commentLinks = Array.from(
+      document.querySelectorAll('ytd-comment-thread-renderer #content-text a'),
+    ).map((a) => (a as HTMLAnchorElement).href)
+
+    const allLinks = [...descriptionLinks, ...commentLinks]
+
+    // Dedupe and filter to external links only
+    const uniqueExternalUrls = [...new Set(allLinks)].filter((url) => {
+      try {
+        const domain = new URL(url).hostname.toLowerCase()
+        return url.startsWith('http') && !domain.includes('youtube.com') && !domain.includes('youtu.be')
+      } catch {
+        return false
+      }
+    })
+
+    links.push(...uniqueExternalUrls)
+    console.log('[YouTube] Extracted', links.length, 'unique external links from', allLinks.length, 'total')
+  } catch (error) {
+    console.error('[YouTube] Error extracting links:', error)
+  }
+
+  return links
 }
 
 /**
  * Extract channel creator info from video page
- * @returns Channel handle and subscriber count
+ * Gets channel handle and subscriber count from video owner section
  *
- * TODO: Fill in DOM selectors using Chrome DOM AI
+ * @returns Channel handle (@format) and subscriber count as number
  */
 export function extractVideoChannelInfo(): ChannelInfo | null {
-  // TODO: Implement with Chrome DOM AI
-  // Extract from ytd-video-owner-renderer:
-  // - Channel handle (@QuintBUILDs format)
-  // - Subscriber count ("649K subscribers")
-  console.warn('[YouTube] extractVideoChannelInfo not yet implemented')
-  return null
+  try {
+    const ownerRenderer = document.querySelector('ytd-video-owner-renderer')
+    if (!ownerRenderer) {
+      console.log('[YouTube] No owner renderer found')
+      return null
+    }
+
+    const channelLink = ownerRenderer.querySelector('a.ytd-video-owner-renderer') as HTMLAnchorElement | null
+    const subsEl = ownerRenderer.querySelector('#owner-sub-count') as HTMLElement | null
+
+    const href = channelLink?.getAttribute('href') || ''
+    const subsText = subsEl?.innerText || ''
+
+    // Extract handle from href (/@handle format)
+    const handle = href.startsWith('/@') ? href.replace('/', '') : null
+
+    // Parse subscriber count with localization support
+    const parseSubs = (text: string, ariaLabel?: string): number | null => {
+      // Try aria-label first (more precise, language-independent)
+      const labelToUse = ariaLabel || text
+      const match = labelToUse.match(/([\d,.]+)\s*([KMB])?/i)
+      if (!match) return null
+
+      // Remove commas and convert to number
+      let num = parseFloat(match[1].replace(/,/g, ''))
+      const multiplier = match[2]?.toUpperCase()
+
+      if (multiplier === 'K') num *= 1000
+      else if (multiplier === 'M') num *= 1000000
+      else if (multiplier === 'B') num *= 1000000000
+
+      return Math.floor(num)
+    }
+
+    const ariaLabel = subsEl?.getAttribute('aria-label') || undefined
+    const subs = parseSubs(subsText, ariaLabel)
+
+    if (!handle || subs === null) {
+      console.log('[YouTube] Missing handle or subs:', { handle, subs })
+      return null
+    }
+
+    console.log('[YouTube] Extracted channel info:', { handle, subs })
+    return { handle, subs }
+  } catch (error) {
+    console.error('[YouTube] Error extracting channel info:', error)
+    return null
+  }
 }
 
 /**
  * Extract channel profile data from channel page (/@handle)
- * @returns Channel handle, subscriber count, and links from description
+ * Gets handle and subscriber count from channel header
  *
- * TODO: Fill in DOM selectors using Chrome DOM AI
+ * @returns Channel handle (@format), subscriber count as number
  */
 export function extractChannelProfile(): ChannelData | null {
-  // TODO: Implement with Chrome DOM AI
-  // Extract from channel header and about tab:
-  // - Channel handle (from URL or header)
-  // - Subscriber count (header)
-  // - Links (website, twitter, patreon, etc. from about tab or description)
-  console.warn('[YouTube] extractChannelProfile not yet implemented')
-  return null
+  try {
+    // Extract handle from URL pathname
+    const pathname = window.location.pathname
+    const handleMatch = pathname.match(/^\/(@[\w.-]+)/)
+    const handle = handleMatch ? handleMatch[1] : null
+
+    // Find subscriber count element
+    const subsEl = document.querySelector('yt-page-header-view-model span[aria-label*="subscriber"]')
+
+    // Parse subscriber count helper
+    const parseSubs = (text: string): number | null => {
+      if (!text) return null
+
+      const multiplierMap: Record<string, number> = {
+        k: 1000,
+        thousand: 1000,
+        m: 1000000,
+        million: 1000000,
+        b: 1000000000,
+        billion: 1000000000,
+      }
+
+      // Remove commas and extract number + unit
+      const cleanText = text.replace(/,/g, '')
+      const match = cleanText.match(/([\d.]+)\s*([KMB]|thousand|million|billion)?/i)
+
+      if (!match) return null
+
+      let num = parseFloat(match[1])
+      const unit = match[2]?.toLowerCase()
+
+      if (unit && multiplierMap[unit]) {
+        num *= multiplierMap[unit]
+      }
+
+      return Math.floor(num)
+    }
+
+    // Get subscriber count from aria-label or innerText
+    const rawSubsText = (subsEl as HTMLElement | null)?.getAttribute('aria-label') || (subsEl as HTMLElement | null)?.innerText
+    const subs = parseSubs(rawSubsText || '')
+
+    if (!handle || subs === null) {
+      console.log('[YouTube] Missing channel profile data:', { handle, subs })
+      return null
+    }
+
+    console.log('[YouTube] Extracted channel profile:', { handle, subs })
+    return { handle, subs }
+  } catch (error) {
+    console.error('[YouTube] Error extracting channel profile:', error)
+    return null
+  }
 }
 
 /**

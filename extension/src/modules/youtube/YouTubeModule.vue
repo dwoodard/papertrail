@@ -6,31 +6,13 @@
     <div v-if="loading" class="loading">Detecting page type...</div>
 
     <!-- Home/Dashboard View -->
-    <div v-else-if="pageContext.type === 'home'" class="view-container">
-      <div class="view-label">📊 DASHBOARD</div>
-      <p class="view-description">View and manage captured channels and leads</p>
-      <div class="placeholder">
-        [Dashboard will show here: Channel list, lead counts, quick actions]
-      </div>
-    </div>
+    <DashboardView v-else-if="pageContext.type === 'home'" />
 
     <!-- Video Capture View -->
-    <div v-else-if="pageContext.type === 'video'" class="view-container">
-      <div class="view-label">▶ VIDEO CAPTURE</div>
-      <p class="view-description">Extract links and commenters from this video</p>
-      <div class="placeholder">
-        [Video capture UI will show here: Links section, Commenters section, Save button]
-      </div>
-    </div>
+    <VideoCaptureView v-else-if="pageContext.type === 'video'" />
 
     <!-- Channel Capture View -->
-    <div v-else-if="pageContext.type === 'channel'" class="view-container">
-      <div class="view-label">🔗 CHANNEL CAPTURE</div>
-      <p class="view-description">Capture channel profile and contact links</p>
-      <div class="placeholder">
-        [Channel capture UI will show here: Channel info, Links section, Save button]
-      </div>
-    </div>
+    <ChannelCaptureView v-else-if="pageContext.type === 'channel'" />
 
     <!-- Unknown page -->
     <div v-else class="view-container">
@@ -43,6 +25,9 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import type { PageContext } from './navigator'
+import DashboardView from './components/DashboardView.vue'
+import VideoCaptureView from './components/VideoCaptureView.vue'
+import ChannelCaptureView from './components/ChannelCaptureView.vue'
 
 const loading = ref(true)
 const pageContext = ref<PageContext>({ type: 'unknown' })
@@ -179,17 +164,5 @@ async function updatePageContext() {
   color: #666;
   margin: 0;
   line-height: 1.4;
-}
-
-.placeholder {
-  padding: 16px 12px;
-  background: #f5f5f5;
-  border: 1px solid #e0e0e0;
-  border-radius: 4px;
-  font-size: 12px;
-  color: #999;
-  text-align: center;
-  font-style: italic;
-  margin-top: 8px;
 }
 </style>
