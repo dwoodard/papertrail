@@ -5,24 +5,13 @@
     <!-- Loading state -->
     <div v-if="loading" class="loading">Detecting page type...</div>
 
-    <!-- Dashboard View -->
-    <DashboardView v-else-if="view.type === 'dashboard'" />
+    <!-- Dashboard View (home page) -->
+    <DashboardView v-else-if="pageContext.type === 'home'" />
 
-    <!-- Channel Detail View -->
-    <ChannelDetailView
-      v-else-if="view.type === 'channel-detail'"
-      :channel-handle="view.selectedChannel!"
-    />
-
-    <!-- Video Detail View -->
-    <VideoDetailView
-      v-else-if="view.type === 'video-detail'"
-      :channel-handle="view.selectedChannel!"
-      :video-id="view.selectedVideo!"
-    />
-
-    <!-- Capture Views (when on actual YouTube pages) -->
+    <!-- Video Capture View (on watch page) -->
     <VideoCaptureView v-else-if="pageContext.type === 'video'" />
+
+    <!-- Channel Capture View (on channel page) -->
     <ChannelCaptureView v-else-if="pageContext.type === 'channel'" />
 
     <!-- Unknown page -->
@@ -34,50 +23,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, provide } from 'vue'
+import { ref, onMounted } from 'vue'
 import type { PageContext } from './navigator'
 import DashboardView from './components/DashboardView.vue'
-import ChannelDetailView from './components/ChannelDetailView.vue'
-import VideoDetailView from './components/VideoDetailView.vue'
 import VideoCaptureView from './components/VideoCaptureView.vue'
 import ChannelCaptureView from './components/ChannelCaptureView.vue'
 
-interface ViewState {
-  type: 'dashboard' | 'channel-detail' | 'video-detail' | 'capture'
-  selectedChannel?: string
-  selectedVideo?: string
-}
-
-interface Navigation {
-  goToDashboard: () => void
-  goToChannel: (channelHandle: string) => void
-  goToVideo: (videoId: string) => void
-}
-
 const loading = ref(true)
 const pageContext = ref<PageContext>({ type: 'unknown' })
-const view = ref<ViewState>({ type: 'dashboard' })
-
-const navigation: Navigation = {
-  goToDashboard() {
-    view.value = { type: 'dashboard' }
-  },
-  goToChannel(channelHandle: string) {
-    view.value = {
-      type: 'channel-detail',
-      selectedChannel: channelHandle,
-    }
-  },
-  goToVideo(videoId: string) {
-    view.value = {
-      type: 'video-detail',
-      selectedChannel: view.value.selectedChannel,
-      selectedVideo: videoId,
-    }
-  },
-}
-
-provide('youtube-navigation', navigation)
 
 onMounted(() => {
   updatePageContext()
