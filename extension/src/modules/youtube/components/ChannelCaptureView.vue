@@ -1,5 +1,16 @@
 <template>
   <div class="channel-capture">
+    <!-- Success Notification -->
+    <transition name="toast-fade">
+      <div v-if="notification" class="notification notification-success">
+        <span>✓</span>
+        <div class="notification-content">
+          <div class="notification-title">Tracking {{ notification.handle }}</div>
+          <div class="notification-text">Go capture their videos to find leads</div>
+        </div>
+      </div>
+    </transition>
+
     <!-- Channel Header -->
     <div v-if="channelData" class="channel-header">
       <div class="channel-info">
@@ -55,6 +66,7 @@ interface ChannelData {
 const channelData = ref<ChannelData | null>(null)
 const channelLinks = ref<Record<string, string>>({})
 const loading = ref(false)
+const notification = ref<{ handle: string } | null>(null)
 
 onMounted(() => {
   // Listen for data from content script
@@ -117,6 +129,13 @@ function formatSubs(count: number): string {
   return count.toString()
 }
 
+function showNotification(handle: string) {
+  notification.value = { handle }
+  setTimeout(() => {
+    notification.value = null
+  }, 4000)
+}
+
 function handleSave() {
   if (!channelData.value) return
 
@@ -141,10 +160,9 @@ function handleSave() {
     })
 
     console.log('[YouTube] Channel saved successfully')
-    alert(`✓ Tracking ${channelData.value.handle}! Go capture their videos.`)
+    showNotification(channelData.value.handle)
   } catch (error) {
     console.error('[YouTube] Error saving channel:', error)
-    alert('Error saving channel. Check console.')
   } finally {
     loading.value = false
   }
@@ -292,5 +310,58 @@ function handleSave() {
 .save-button:disabled {
   background: #ccc;
   cursor: not-allowed;
+}
+
+.notification {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  left: 12px;
+  padding: 12px 16px;
+  border-radius: 6px;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  font-size: 13px;
+  line-height: 1.4;
+  z-index: 1000;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12), 0 0 1px rgba(0, 0, 0, 0.08);
+}
+
+.notification-success {
+  background: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.notification-success span {
+  font-size: 16px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.notification-content {
+  flex: 1;
+}
+
+.notification-title {
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.notification-text {
+  font-size: 12px;
+  opacity: 0.9;
+}
+
+.toast-fade-enter-active,
+.toast-fade-leave-active {
+  transition: all 0.3s ease;
+}
+
+.toast-fade-enter-from,
+.toast-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-8px);
 }
 </style>
