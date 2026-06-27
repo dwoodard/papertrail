@@ -125,6 +125,14 @@ export async function scrapeAllMaps(scrollToLoadAll: boolean = true) {
       `[Papertrail] --- Phase 2: Found ${listings.length} total listings. Starting detail extraction ---`
     )
 
+    // Attach click handlers to prevent default navigation behavior
+    listings.forEach((listing) => {
+      listing.addEventListener('click', (e) => {
+        e.preventDefault()
+        e.stopPropagation()
+      })
+    })
+
     // Notify side panel of total listings found
     const totalListings = listings.length
     void sendRuntimeMessage({
