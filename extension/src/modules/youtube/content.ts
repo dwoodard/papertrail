@@ -81,30 +81,4 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   return true // Keep the message channel open for async response
 })
 
-// Periodically send data to side panel (when data changes)
-let lastExtractedData: ExtractedData | null = null
-setInterval(() => {
-  try {
-    const currentData = extractData()
-
-    // Only send if data actually changed
-    const dataChanged = JSON.stringify(currentData) !== JSON.stringify(lastExtractedData)
-
-    if (dataChanged && currentData) {
-      lastExtractedData = currentData
-      console.log('[YouTube Content] Sending data to side panel')
-
-      chrome.runtime.sendMessage({
-        action: 'updateData',
-        data: currentData,
-      }).catch((error) => {
-        // Side panel might not be open, ignore error
-        console.log('[YouTube Content] Could not send to side panel:', error.message)
-      })
-    }
-  } catch (error) {
-    console.error('[YouTube Content] Error in periodic extraction:', error)
-  }
-}, 2000) // Extract every 2 seconds
-
 console.log('[YouTube Content] Script loaded and listening for messages')
