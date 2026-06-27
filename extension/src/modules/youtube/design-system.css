@@ -1,0 +1,115 @@
+/* YouTube Module Design System */
+/* Unified aesthetic across all components */
+
+:root {
+  /* Colors - Red accent-driven palette */
+  --yt-red: #ff0000;
+  --yt-red-dark: #cc0000;
+  --yt-red-light: #ff4444;
+
+  /* Neutral palette */
+  --color-bg-primary: #ffffff;
+  --color-bg-secondary: #f8f9fa;
+  --color-bg-tertiary: #f0f0f0;
+  --color-text-primary: #202124;
+  --color-text-secondary: #666666;
+  --color-text-tertiary: #999999;
+  --color-border: #e8e8e8;
+
+  /* States */
+  --color-success: #28a745;
+  --color-success-hover: #218838;
+  --color-link: #1a73e8;
+  --color-link-hover: #1565c0;
+
+  /* Typography */
+  --font-family-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-family-display: 'Courier New', monospace; /* Distinctive accent for headers */
+
+  --font-size-xs: 10px;
+  --font-size-sm: 11px;
+  --font-size-base: 12px;
+  --font-size-md: 13px;
+  --font-size-lg: 14px;
+  --font-size-xl: 16px;
+  --font-size-2xl: 20px;
+
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  /* Spacing */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 12px;
+  --space-lg: 16px;
+  --space-xl: 20px;
+
+  /* Border Radius */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.12);
+  --shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.15);
+
+  /* Transitions */
+  --transition-fast: 150ms ease-out;
+  --transition-standard: 200ms ease-out;
+}
+
+/* Typography System */
+.font-display {
+  font-family: var(--font-family-display);
+  font-weight: var(--font-weight-semibold);
+}
+
+.font-body {
+  font-family: var(--font-family-body);
+}
+
+/* Base text styles */
+body {
+  font-family: var(--font-family-body);
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-primary);
+  font-size: var(--font-size-base);
+  line-height: 1.5;
+}
+
+/* Reset default margins */
+h1, h2, h3, h4, h5, h6, p {
+  margin: 0;
+}
+
+/* Link styles */
+a {
+  color: var(--color-link);
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+
+a:hover {
+  color: var(--color-link-hover);
+  text-decoration: underline;
+}
+
+/* Button styles */
+button {
+  font-family: var(--font-family-body);
+  font-size: var(--font-size-base);
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  font-weight: var(--font-weight-medium);
+  padding: 8px 12px;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
