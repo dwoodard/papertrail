@@ -1,10 +1,23 @@
 <template>
   <div class="video-capture">
+    <!-- Success Notification -->
+    <transition name="toast-fade">
+      <div v-if="notification" class="notification notification-success">
+        <span>✓</span>
+        <div class="notification-content">
+          <div class="notification-title">{{ notification.message }}</div>
+        </div>
+      </div>
+    </transition>
+
     <!-- Video Header -->
     <div v-if="channelInfo" class="video-header">
       <div class="channel-link">
-        <span class="channel-name">{{ channelInfo.handle }}</span>
-        <span class="subs">{{ formatSubs(channelInfo.subs) }}</span>
+        <span class="youtube-label">YouTube</span>
+        <a :href="`https://www.youtube.com/${channelInfo.handle}`" class="channel-handle-link">
+          {{ channelInfo.handle }}
+        </a>
+        <span class="subs">{{ formatSubs(channelInfo.subs) }} subscribers</span>
       </div>
     </div>
 
@@ -48,7 +61,7 @@
     </div>
 
     <!-- Save Button -->
-    <button class="save-button" @click="handleSave" :disabled="loading || (extractedLinks.length === 0 && extractedLeads.length === 0)">
+    <button class="save-button" @click="handleSave" :disabled="loading || !channelInfo">
       <span v-if="!loading">💾 Save to Channel</span>
       <span v-else>Saving...</span>
     </button>
@@ -69,6 +82,7 @@ const channelInfo = ref<ChannelInfo | null>(null)
 const extractedLinks = ref<string[]>([])
 const extractedLeads = ref<Omit<Commenter, 'tier'>[]>([])
 const loading = ref(false)
+const notification = ref<{ message: string } | null>(null)
 
 onMounted(() => {
   // Listen for data from content script
@@ -139,6 +153,13 @@ function formatSubs(count: number): string {
   return count.toString()
 }
 
+function showNotification(message: string) {
+  notification.value = { message }
+  setTimeout(() => {
+    notification.value = null
+  }, 4000)
+}
+
 function handleSave() {
   if (!channelInfo.value || (extractedLinks.value.length === 0 && extractedLeads.value.length === 0)) {
     return
@@ -160,10 +181,11 @@ function handleSave() {
     })
 
     console.log('[YouTube] Video capture saved successfully')
-    alert(`✓ Saved! Added ${extractedLeads.value.length} leads to ${channelInfo.value.handle}`)
+    const leadsText = extractedLeads.value.length > 0 ? ` Added ${extractedLeads.value.length} leads.` : ''
+    showNotification(`Saved to ${channelInfo.value.handle}${leadsText}`)
   } catch (error) {
     console.error('[YouTube] Error saving video capture:', error)
-    alert('Error saving video capture. Check console.')
+    showNotification('Error saving. Check console.')
   } finally {
     loading.value = false
   }
@@ -175,6 +197,26 @@ function handleSave() {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.video-capture::-webkit-scrollbar {
+  width: 6px;
+}
+
+.video-capture::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.video-capture::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 3px;
+}
+
+.video-capture::-webkit-scrollbar-thumb:hover {
+  background: #999;
 }
 
 .video-header {
@@ -188,17 +230,30 @@ function handleSave() {
   display: flex;
   align-items: baseline;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
-.channel-name {
+.youtube-label {
   font-weight: 600;
   font-size: 13px;
   color: #202124;
 }
 
+.channel-handle-link {
+  font-weight: 600;
+  font-size: 13px;
+  color: #1a73e8;
+  text-decoration: none;
+}
+
+.channel-handle-link:hover {
+  text-decoration: underline;
+}
+
 .subs {
   font-size: 11px;
   color: #999;
+  flex-basis: 100%;
 }
 
 .section {
@@ -388,5 +443,52 @@ function handleSave() {
 .save-button:disabled {
   background: #ccc;
   cursor: not-allowed;
+}
+
+.notification {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  left: 12px;
+  padding: 12px 16px;
+  border-radius: 6px;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  font-size: 13px;
+  line-height: 1.4;
+  z-index: 1000;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12), 0 0 1px rgba(0, 0, 0, 0.08);
+}
+
+.notification-success {
+  background: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.notification-success span {
+  font-size: 16px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.notification-content {
+  flex: 1;
+}
+
+.notification-title {
+  font-weight: 600;
+}
+
+.toast-fade-enter-active,
+.toast-fade-leave-active {
+  transition: all 0.3s ease;
+}
+
+.toast-fade-enter-from,
+.toast-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-8px);
 }
 </style>

@@ -174,6 +174,26 @@ function handleSave() {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.channel-capture::-webkit-scrollbar {
+  width: 6px;
+}
+
+.channel-capture::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.channel-capture::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 3px;
+}
+
+.channel-capture::-webkit-scrollbar-thumb:hover {
+  background: #999;
 }
 
 .channel-header {
