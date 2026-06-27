@@ -2,7 +2,7 @@
   <div class="dashboard">
     <!-- Header -->
     <div class="dashboard-header">
-      <div class="component-label">YouTube - Dashboard</div>
+      <div class="component-label">YouTube / Dashboard</div>
       <div class="header-stat">
         <div class="stat-value">{{ channels.length }}</div>
         <div class="stat-label">Channels</div>

@@ -13,7 +13,7 @@
 
     <!-- Channel Header -->
     <div v-if="channelData" class="channel-header">
-      <div class="component-label">YouTube - Channel</div>
+      <div class="component-label">YouTube / Channel</div>
       <div class="header-content">
         <div class="channel-info">
           <div class="channel-name">{{ channelData.handle }}</div>

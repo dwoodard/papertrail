@@ -12,7 +12,7 @@
 
     <!-- Video Header -->
     <div v-if="channelInfo" class="video-header">
-      <div class="component-label">YouTube - Video</div>
+      <div class="component-label">YouTube / Video</div>
       <div class="header-content">
         <div class="channel-link">
           <span class="youtube-label">Channel</span>
