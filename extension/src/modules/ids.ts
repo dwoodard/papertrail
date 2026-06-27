@@ -9,4 +9,8 @@ import type { moduleRegistry } from './config'
 export type DynamicModuleId = keyof typeof moduleRegistry
 
 /** All module IDs including static fallbacks. */
-export type ModuleId = DynamicModuleId | 'generic-website' | 'unknown'
+export type ModuleId = DynamicModuleId
+| 'youtube'
+| 'linkedin'
+| 'website'
+| 'unknown'

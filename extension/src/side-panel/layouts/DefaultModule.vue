@@ -49,7 +49,7 @@ import {
   Globe,
 } from '@lucide/vue'
 
-const modules = [
+const modulesRaw = [
   {
     id: 'google-maps',
     icon: MapPin,
@@ -65,10 +65,18 @@ const modules = [
     link: 'https://www.yelp.com'
   },
   {
+    id: 'youtube-leads',
+    icon: Camera,
+    heading: 'YouTube Channel Data',
+    description: 'Extract video data, channel insights, and engagement',
+    link: 'https://www.youtube.com'
+  },
+  {
     id: 'facebook-leads',
     icon: Users,
     heading: 'Facebook Business Leads',
-    description: 'Find local pages, contact info, and activity'
+    description: 'Find local pages, contact info, and activity',
+    link: 'https://www.facebook.com'
   },
   {
     id: 'contact-data',
@@ -86,7 +94,8 @@ const modules = [
     id: 'linkedin-leads',
     icon: Briefcase,
     heading: 'LinkedIn Company Leads',
-    description: 'Find B2B companies and decision makers'
+    description: 'Find B2B companies and decision makers',
+    link: 'https://www.linkedin.com/in/'
   },
   {
     id: 'bbb-data',
@@ -211,6 +220,12 @@ const modules = [
   }
 ]
 
+const modules = [...modulesRaw].sort((a, b) => {
+  const aHasLink = a.link ? 1 : 0
+  const bHasLink = b.link ? 1 : 0
+  return bHasLink - aHasLink
+})
+
 function handleModuleLink(link) {
   // Open external links in the browser (current tab)
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
@@ -290,17 +305,18 @@ function handleModuleLink(link) {
 }
 
 .card-link {
-  display: inline-block;
+  display: block;
   font-size: 12px;
   color: #1a73e8;
   text-decoration: none;
   font-weight: 500;
-  margin-top: 4px;
+  margin-top: 8px;
   background: none;
   border: none;
   cursor: pointer;
   padding: 0;
   font: inherit;
+  text-align: left;
 }
 
 .card-link:hover {
@@ -308,10 +324,11 @@ function handleModuleLink(link) {
 }
 
 .card-placeholder {
-  display: inline-block;
+  display: block;
   font-size: 11px;
   color: #999;
   font-style: italic;
-  margin-top: 4px;
+  margin-top: 8px;
+  text-align: left;
 }
 </style>

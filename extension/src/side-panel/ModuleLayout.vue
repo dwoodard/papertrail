@@ -31,6 +31,9 @@ import { Paperclip } from '@lucide/vue'
 import { computed, ref, onMounted } from 'vue'
 import DefaultLayout from './layouts/DefaultModule.vue'
 import { GoogleMapsModule } from '@/modules/google-maps'
+import WebsiteModule from '@/modules/website/WebsiteModule.vue'
+import LinkedInModule from '@/modules/linkedin/LinkedInModule.vue'
+import YouTubeModule from '@/modules/youtube/YouTubeModule.vue'
 
 const props = defineProps({
   activeModuleId: String,
@@ -62,12 +65,27 @@ function handlePapertrailClick(e) {
 }
 
 const moduleLabels = {
-  'google-maps': 'Google Maps'
+  'google-maps': 'Google Maps',
+  'youtube': 'YouTube',
+  'linkedin': 'LinkedIn',
+  'website': 'Website',
 }
 
 const activeModule = computed(() => {
   if (props.activeModuleId === 'google-maps') {
     return GoogleMapsModule
+  }
+
+  if (props.activeModuleId === 'youtube') {
+    return YouTubeModule
+  }
+
+  if (props.activeModuleId === 'linkedin') {
+    return LinkedInModule
+  }
+
+  if (props.activeModuleId === 'website') {
+    return WebsiteModule
   }
 
   return DefaultLayout

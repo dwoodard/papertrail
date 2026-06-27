@@ -18,6 +18,18 @@ const activeModuleId = computed(() => {
     return 'google-maps'
   }
 
+  if (currentUrl.value.includes('youtube.com')) {
+    return 'youtube'
+  }
+
+  if (currentUrl.value.includes('linkedin.com/in/')) {
+    return 'linkedin'
+  }
+
+  if (currentUrl.value.startsWith('http')) {
+    return 'website'
+  }
+
   return null
 })
 
