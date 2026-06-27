@@ -2,81 +2,194 @@
   <div class="youtube-module">
     <div class="module-heading">YouTube</div>
 
-    <div v-if="tab" class="site-info">
-      <img v-if="tab.favIconUrl" :src="tab.favIconUrl" class="favicon" alt="favicon" />
-      <div class="site-details">
-        <div class="site-title">{{ tab.title }}</div>
-        <a :href="tab.url" class="site-url" target="_blank">{{ tab.url }}</a>
+    <!-- Loading state -->
+    <div v-if="loading" class="loading">Detecting page type...</div>
+
+    <!-- Home/Dashboard View -->
+    <div v-else-if="pageContext.type === 'home'" class="view-container">
+      <div class="view-label">📊 DASHBOARD</div>
+      <p class="view-description">View and manage captured channels and leads</p>
+      <div class="placeholder">
+        [Dashboard will show here: Channel list, lead counts, quick actions]
       </div>
     </div>
-    <div v-else class="loading">Loading tab info...</div>
+
+    <!-- Video Capture View -->
+    <div v-else-if="pageContext.type === 'video'" class="view-container">
+      <div class="view-label">▶ VIDEO CAPTURE</div>
+      <p class="view-description">Extract links and commenters from this video</p>
+      <div class="placeholder">
+        [Video capture UI will show here: Links section, Commenters section, Save button]
+      </div>
+    </div>
+
+    <!-- Channel Capture View -->
+    <div v-else-if="pageContext.type === 'channel'" class="view-container">
+      <div class="view-label">🔗 CHANNEL CAPTURE</div>
+      <p class="view-description">Capture channel profile and contact links</p>
+      <div class="placeholder">
+        [Channel capture UI will show here: Channel info, Links section, Save button]
+      </div>
+    </div>
+
+    <!-- Unknown page -->
+    <div v-else class="view-container">
+      <div class="view-label">❓ NOT A YOUTUBE PAGE</div>
+      <p class="view-description">YouTube module only works on youtube.com</p>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import type { PageContext } from './navigator'
 
-const tab = ref<chrome.tabs.Tab | null>(null)
+const loading = ref(true)
+const pageContext = ref<PageContext>({ type: 'unknown' })
 
-onMounted(async () => {
-  const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true })
-  tab.value = activeTab ?? null
+onMounted(() => {
+  updatePageContext()
+
+  // Listen for tab changes
+  chrome.tabs.onActivated.addListener(() => {
+    updatePageContext()
+  })
+  chrome.tabs.onUpdated.addListener(() => {
+    updatePageContext()
+  })
 })
+
+async function updatePageContext() {
+  try {
+    console.log('[YouTube] updatePageContext called')
+
+    const tabs = await chrome.tabs.query({ active: true, currentWindow: true })
+    console.log('[YouTube] chrome.tabs.query result:', tabs)
+
+    const activeTab = tabs[0]
+    console.log('[YouTube] Active tab:', activeTab)
+
+    if (!activeTab?.url) {
+      console.log('[YouTube] No active tab URL found')
+      pageContext.value = { type: 'unknown' }
+      return
+    }
+
+    const url = new URL(activeTab.url)
+    const hostname = url.hostname
+    const pathname = url.pathname
+
+    console.log('[YouTube] Parsed URL - hostname:', hostname, 'pathname:', pathname)
+    console.log('[YouTube] Full tab URL:', activeTab.url)
+
+    // Must be youtube.com
+    if (!hostname.includes('youtube.com')) {
+      console.log('[YouTube] Not youtube.com, hostname:', hostname)
+      pageContext.value = { type: 'unknown' }
+      return
+    }
+
+    console.log('[YouTube] Is youtube.com, checking pathname...')
+
+    // Home page: www.youtube.com or www.youtube.com/
+    if (pathname === '/' || pathname === '') {
+      console.log('[YouTube] Detected HOME page')
+      pageContext.value = { type: 'home' }
+      return
+    }
+
+    // Video page: /watch?v=xxx
+    if (pathname === '/watch') {
+      const videoId = url.searchParams.get('v')
+      console.log('[YouTube] Detected VIDEO page, videoId:', videoId)
+      pageContext.value = { type: 'video', videoId: videoId || undefined }
+      return
+    }
+
+    // Channel page: /@handle or /channel/id or /c/handle
+    if (pathname.startsWith('/@')) {
+      const handle = pathname.slice(0, pathname.indexOf('/', 1)) || pathname.slice(1)
+      console.log('[YouTube] Detected CHANNEL page (@handle), handle:', handle)
+      pageContext.value = { type: 'channel', channelHandle: handle }
+      return
+    }
+
+    if (pathname.startsWith('/channel/')) {
+      const handle = pathname.split('/')[2]
+      console.log('[YouTube] Detected CHANNEL page (/channel), handle:', handle)
+      pageContext.value = { type: 'channel', channelHandle: handle }
+      return
+    }
+
+    if (pathname.startsWith('/c/')) {
+      const handle = pathname.split('/')[2]
+      console.log('[YouTube] Detected CHANNEL page (/c), handle:', handle)
+      pageContext.value = { type: 'channel', channelHandle: handle }
+      return
+    }
+
+    console.log('[YouTube] No pathname match, type=unknown, pathname was:', pathname)
+    pageContext.value = { type: 'unknown' }
+  } catch (error) {
+    console.error('[YouTube] Failed to detect page context:', error)
+    console.error('[YouTube] Error details:', (error as Error).message)
+    pageContext.value = { type: 'unknown' }
+  } finally {
+    loading.value = false
+  }
+}
 </script>
 
 <style scoped>
 .youtube-module {
-  padding: 8px 16px 16px 16px;
+  padding: 12px 16px 16px;
 }
 
 .module-heading {
   font-weight: 600;
-  font-size: 15px;
+  font-size: 14px;
   color: #202124;
   margin-bottom: 12px;
-}
-
-.site-info {
-  display: flex;
-  gap: 12px;
-  align-items: flex-start;
-}
-
-.favicon {
-  width: 32px;
-  height: 32px;
-  flex-shrink: 0;
-  border-radius: 4px;
-}
-
-.site-details {
-  flex: 1;
-  min-width: 0;
-}
-
-.site-title {
-  font-weight: 500;
-  font-size: 14px;
-  color: #333;
-  margin-bottom: 4px;
-  word-break: break-word;
-}
-
-.site-url {
-  font-size: 12px;
-  color: #666;
-  text-decoration: none;
-  word-break: break-all;
-}
-
-.site-url:hover {
-  text-decoration: underline;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .loading {
-  padding: 20px;
+  padding: 24px 12px;
   text-align: center;
   color: #999;
-  font-size: 14px;
+  font-size: 13px;
+}
+
+.view-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.view-label {
+  font-weight: 600;
+  font-size: 13px;
+  color: #202124;
+  margin-bottom: 4px;
+}
+
+.view-description {
+  font-size: 12px;
+  color: #666;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.placeholder {
+  padding: 16px 12px;
+  background: #f5f5f5;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #999;
+  text-align: center;
+  font-style: italic;
+  margin-top: 8px;
 }
 </style>
