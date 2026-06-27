@@ -13,9 +13,14 @@
 
     <!-- Channel Header -->
     <div v-if="channelData" class="channel-header">
-      <div class="channel-info">
-        <div class="channel-name">{{ channelData.handle }}</div>
-        <div class="channel-subs">{{ formatSubs(channelData.subs) }} subscribers</div>
+      <div class="header-content">
+        <div class="channel-info">
+          <div class="channel-name">{{ channelData.handle }}</div>
+          <div class="channel-subs">{{ formatSubs(channelData.subs) }} subscribers</div>
+        </div>
+        <a :href="`https://www.youtube.com/${channelData.handle}/videos`" class="view-videos-btn">
+          🎬 View Videos
+        </a>
       </div>
     </div>
 
@@ -203,10 +208,18 @@ function handleSave() {
   color: white;
 }
 
+.header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
 .channel-info {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  flex: 1;
 }
 
 .channel-name {
@@ -217,6 +230,22 @@ function handleSave() {
 .channel-subs {
   font-size: 13px;
   opacity: 0.9;
+}
+
+.view-videos-btn {
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border-radius: 3px;
+  font-size: 12px;
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 0.2s;
+}
+
+.view-videos-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
 }
 
 .section {

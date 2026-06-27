@@ -12,12 +12,17 @@
 
     <!-- Video Header -->
     <div v-if="channelInfo" class="video-header">
-      <div class="channel-link">
-        <span class="youtube-label">YouTube</span>
-        <a :href="`https://www.youtube.com/${channelInfo.handle}`" class="channel-handle-link">
-          {{ channelInfo.handle }}
+      <div class="header-content">
+        <div class="channel-link">
+          <span class="youtube-label">YouTube</span>
+          <a :href="`https://www.youtube.com/${channelInfo.handle}`" class="channel-handle-link">
+            {{ channelInfo.handle }}
+          </a>
+          <span class="subs">{{ formatSubs(channelInfo.subs) }} subscribers</span>
+        </div>
+        <a :href="`https://www.youtube.com/${channelInfo.handle}`" class="track-channel-btn">
+          📌 Track Channel
         </a>
-        <span class="subs">{{ formatSubs(channelInfo.subs) }} subscribers</span>
       </div>
     </div>
 
@@ -226,11 +231,19 @@ function handleSave() {
   border-left: 3px solid #ff0000;
 }
 
+.header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
 .channel-link {
   display: flex;
   align-items: baseline;
   gap: 8px;
   flex-wrap: wrap;
+  flex: 1;
 }
 
 .youtube-label {
@@ -254,6 +267,22 @@ function handleSave() {
   font-size: 11px;
   color: #999;
   flex-basis: 100%;
+}
+
+.track-channel-btn {
+  padding: 6px 12px;
+  background: #28a745;
+  color: white;
+  border-radius: 3px;
+  font-size: 12px;
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 0.2s;
+}
+
+.track-channel-btn:hover {
+  background: #218838;
 }
 
 .section {
