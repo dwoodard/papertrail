@@ -10,20 +10,38 @@
       </div>
     </transition>
 
-    <!-- Video Header -->
-    <div v-if="channelInfo" class="video-header">
-      <div class="component-label">YouTube / Video</div>
-      <div class="header-content">
-        <div class="channel-link">
-          <span class="youtube-label">Channel</span>
-          <a :href="`https://www.youtube.com/${channelInfo.handle}`" class="channel-handle-link">
-            {{ channelInfo.handle }}
-          </a>
-          <span class="subs">{{ formatSubs(channelInfo.subs) }} subscribers</span>
+
+    <!-- Video Header (Always Visible) -->
+    <div class="channel-header">
+      <div class="header-top">
+        <div class="component-label">YouTube / Video</div>
+        <div class="nav-buttons">
+          <button class="nav-btn back-btn" @click="goToDashboard" title="Back to Dashboard">
+            ← Dashboard
+          </button>
         </div>
-        <a :href="`https://www.youtube.com/${channelInfo.handle}`" class="track-channel-btn">
-          📌 Track Channel
-        </a>
+      </div>
+
+      <div v-if="channelInfo" class="video-header">
+        <div class="header-content">
+          <div class="channel-link">
+            <span class="youtube-label">Channel</span>
+            <a :href="`https://www.youtube.com/${channelInfo.handle}`" class="channel-handle-link">
+              {{ channelInfo.handle }}
+            </a>
+            <span class="subs">{{ formatSubs(channelInfo.subs) }} subscribers</span>
+          </div>
+          <a :href="`https://www.youtube.com/${channelInfo.handle}`" class="track-channel-btn">
+            📌 Track Channel
+          </a>
+        </div>
+      </div>
+      <div v-else class="video-header loading">
+        <div class="header-content">
+          <div class="channel-link">
+            <span class="skeleton-line channel-name" style="width: 60%;"></span>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -139,10 +157,28 @@ onMounted(() => {
             extractedLeads.value = response.data.videoCommenters
           }
         }
+
+        // Fallback: if no channel info, try to extract from page title/URL
+        if (!channelInfo.value) {
+          console.log('[VideoCaptureView] No channel info from content script, using fallback')
+          // For now, at least enable the button with partial data if we have links/commenters
+          if (extractedLinks.value.length > 0 || extractedLeads.value.length > 0) {
+            // Set dummy channel info so button can be enabled
+            channelInfo.value = { handle: '@Unknown', subs: 0 }
+          }
+        }
       })
     }
   })
 })
+
+function goToDashboard() {
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    if (tabs[0]?.id) {
+      chrome.tabs.update(tabs[0].id, { url: 'https://www.youtube.com/' })
+    }
+  })
+}
 
 function formatUrl(url: string): string {
   try {
@@ -227,6 +263,49 @@ function handleSave() {
   background: var(--color-text-tertiary);
 }
 
+.channel-header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding: var(--space-md);
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-sm);
+  border-left: 3px solid var(--yt-red);
+}
+
+.header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.nav-buttons {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.nav-btn {
+  padding: var(--space-xs) var(--space-md);
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.nav-btn:hover {
+  background: var(--color-border);
+  border-color: var(--color-text-secondary);
+}
+
+.back-btn {
+  white-space: nowrap;
+}
+
 .video-header {
   padding: var(--space-md);
   background: var(--color-bg-secondary);
@@ -279,6 +358,23 @@ function handleSave() {
   font-size: var(--font-size-sm);
   color: var(--color-text-tertiary);
   flex-basis: 100%;
+}
+
+.skeleton-line {
+  background: var(--color-bg-tertiary);
+  border-radius: var(--radius-sm);
+  height: 1em;
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+  display: inline-block;
+}
+
+@keyframes skeleton-pulse {
+  0%, 100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 0.4;
+  }
 }
 
 .track-channel-btn {
@@ -467,26 +563,40 @@ function handleSave() {
 
 /* Save Button */
 .save-button {
-  padding: 10px var(--space-lg);
+  width: 100%;
+  padding: var(--space-md) var(--space-lg);
   background: var(--color-success);
   color: white;
   border: none;
   border-radius: var(--radius-sm);
-  font-weight: var(--font-weight-medium);
-  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-base);
   cursor: pointer;
-  transition: background var(--transition-fast);
-  margin-top: 4px;
+  transition: all var(--transition-fast);
+  margin-top: var(--space-md);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
 }
 
 .save-button:hover:not(:disabled) {
   background: var(--color-success-hover);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  transform: translateY(-1px);
+}
+
+.save-button:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .save-button:disabled {
   background: var(--color-bg-tertiary);
   cursor: not-allowed;
   color: var(--color-text-secondary);
+  box-shadow: none;
 }
 
 .notification {

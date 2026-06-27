@@ -139,29 +139,57 @@ export function extractVideoLinks(): string[] {
  */
 export function extractVideoChannelInfo(): ChannelInfo | null {
   try {
+    console.log('[YouTube] Starting channel info extraction...')
+
+    // Try multiple selectors for channel link (YouTube structure varies)
+    let channelLink: HTMLAnchorElement | null = null
+    let subsEl: HTMLElement | null = null
+
+    // Selector 1: Video owner renderer (traditional)
     const ownerRenderer = document.querySelector('ytd-video-owner-renderer')
-    if (!ownerRenderer) {
-      console.log('[YouTube] No owner renderer found')
+    console.log('[YouTube] ownerRenderer found:', !!ownerRenderer)
+
+    if (ownerRenderer) {
+      channelLink = ownerRenderer.querySelector('a.ytd-video-owner-renderer') as HTMLAnchorElement | null
+      subsEl = ownerRenderer.querySelector('#owner-sub-count') as HTMLElement | null
+      console.log('[YouTube] From ownerRenderer - channelLink:', !!channelLink, 'subsEl:', !!subsEl)
+    }
+
+    // Selector 2: Channel link in structured data
+    if (!channelLink) {
+      channelLink = document.querySelector('a[href^="/@"]') as HTMLAnchorElement | null
+      console.log('[YouTube] From a[href^="/@"] - channelLink:', !!channelLink)
+    }
+
+    // Selector 3: Broader search for channel subscriber span
+    if (!subsEl) {
+      const subsSpans = Array.from(document.querySelectorAll('span'))
+        .filter(s => s.innerText?.includes('subscriber'))
+      console.log('[YouTube] Found subsSpans:', subsSpans.length)
+      if (subsSpans.length > 0) {
+        subsEl = subsSpans[0] as HTMLElement
+        console.log('[YouTube] Using first subsSpan')
+      }
+    }
+
+    if (!channelLink) {
+      console.log('[YouTube] No channel link found - returning null')
       return null
     }
 
-    const channelLink = ownerRenderer.querySelector('a.ytd-video-owner-renderer') as HTMLAnchorElement | null
-    const subsEl = ownerRenderer.querySelector('#owner-sub-count') as HTMLElement | null
-
-    const href = channelLink?.getAttribute('href') || ''
-    const subsText = subsEl?.innerText || ''
+    const href = channelLink.getAttribute('href') || ''
+    const subsText = subsEl?.innerText || subsEl?.getAttribute('aria-label') || ''
 
     // Extract handle from href (/@handle format)
-    const handle = href.startsWith('/@') ? href.replace('/', '') : null
+    const handleMatch = href.match(/@[\w.-]+/)
+    const handle = handleMatch ? handleMatch[0] : null
 
     // Parse subscriber count with localization support
-    const parseSubs = (text: string, ariaLabel?: string): number | null => {
-      // Try aria-label first (more precise, language-independent)
-      const labelToUse = ariaLabel || text
-      const match = labelToUse.match(/([\d,.]+)\s*([KMB])?/i)
+    const parseSubs = (text: string): number | null => {
+      if (!text) return null
+      const match = text.match(/([\d,.]+)\s*([KMB])?/i)
       if (!match) return null
 
-      // Remove commas and convert to number
       let num = parseFloat(match[1].replace(/,/g, ''))
       const multiplier = match[2]?.toUpperCase()
 
@@ -172,11 +200,10 @@ export function extractVideoChannelInfo(): ChannelInfo | null {
       return Math.floor(num)
     }
 
-    const ariaLabel = subsEl?.getAttribute('aria-label') || undefined
-    const subs = parseSubs(subsText, ariaLabel)
+    const subs = parseSubs(subsText)
 
     if (!handle || subs === null) {
-      console.log('[YouTube] Missing handle or subs:', { handle, subs })
+      console.log('[YouTube] Missing handle or subs:', { handle, subs, subsText })
       return null
     }
 

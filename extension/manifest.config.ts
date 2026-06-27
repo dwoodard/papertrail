@@ -25,10 +25,10 @@ export default defineManifest({
         default_path: 'src/side-panel/index.html',
     },
     // for now this is commented out so npm run dev will work
-    background: {
-        service_worker: 'src/background/service-worker.ts',
-        type: 'module',
-    },
+    // background: {
+    //     service_worker: 'src/background/service-worker.ts',
+    //     type: 'module',
+    // },
     content_scripts: [
         {
             matches: [

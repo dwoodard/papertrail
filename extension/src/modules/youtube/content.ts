@@ -75,6 +75,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
   if (request.action === 'extractData') {
     const data = extractData()
+    console.log('[YouTube Content] Extracted data:', data)
     sendResponse({ success: true, data })
   }
 

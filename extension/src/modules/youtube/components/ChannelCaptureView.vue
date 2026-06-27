@@ -11,10 +11,18 @@
       </div>
     </transition>
 
-    <!-- Channel Header -->
-    <div v-if="channelData" class="channel-header">
-      <div class="component-label">YouTube / Channel</div>
-      <div class="header-content">
+    <!-- Channel Header (Always Visible) -->
+    <div class="channel-header">
+      <div class="header-top">
+        <div class="component-label">YouTube / Channel</div>
+        <div class="nav-buttons">
+          <button class="nav-btn back-btn" @click="goToDashboard" title="Back to Dashboard">
+            ← Dashboard
+          </button>
+        </div>
+      </div>
+
+      <div v-if="channelData" class="header-content">
         <div class="channel-info">
           <div class="channel-name">{{ channelData.handle }}</div>
           <div class="channel-subs">{{ formatSubs(channelData.subs) }} subscribers</div>
@@ -22,6 +30,12 @@
         <a :href="`https://www.youtube.com/${channelData.handle}/videos`" class="view-videos-btn">
           🎬 View Videos
         </a>
+      </div>
+      <div v-else class="header-content loading">
+        <div class="channel-info">
+          <div class="skeleton-line channel-name"></div>
+          <div class="skeleton-line channel-subs"></div>
+        </div>
       </div>
     </div>
 
@@ -133,6 +147,14 @@ function showNotification(handle: string) {
   }, 4000)
 }
 
+function goToDashboard() {
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    if (tabs[0]?.id) {
+      chrome.tabs.update(tabs[0].id, { url: 'https://www.youtube.com/' })
+    }
+  })
+}
+
 function handleSave() {
   if (!channelData.value) return
 
@@ -175,7 +197,8 @@ function handleSave() {
   gap: var(--space-lg);
   max-height: calc(100vh - 40px);
   overflow-y: auto;
-  padding-right: var(--space-xs);
+  padding: var(--space-md);
+  padding-right: var(--space-sm);
 }
 
 .channel-capture::-webkit-scrollbar {
@@ -196,10 +219,46 @@ function handleSave() {
 }
 
 .channel-header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
   padding: var(--space-md);
   background: var(--color-bg-secondary);
   border-radius: var(--radius-sm);
   border-left: 3px solid var(--yt-red);
+}
+
+.header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.nav-buttons {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.nav-btn {
+  padding: var(--space-xs) var(--space-md);
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.nav-btn:hover {
+  background: var(--color-border);
+  border-color: var(--color-text-secondary);
+}
+
+.back-btn {
+  white-space: nowrap;
 }
 
 .component-label {
@@ -234,6 +293,31 @@ function handleSave() {
 .channel-subs {
   font-size: var(--font-size-sm);
   color: var(--color-text-tertiary);
+}
+
+.skeleton-line {
+  background: var(--color-bg-tertiary);
+  border-radius: var(--radius-sm);
+  height: 1em;
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+.skeleton-line.channel-name {
+  width: 60%;
+  margin-bottom: var(--space-xs);
+}
+
+.skeleton-line.channel-subs {
+  width: 40%;
+}
+
+@keyframes skeleton-pulse {
+  0%, 100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 0.4;
+  }
 }
 
 .view-videos-btn {
@@ -277,7 +361,7 @@ function handleSave() {
   font-size: var(--font-size-sm);
   background: var(--color-bg-tertiary);
   color: var(--color-text-secondary);
-  padding: var(--space-xs) 6px;
+  padding: var(--space-xs) var(--space-sm);
   border-radius: var(--radius-sm);
 }
 
@@ -297,14 +381,14 @@ function handleSave() {
 }
 
 .link-item {
-  padding: 8px;
+  padding: var(--space-sm);
   background: linear-gradient(135deg, #fafafa 0%, #f5f5f5 100%);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--space-xs);
 }
 
 .link-type {
@@ -328,25 +412,39 @@ function handleSave() {
 }
 
 .save-button {
-  padding: 8px var(--space-lg);
+  width: 100%;
+  padding: var(--space-md) var(--space-lg);
   background: var(--color-success);
   color: white;
   border: none;
   border-radius: var(--radius-sm);
-  font-weight: var(--font-weight-medium);
-  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-base);
   cursor: pointer;
-  transition: background var(--transition-fast);
+  transition: all var(--transition-fast);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
 }
 
 .save-button:hover:not(:disabled) {
   background: var(--color-success-hover);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  transform: translateY(-1px);
+}
+
+.save-button:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .save-button:disabled {
   background: var(--color-bg-tertiary);
   cursor: not-allowed;
   color: var(--color-text-secondary);
+  box-shadow: none;
 }
 
 .notification {

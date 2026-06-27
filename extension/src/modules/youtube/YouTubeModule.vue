@@ -1,6 +1,6 @@
 <template>
   <div class="youtube-module">
-    <div class="module-heading">YouTube</div>
+    <div class="module-heading">YouTube Module</div>
 
     <!-- Loading state -->
     <div v-if="loading" class="loading">Detecting page type...</div>
