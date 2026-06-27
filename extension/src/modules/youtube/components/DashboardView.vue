@@ -22,7 +22,7 @@
       <div class="section-title">Your Channels</div>
       <div class="channels-list">
         <div v-for="channel in channels" :key="channel.handle" class="channel-row">
-          <div class="channel-col">
+          <div class="channel-col" @click="navigation.goToChannel(channel.handle)" style="cursor: pointer">
             <div class="channel-name">{{ channel.handle }}</div>
             <div class="channel-meta">{{ channel.subs }} subs</div>
           </div>
@@ -44,7 +44,7 @@
           </div>
 
           <div class="action-col">
-            <button class="action-btn drill-down" title="View leads for this channel">
+            <button class="action-btn drill-down" @click="navigation.goToChannel(channel.handle)" title="View videos for this channel">
               →
             </button>
             <button class="action-btn delete" title="Delete channel">
@@ -78,8 +78,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, inject } from 'vue'
 import { getChannels, getChannelData } from '../storage'
+
+interface Navigation {
+  goToDashboard: () => void
+  goToChannel: (channelHandle: string) => void
+  goToVideo: (videoId: string) => void
+}
+
+const navigation = inject<Navigation>('youtube-navigation')!
 
 interface ChannelDisplay {
   handle: string
