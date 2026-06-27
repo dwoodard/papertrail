@@ -22,10 +22,10 @@
       <div class="section-title">Your Channels</div>
       <div class="channels-list">
         <div v-for="channel in channels" :key="channel.handle" class="channel-row">
-          <a :href="`https://www.youtube.com/${channel.handle}`" class="channel-col">
+          <div class="channel-col" @click="goToChannel(channel.handle)">
             <div class="channel-name">{{ channel.handle }}</div>
             <div class="channel-meta">{{ channel.subs }} subs</div>
-          </a>
+          </div>
 
           <div class="leads-col">
             <div class="lead-count">{{ channel.totalLeads }}</div>
@@ -130,6 +130,15 @@ function loadChannels() {
   } catch (error) {
     console.error('[YouTube] Error loading channels:', error)
   }
+}
+
+function goToChannel(handle: string) {
+  const url = `https://www.youtube.com/${handle}`
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    if (tabs[0]?.id) {
+      chrome.tabs.update(tabs[0].id, { url })
+    }
+  })
 }
 </script>
 
