@@ -4,6 +4,8 @@
  * Sends extracted data to the side panel
  */
 
+console.log('[YouTube Content] Module loading...')
+
 import { detectPageType } from './navigator'
 import {
   extractVideoCommenters,
@@ -12,6 +14,14 @@ import {
   extractChannelProfile,
   extractChannelLinks,
 } from './scraper'
+
+// Guard: only initialize on YouTube pages
+const isYouTubePage = window.location.hostname.includes('youtube.com')
+if (!isYouTubePage) {
+  throw new Error('[YouTube Content] Not on YouTube, skipping')
+}
+
+console.log('[YouTube Content] Initializing on YouTube page...')
 
 interface ExtractedData {
   pageType: string

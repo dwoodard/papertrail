@@ -257,10 +257,69 @@ export function extractChannelProfile(): ChannelData | null {
  * TODO: Fill in DOM selectors using Chrome DOM AI
  */
 export function extractChannelLinks(): Record<string, string> {
-  // TODO: Implement with Chrome DOM AI
-  // Parse from channel description or about tab
-  // Detect link type: website (quintbuilds.com), twitter, patreon, instagram, etc.
-  // Return as { website: 'url', twitter: 'url', ... }
-  console.warn('[YouTube] extractChannelLinks not yet implemented')
-  return {}
+  const links: Record<string, string> = {}
+
+  try {
+    // Helper to categorize URL by domain/path
+    const getLinkType = (url: string): string | null => {
+      try {
+        const urlObj = new URL(url)
+        const hostname = urlObj.hostname.toLowerCase()
+
+        // Match against known social/link sites
+        if (hostname.includes('twitter.com') || hostname.includes('x.com')) return 'twitter'
+        if (hostname.includes('instagram.com')) return 'instagram'
+        if (hostname.includes('facebook.com') || hostname.includes('fb.com')) return 'facebook'
+        if (hostname.includes('tiktok.com')) return 'tiktok'
+        if (hostname.includes('youtube.com') || hostname.includes('youtu.be')) return null // Skip YouTube links
+        if (hostname.includes('twitch.tv')) return 'twitch'
+        if (hostname.includes('discord.gg') || hostname.includes('discord.com')) return 'discord'
+        if (hostname.includes('patreon.com')) return 'patreon'
+        if (hostname.includes('linktr.ee')) return 'linktree'
+        if (hostname.includes('reddit.com')) return 'reddit'
+        if (hostname.includes('linkedin.com')) return 'linkedin'
+        if (hostname.includes('github.com')) return 'github'
+
+        // Default to website for anything else
+        return 'website'
+      } catch {
+        return null
+      }
+    }
+
+    // Find all links in channel header and about sections
+    // YouTube channel pages structure: header has links, about section has links
+    const allLinkElements = Array.from(
+      document.querySelectorAll(
+        'yt-page-header-view-model a,' +
+        'ytd-channel-tagline-renderer a,' +
+        'ytd-about-channel-renderer a,' +
+        'ytd-rich-text-renderer a,' +
+        'yt-formatted-string a'
+      )
+    ).filter(el => el instanceof HTMLAnchorElement) as HTMLAnchorElement[]
+
+    // Extract and dedupe URLs
+    const urlSet = new Set<string>()
+    for (const linkEl of allLinkElements) {
+      const href = linkEl.getAttribute('href')
+      if (href && href.startsWith('http')) {
+        urlSet.add(href)
+      }
+    }
+
+    // Categorize each link
+    for (const url of urlSet) {
+      const type = getLinkType(url)
+      if (type && !links[type]) {
+        links[type] = url
+      }
+    }
+
+    console.log('[YouTube] Extracted', Object.keys(links).length, 'channel link types:', Object.keys(links))
+  } catch (error) {
+    console.error('[YouTube] Error extracting channel links:', error)
+  }
+
+  return links
 }

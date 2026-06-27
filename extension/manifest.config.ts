@@ -31,7 +31,10 @@ export default defineManifest({
     },
     content_scripts: [
         {
-            matches: ['https://www.google.com/maps/*', 'https://www.youtube.com/*'],
+            matches: [
+                'https://www.google.com/maps/*',
+                'https://www.youtube.com/*'
+            ],
             js: ['src/content/content-script.ts'],
             run_at: 'document_idle',
         },
