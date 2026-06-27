@@ -12,9 +12,10 @@
 
     <!-- Video Header -->
     <div v-if="channelInfo" class="video-header">
+      <div class="component-label">YouTube - Video</div>
       <div class="header-content">
         <div class="channel-link">
-          <span class="youtube-label">YouTube</span>
+          <span class="youtube-label">Channel</span>
           <a :href="`https://www.youtube.com/${channelInfo.handle}`" class="channel-handle-link">
             {{ channelInfo.handle }}
           </a>
@@ -229,6 +230,15 @@ function handleSave() {
   background: #f9f9f9;
   border-radius: 4px;
   border-left: 3px solid #ff0000;
+}
+
+.component-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
 }
 
 .header-content {

@@ -2,6 +2,7 @@
   <div class="dashboard">
     <!-- Header -->
     <div class="dashboard-header">
+      <div class="component-label">YouTube - Dashboard</div>
       <div class="header-stat">
         <div class="stat-value">{{ channels.length }}</div>
         <div class="stat-label">Channels</div>
@@ -147,6 +148,17 @@ function loadChannels() {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
   gap: 12px;
+  grid-template-rows: auto auto;
+}
+
+.dashboard-header .component-label {
+  grid-column: 1 / -1;
+  font-size: 10px;
+  font-weight: 600;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
 }
 
 .header-stat {

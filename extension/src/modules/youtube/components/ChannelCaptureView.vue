@@ -13,6 +13,7 @@
 
     <!-- Channel Header -->
     <div v-if="channelData" class="channel-header">
+      <div class="component-label">YouTube - Channel</div>
       <div class="header-content">
         <div class="channel-info">
           <div class="channel-name">{{ channelData.handle }}</div>
@@ -206,6 +207,15 @@ function handleSave() {
   background: linear-gradient(135deg, #ff0000 0%, #ff0000 100%);
   border-radius: 6px;
   color: white;
+}
+
+.component-label {
+  font-size: 10px;
+  font-weight: 600;
+  opacity: 0.8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
 }
 
 .header-content {
