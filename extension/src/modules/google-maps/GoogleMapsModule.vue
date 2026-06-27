@@ -18,7 +18,6 @@
             <button type="button" @click="downloadCsv" :disabled="!hasResults">Download CSV</button>
           </div>
         </div>
-        <button class="icon-button" type="button" title="Close preview">×</button>
       </div>
     </header>
 
