@@ -16,7 +16,7 @@ export default defineManifest({
         'scripting',
         'contextMenus'
     ],
-    host_permissions: ['https://www.google.com/maps/*', 'http://papertrail.test/*'],
+    host_permissions: ['https://www.google.com/maps/*', 'https://www.youtube.com/*', 'http://papertrail.test/*'],
     action: {
         default_title: 'Papertrail',
         default_popup: 'src/popup/index.html',
@@ -31,7 +31,7 @@ export default defineManifest({
     },
     content_scripts: [
         {
-            matches: ['https://www.google.com/maps/*'],
+            matches: ['https://www.google.com/maps/*', 'https://www.youtube.com/*'],
             js: ['src/content/content-script.ts'],
             run_at: 'document_idle',
         },
