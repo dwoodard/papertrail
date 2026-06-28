@@ -106,6 +106,7 @@ interface ChannelInfo {
 const channelInfo = ref<ChannelInfo | null>(null)
 const extractedLinks = ref<string[]>([])
 const extractedLeads = ref<Omit<Commenter, 'tier'>[]>([])
+const videoInfo = ref<{ id: string; title: string; url: string } | null>(null)
 const loading = ref(false)
 const notification = ref<{ message: string } | null>(null)
 
@@ -157,6 +158,10 @@ onMounted(() => {
       if (request.data.videoCommenters) {
         extractedLeads.value = request.data.videoCommenters
       }
+
+      if (request.data.videoInfo) {
+        videoInfo.value = request.data.videoInfo
+      }
     }
 
     sendResponse({ success: true })
@@ -205,6 +210,13 @@ onMounted(() => {
             console.log(`[VideoCaptureView] ✅ Leads set: ${response.data.videoCommenters.length} commenters`)
           } else {
             console.warn('[VideoCaptureView] ⚠️ No commenters in response')
+          }
+
+          if (response.data.videoInfo) {
+            videoInfo.value = response.data.videoInfo
+            console.log('[VideoCaptureView] ✅ Video info set:', videoInfo.value)
+          } else {
+            console.log('[VideoCaptureView] ℹ️ No video info in response')
           }
         }
 
@@ -295,29 +307,25 @@ function handleSave() {
   try {
     const handle = channelInfo.value.handle
 
-    // Extract video info from current tab
-    const url = window.location.href
-    const videoIdMatch = url.match(/v=([a-zA-Z0-9_-]+)/)
-    const videoId = videoIdMatch?.[1] || 'unknown'
-    const videoTitle = document.title.replace(' - YouTube', '').trim() || 'Untitled Video'
+    console.log('[YouTube] 🎯 videoInfo.value AT SAVE TIME:', videoInfo.value)
+    if (!videoInfo.value) {
+      console.log('[YouTube] ❌ videoInfo is NULL - content script did not provide video data')
+    }
 
     console.log('[YouTube] Saving video capture:', {
       channel: handle,
-      videoId,
-      videoTitle,
-      links: extractedLinks.value,
+      hasVideoInfo: !!videoInfo.value,
+      videoInfoId: videoInfo.value?.id,
+      videoInfoTitle: videoInfo.value?.title,
+      links: extractedLinks.value.length,
       leads: sortedLeads.value.length,
     })
 
-    // Save to storage (using deduplicated sorted leads) with video info
+    // Save to storage (using deduplicated sorted leads) with video info from content script
     const result = mergeVideo(handle, extractedLinks.value, sortedLeads.value, {
       subs: channelInfo.value.subs,
       links: {},
-    }, {
-      id: videoId,
-      title: videoTitle,
-      url,
-    })
+    }, videoInfo.value || undefined)
 
     console.log('[YouTube] Video capture saved successfully to localStorage')
     console.log('[YouTube] Saved data:', result)

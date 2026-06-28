@@ -33,6 +33,7 @@ interface ExtractedData {
   videoCommenters?: unknown[]
   videoLinks?: string[]
   videoChannelInfo?: unknown
+  videoInfo?: { id: string; title: string; url: string }
   channelProfile?: unknown
   channelLinks?: unknown
 }
@@ -115,6 +116,17 @@ async function extractData(): Promise<ExtractedData | null> {
     if (pageContext.type === 'video') {
       // Extract video page data
       console.log('[YouTube Content] 📹 VIDEO PAGE - Extracting data...')
+
+      // Extract video info
+      const urlMatch = window.location.href.match(/v=([a-zA-Z0-9_-]+)/)
+      const videoId = urlMatch?.[1] || 'unknown'
+      const videoTitle = document.title.replace(' - YouTube', '').trim()
+      data.videoInfo = {
+        id: videoId,
+        title: videoTitle,
+        url: window.location.href,
+      }
+      console.log('[YouTube Content] 📽️ Video info:', data.videoInfo)
 
       // Start continuous comment monitoring if not already started
       startCommentMutationObserver()
