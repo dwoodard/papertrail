@@ -117,16 +117,29 @@ async function extractData(): Promise<ExtractedData | null> {
       // Extract video page data
       console.log('[YouTube Content] 📹 VIDEO PAGE - Extracting data...')
 
-      // Extract video info
+      // Extract video info from YouTube page
+      console.log('[YouTube Content] 🎬 Extracting video info...')
+      console.log('[YouTube Content] Window location:', window.location.href)
+      console.log('[YouTube Content] Document title:', document.title)
+
       const urlMatch = window.location.href.match(/v=([a-zA-Z0-9_-]+)/)
       const videoId = urlMatch?.[1] || 'unknown'
-      const videoTitle = document.title.replace(' - YouTube', '').trim()
+
+      // Clean title by removing " - YouTube" suffix
+      let videoTitle = document.title.trim()
+      if (videoTitle.includes(' - YouTube')) {
+        videoTitle = videoTitle.replace(/\s*-\s*YouTube\s*$/, '').trim()
+      }
+      if (!videoTitle) {
+        videoTitle = 'Untitled Video'
+      }
+
       data.videoInfo = {
         id: videoId,
         title: videoTitle,
         url: window.location.href,
       }
-      console.log('[YouTube Content] 📽️ Video info:', data.videoInfo)
+      console.log('[YouTube Content] ✅ Video info extracted:', data.videoInfo)
 
       // Start continuous comment monitoring if not already started
       startCommentMutationObserver()
@@ -210,6 +223,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         pageType: data?.pageType,
         videoCommenters: data?.videoCommenters?.length || 0,
         videoLinks: data?.videoLinks?.length || 0,
+        videoInfo: data?.videoInfo ? { id: data.videoInfo.id, title: data.videoInfo.title, url: data.videoInfo.url } : null,
         videoChannelInfo: !!data?.videoChannelInfo,
         channelProfile: !!data?.channelProfile,
         channelLinks: data?.channelLinks ? Object.keys(data.channelLinks).length : 0,
