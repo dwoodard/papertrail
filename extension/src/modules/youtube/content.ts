@@ -104,6 +104,23 @@ function startCommentMutationObserver(): void {
   }
 }
 
+function extractVideoTitle(): string | null {
+  // Try selectors in order of reliability
+  const selectors = [
+    'ytd-video-primary-info-renderer h1 yt-formatted-string',
+    'h1 yt-formatted-string',
+    'h1',
+  ]
+
+  for (const selector of selectors) {
+    const el = document.querySelector(selector)
+    const title = el?.textContent?.trim()
+    if (title) return title
+  }
+
+  return null
+}
+
 async function extractData(): Promise<ExtractedData | null> {
   try {
     const pageContext = detectPageType()
@@ -125,13 +142,19 @@ async function extractData(): Promise<ExtractedData | null> {
       const urlMatch = window.location.href.match(/v=([a-zA-Z0-9_-]+)/)
       const videoId = urlMatch?.[1] || 'unknown'
 
-      // Clean title by removing " - YouTube" suffix
-      let videoTitle = document.title.trim()
-      // Strip tab unread-count prefix e.g. "(205) "
-      videoTitle = videoTitle.replace(/^\(\d+\)\s*/, '')
-      if (videoTitle.includes(' - YouTube')) {
-        videoTitle = videoTitle.replace(/\s*-\s*YouTube\s*$/, '').trim()
+      // Try to extract title from DOM first, fall back to document.title
+      let videoTitle = extractVideoTitle()
+
+      if (!videoTitle) {
+        // Fall back to document title parsing
+        videoTitle = document.title.trim()
+        // Strip tab unread-count prefix e.g. "(205) "
+        videoTitle = videoTitle.replace(/^\(\d+\)\s*/, '')
+        if (videoTitle.includes(' - YouTube')) {
+          videoTitle = videoTitle.replace(/\s*-\s*YouTube\s*$/, '').trim()
+        }
       }
+
       if (!videoTitle) {
         videoTitle = 'Untitled Video'
       }

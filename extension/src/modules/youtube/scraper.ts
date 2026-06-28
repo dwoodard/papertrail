@@ -271,30 +271,37 @@ export async function extractVideoChannelInfo(): Promise<ChannelInfo | null> {
       return Math.floor(num)
     }
 
-    // Try primary selector
+    // Try primary selector for video owner info (channel info section below video title)
     let ownerRenderer = document.querySelector('ytd-video-owner-renderer')
     console.log('[YouTube] 🔍 Looking for ytd-video-owner-renderer:', !!ownerRenderer)
 
-    // Fallback: try alternate selectors
+    // Fallback: try looking in video-secondary-info for channel link
     if (!ownerRenderer) {
-      console.log('[YouTube] ⚠️ Trying alternate selectors...')
+      console.log('[YouTube] ⚠️ Trying video-secondary-info...')
+      ownerRenderer = document.querySelector('ytd-video-secondary-info-renderer')
+      console.log('[YouTube] Trying ytd-video-secondary-info-renderer:', !!ownerRenderer)
+    }
+
+    // Fallback: try channel tagline
+    if (!ownerRenderer) {
       ownerRenderer = document.querySelector('ytd-channel-tagline-renderer')
       console.log('[YouTube] Trying ytd-channel-tagline-renderer:', !!ownerRenderer)
     }
 
     if (!ownerRenderer) {
-      ownerRenderer = document.querySelector('[data-channel-id]')
-      console.log('[YouTube] Trying [data-channel-id]:', !!ownerRenderer)
-    }
-
-    if (!ownerRenderer) {
-      console.log('[YouTube] ❌ Could not find any owner/channel element')
-      // Last resort: extract from page title
-      const titleMatch = document.title.match(/^(.+?)\s*-\s*YouTube/)
-      if (titleMatch) {
-        console.log('[YouTube] Using fallback from title:', titleMatch[1])
-        return { handle: `@${titleMatch[1].replace(/\s+/g, '')}`, subs: 0 }
+      console.log('[YouTube] ❌ Could not find owner/channel element, searching page for channel link...')
+      // Search entire page for any channel link (/@handle format)
+      const channelLink = document.querySelector('a[href^="/@"]') as HTMLAnchorElement | null
+      if (channelLink) {
+        const href = channelLink.getAttribute('href') || ''
+        const handleMatch = href.match(/@([\w.-]+)/)
+        if (handleMatch) {
+          const handle = `@${handleMatch[1]}`
+          console.log('[YouTube] Found channel handle via page search:', handle)
+          return { handle, subs: 0 }
+        }
       }
+      console.log('[YouTube] No channel link found on page')
       return null
     }
 

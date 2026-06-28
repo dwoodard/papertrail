@@ -58,19 +58,20 @@ const modulesRaw = [
     link: 'https://www.google.com/maps'
   },
   {
-    id: 'yelp-leads',
-    icon: Star,
-    heading: 'Yelp Business Leads',
-    description: 'Extract local service businesses and reviews',
-    link: 'https://www.yelp.com'
-  },
-  {
     id: 'youtube-leads',
     icon: Camera,
     heading: 'YouTube Channel Data',
     description: 'Extract video data, channel insights, and engagement',
     link: 'https://www.youtube.com'
   },
+  {
+    id: 'yelp-leads',
+    icon: Star,
+    heading: 'Yelp Business Leads',
+    description: 'Extract local service businesses and reviews',
+    link: 'https://www.yelp.com'
+  },
+
   {
     id: 'facebook-leads',
     icon: Users,
