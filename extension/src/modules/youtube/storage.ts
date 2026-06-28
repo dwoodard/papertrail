@@ -36,7 +36,7 @@ export interface ChannelData {
   channel: Channel
   allLinks: Link[]
   uniqueCommenters: Commenter[]
-  videos: Video[]
+  videos?: Video[]
 }
 
 const CHANNELS_KEY = 'youtube:channels'
@@ -173,14 +173,14 @@ export function mergeVideo(
     },
     allLinks: Array.from(allLinksMap.entries()).map(([url, count]) => ({ url, count })),
     uniqueCommenters: dedupedCommenters,
-    videos,
+    videos: videos.length > 0 ? videos : undefined,
   }
 
   console.log('[Storage] Final data to save:', {
     handle: channelData.channel.handle,
     commentersCount: channelData.uniqueCommenters.length,
     linksCount: channelData.allLinks.length,
-    videosCount: channelData.videos.length,
+    videosCount: channelData.videos?.length || 0,
   })
 
   try {
