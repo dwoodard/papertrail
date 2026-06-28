@@ -16,8 +16,8 @@
       <div class="header-top">
         <div class="component-label">YouTube / Video</div>
         <div class="nav-buttons">
-          <button class="nav-btn back-btn" @click="goToDashboard" title="Back to Dashboard">
-            ← Dashboard
+          <button class="nav-btn back-btn" @click="goToChannel" title="Back to Channel">
+            ← Back
           </button>
         </div>
       </div>
@@ -58,34 +58,35 @@
           </a>
         </div>
       </div>
-      <div v-else class="empty-state">No links found yet</div>
+      <div v-else class="empty-state">
+        <span v-if="extractedLeads.length > 0">No external links in description/comments</span>
+        <span v-else>Checking for links...</span>
+      </div>
     </div>
 
-    <!-- Leads Section -->
-    <div class="section">
+    <!-- Leads Section with Accordion -->
+    <div class="section leads-section">
       <div class="section-header">
         <span class="section-title">👤 Leads</span>
-        <span class="count">{{ extractedLeads.length }}</span>
+        <span class="count">{{ sortedLeads.length }}</span>
       </div>
-      <div v-if="extractedLeads.length > 0" class="leads-list">
-        <div v-for="lead in extractedLeads" :key="lead.url" class="lead-item">
-          <div class="lead-header">
-            <div class="lead-name">{{ lead.name }}</div>
+      <div v-if="extractedLeads.length > 0" class="leads-list-scroll">
+        <div v-for="lead in sortedLeads" :key="lead.url" class="lead-item">
+          <div class="lead-left">
+            <a :href="lead.url" target="_blank" class="lead-name">{{ lead.handle || lead.name }}</a>
+            <span v-if="lead.isVerified" class="lead-verified-check">✓</span>
           </div>
-          <div class="lead-details">
-            <div v-if="lead.handle" class="lead-handle">{{ lead.handle }}</div>
-            <div class="lead-count">appeared {{ lead.count }}× in video</div>
-            <div v-if="lead.isVerified" class="lead-badge verified">✓ Verified</div>
-            <div v-if="lead.hasChannel" class="lead-badge channel">📺 Has channel</div>
+          <div class="lead-spacer"></div>
+          <div class="lead-right">
+            <span class="lead-count">({{ lead.count }}×)</span>
           </div>
-          <a :href="lead.url" target="_blank" class="lead-profile">View channel</a>
         </div>
       </div>
       <div v-else class="empty-state">No commenters extracted yet</div>
     </div>
 
     <!-- Save Button -->
-    <button class="save-button" @click="handleSave" :disabled="loading || !channelInfo">
+    <button class="save-button" @click="handleSave" :disabled="loading">
       <span v-if="!loading">💾 Save to Channel</span>
       <span v-else>Saving...</span>
     </button>
@@ -93,7 +94,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import type { Commenter } from '../storage'
 import { mergeVideo } from '../storage'
 
@@ -107,6 +108,25 @@ const extractedLinks = ref<string[]>([])
 const extractedLeads = ref<Omit<Commenter, 'tier'>[]>([])
 const loading = ref(false)
 const notification = ref<{ message: string } | null>(null)
+
+const sortedLeads = computed(() => {
+  const seen = new Set<string>()
+  const unique = extractedLeads.value.filter((lead) => {
+    const key = lead.url
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+
+  return unique.sort((a, b) => {
+    // Verified first
+    if (a.isVerified !== b.isVerified) {
+      return a.isVerified ? -1 : 1
+    }
+    // Then by count descending
+    return b.count - a.count
+  })
+})
 
 onMounted(() => {
   // Listen for data from content script
@@ -138,33 +158,69 @@ onMounted(() => {
   // Request initial data from content script
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
     if (tabs[0]?.id) {
+      console.log('[VideoCaptureView] ✅ Got tab ID:', tabs[0].id)
       chrome.tabs.sendMessage(tabs[0].id, { action: 'extractData' }, (response) => {
+        if (chrome.runtime.lastError) {
+          console.error('[VideoCaptureView] ❌ Chrome runtime error:', chrome.runtime.lastError)
+          return
+        }
+
+        console.log('[VideoCaptureView] 📥 Received response:', {
+          success: response?.success,
+          pageType: response?.data?.pageType,
+          hasChannelInfo: !!response?.data?.videoChannelInfo,
+          commentersCount: response?.data?.videoCommenters?.length || 0,
+          linksCount: response?.data?.videoLinks?.length || 0,
+        })
+
         if (response?.data?.pageType === 'video') {
-          console.log('[VideoCaptureView] Got initial data:', response.data)
+          console.log('[VideoCaptureView] ✅ VIDEO PAGE - Processing data:', response.data)
 
           if (response.data.videoChannelInfo) {
             channelInfo.value = {
               handle: response.data.videoChannelInfo.handle,
               subs: response.data.videoChannelInfo.subs,
             }
+            console.log('[VideoCaptureView] ✅ Channel info set:', channelInfo.value)
+          } else {
+            console.warn('[VideoCaptureView] ⚠️ No channel info in response')
           }
 
           if (response.data.videoLinks) {
             extractedLinks.value = response.data.videoLinks
+            console.log(`[VideoCaptureView] ✅ Links set: ${response.data.videoLinks.length} links`)
+          } else {
+            console.log('[VideoCaptureView] ℹ️ No links in response')
           }
 
           if (response.data.videoCommenters) {
             extractedLeads.value = response.data.videoCommenters
+            console.log(`[VideoCaptureView] ✅ Leads set: ${response.data.videoCommenters.length} commenters`)
+          } else {
+            console.warn('[VideoCaptureView] ⚠️ No commenters in response')
           }
         }
 
         // Fallback: if no channel info, try to extract from page title/URL
         if (!channelInfo.value) {
-          console.log('[VideoCaptureView] No channel info from content script, using fallback')
-          // For now, at least enable the button with partial data if we have links/commenters
-          if (extractedLinks.value.length > 0 || extractedLeads.value.length > 0) {
-            // Set dummy channel info so button can be enabled
-            channelInfo.value = { handle: '@Unknown', subs: 0 }
+          console.log('[VideoCaptureView] No channel info from content script, trying fallback')
+          // Try to extract from page title or use unknown
+          const titleMatch = document.title.match(/^\s*[^-]*-\s*([^-]+)/)
+          if (titleMatch) {
+            const channelName = titleMatch[1].trim()
+            channelInfo.value = { handle: `@${channelName}`, subs: 0 }
+            console.log('[VideoCaptureView] Using channel from title:', channelInfo.value)
+          } else {
+            // Last resort: ask content script again with explicit logging
+            chrome.tabs.sendMessage(tabs[0]!.id!, { action: 'extractData' }, (response) => {
+              if (response?.data?.videoChannelInfo) {
+                console.log('[VideoCaptureView] Got channel info on retry:', response.data.videoChannelInfo)
+                channelInfo.value = {
+                  handle: response.data.videoChannelInfo.handle,
+                  subs: response.data.videoChannelInfo.subs,
+                }
+              }
+            })
           }
         }
       })
@@ -172,10 +228,13 @@ onMounted(() => {
   })
 })
 
-function goToDashboard() {
+function goToChannel() {
+  const handle = channelInfo.value?.handle
+  if (!handle) return
+
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
     if (tabs[0]?.id) {
-      chrome.tabs.update(tabs[0].id, { url: 'https://www.youtube.com/' })
+      chrome.tabs.update(tabs[0].id, { url: `https://www.youtube.com/${handle}` })
     }
   })
 }
@@ -203,28 +262,47 @@ function showNotification(message: string) {
 }
 
 function handleSave() {
-  if (!channelInfo.value || (extractedLinks.value.length === 0 && extractedLeads.value.length === 0)) {
+  if (!channelInfo.value) {
+    showNotification('Please navigate from a YouTube page with channel info')
+    return
+  }
+
+  // Only require leads, links are optional
+  if (sortedLeads.value.length === 0) {
+    showNotification('No commenters found. Scroll to load comments on the page.')
     return
   }
 
   loading.value = true
 
   try {
+    const handle = channelInfo.value.handle
     console.log('[YouTube] Saving video capture:', {
-      channel: channelInfo.value.handle,
+      channel: handle,
       links: extractedLinks.value,
-      leads: extractedLeads.value.length,
+      leads: sortedLeads.value.length,
     })
 
-    // Save to storage
-    mergeVideo(channelInfo.value.handle, extractedLinks.value, extractedLeads.value, {
+    // Save to storage (using deduplicated sorted leads)
+    const result = mergeVideo(handle, extractedLinks.value, sortedLeads.value, {
       subs: channelInfo.value.subs,
       links: {},
     })
 
-    console.log('[YouTube] Video capture saved successfully')
-    const leadsText = extractedLeads.value.length > 0 ? ` Added ${extractedLeads.value.length} leads.` : ''
-    showNotification(`Saved to ${channelInfo.value.handle}${leadsText}`)
+    console.log('[YouTube] Video capture saved successfully to localStorage')
+    console.log('[YouTube] Saved data:', result)
+
+    // Verify it was saved
+    const stored = localStorage.getItem(`youtube:channel:${handle}`)
+    console.log('[YouTube] Verified in localStorage:', !!stored)
+
+    // Notify dashboard that data was saved
+    chrome.runtime.sendMessage({ action: 'dataSaved' }).catch(() => {
+      // Ignore error if no listener
+    })
+
+    const leadsText = sortedLeads.value.length > 0 ? ` Added ${sortedLeads.value.length} leads.` : ''
+    showNotification(`Saved to ${handle}${leadsText}`)
   } catch (error) {
     console.error('[YouTube] Error saving video capture:', error)
     showNotification('Error saving. Check console.')
@@ -461,104 +539,119 @@ function handleSave() {
 }
 
 /* Leads List */
-.leads-list {
+/* Leads Section Container */
+.leads-section {
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
+  max-height: 400px;
+  overflow: hidden;
 }
 
-.lead-item {
-  padding: 10px;
-  background: linear-gradient(135deg, #fafafa 0%, #f5f5f5 100%);
+/* Scrollable List Container */
+.leads-list-scroll {
+  max-height: 350px;
+  overflow-y: auto;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-sm);
+  background: var(--color-bg-primary);
 }
 
-.lead-header {
+.leads-list-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.leads-list-scroll::-webkit-scrollbar-track {
+  background: var(--color-bg-primary);
+}
+
+.leads-list-scroll::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 4px;
+  border: 2px solid var(--color-bg-primary);
+}
+
+.leads-list-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-secondary);
+}
+
+/* Lead Item - Directory Format */
+.lead-item {
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: var(--space-sm);
+  align-items: center;
+  padding: 8px var(--space-md);
+  border-bottom: 1px solid var(--color-border);
+  font-size: var(--font-size-sm);
+  transition: background-color 0.2s;
+  white-space: nowrap;
+}
+
+.lead-item:hover {
+  background: var(--color-bg-secondary);
+}
+
+.lead-item:last-child {
+  border-bottom: none;
+}
+
+.lead-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
 }
 
 .lead-name {
   font-weight: var(--font-weight-medium);
-  font-size: var(--font-size-md);
-  color: var(--color-text-primary);
-  flex: 1;
+  color: var(--color-link);
+  text-decoration: none;
+  transition: opacity 0.2s;
 }
 
-.tier-badge {
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-semibold);
-  padding: var(--space-xs) 6px;
-  border-radius: var(--radius-sm);
-  text-transform: uppercase;
-  white-space: nowrap;
+.lead-name:hover {
+  opacity: 0.8;
+  text-decoration: underline;
 }
 
-.tier-badge.high {
+.lead-verified-check {
   background: #d4edda;
   color: #155724;
+  font-size: var(--font-size-xs);
+  padding: 0 3px;
+  border-radius: 2px;
 }
 
-.tier-badge.medium {
-  background: #fff3cd;
-  color: #856404;
+.lead-spacer {
+  flex: 1;
+  margin: 0 8px;
+  height: 1em;
+  border-bottom: 1px dotted var(--color-border);
 }
 
-.tier-badge.low {
-  background: #f8d7da;
-  color: #721c24;
-}
-
-.lead-details {
+.lead-right {
   display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.lead-handle {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 .lead-count {
-  font-size: var(--font-size-sm);
   color: var(--color-text-tertiary);
-}
-
-.lead-badge {
   font-size: var(--font-size-xs);
-  padding: var(--space-xs) 4px;
-  background: #e8f4f8;
-  color: var(--color-link);
-  border-radius: 2px;
-  width: fit-content;
 }
 
-.lead-badge.verified {
-  background: #d4edda;
-  color: #155724;
-}
-
-.lead-badge.channel {
-  background: #e8f4f8;
-  color: var(--color-link);
-}
-
-.lead-profile {
-  font-size: var(--font-size-sm);
+.lead-link {
   color: var(--color-link);
   text-decoration: none;
-  margin-top: 2px;
+  padding: 0 4px;
+  border-radius: 2px;
+  transition: background-color 0.2s;
+  font-size: var(--font-size-sm);
 }
 
-.lead-profile:hover {
-  text-decoration: underline;
+.lead-link:hover {
+  background: rgba(26, 115, 232, 0.1);
+  text-decoration: none;
 }
 
 /* Save Button */

@@ -92,6 +92,27 @@ const highTierLeads = ref(0)
 
 onMounted(() => {
   loadChannels()
+
+  // Listen for storage changes from other parts of the extension
+  const handleStorageChange = () => {
+    console.log('[Dashboard] Storage changed, reloading channels')
+    loadChannels()
+  }
+
+  window.addEventListener('storage', handleStorageChange)
+
+  // Also listen for messages when data is saved
+  chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
+    if (request.action === 'dataSaved') {
+      console.log('[Dashboard] Data saved, reloading channels')
+      loadChannels()
+    }
+    sendResponse({ success: true })
+  })
+
+  return () => {
+    window.removeEventListener('storage', handleStorageChange)
+  }
 })
 
 function loadChannels() {

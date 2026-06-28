@@ -23,6 +23,11 @@ if (!isYouTubePage) {
 
 console.log('[YouTube Content] Initializing on YouTube page...')
 
+// Store accumulated data from continuous monitoring
+let accumulatedVideoCommenters: any[] = []
+let accumulatedVideoLinks: string[] = []
+let mutationObserverStarted = false
+
 interface ExtractedData {
   pageType: string
   videoCommenters?: unknown[]
@@ -32,7 +37,73 @@ interface ExtractedData {
   channelLinks?: unknown
 }
 
-function extractData(): ExtractedData | null {
+function startCommentMutationObserver(): void {
+  if (mutationObserverStarted) return
+  mutationObserverStarted = true
+
+  console.log('[YouTube Content] Starting MutationObserver for continuous comment extraction')
+
+  const observer = new MutationObserver(() => {
+    // Look for new comment threads
+    const commentThreads = document.querySelectorAll('ytd-comment-thread-renderer')
+
+    // Extract only new comments we haven't seen before
+    const currentCommenters = new Map<string, any>()
+    for (const thread of commentThreads) {
+      const authorEl = thread.querySelector('#author-text') as HTMLAnchorElement | null
+      if (!authorEl) continue
+
+      const authorName = authorEl.innerText?.trim()
+      const href = authorEl.getAttribute('href')
+
+      if (!authorName || !href) continue
+
+      let handle: string | undefined
+      const handleMatch = href.match(/@[\w.-]+/)
+      if (handleMatch) {
+        handle = handleMatch[0]
+      } else if (authorName.startsWith('@')) {
+        handle = authorName
+      }
+
+      const isVerified = !!thread.querySelector('ytd-author-comment-badge-renderer')
+
+      const key = `${authorName}__${href}`
+      if (!currentCommenters.has(key)) {
+        currentCommenters.set(key, {
+          name: authorName,
+          handle,
+          url: new URL(href, window.location.origin).href,
+          isVerified,
+          count: 1,
+          status: 'new',
+        })
+      }
+    }
+
+    // Update accumulated commenters, avoiding duplicates
+    const existingKeys = new Set(accumulatedVideoCommenters.map((c) => `${c.name}__${c.url}`))
+    for (const [key, commenter] of currentCommenters) {
+      if (!existingKeys.has(key)) {
+        accumulatedVideoCommenters.push(commenter)
+        console.log('[YouTube Content] Found new commenter:', commenter.name)
+      }
+    }
+  })
+
+  // Watch for mutations in the comments section
+  const commentsSection = document.querySelector('ytd-comments')
+  if (commentsSection) {
+    observer.observe(commentsSection, {
+      childList: true,
+      subtree: true,
+      attributes: false,
+    })
+    console.log('[YouTube Content] MutationObserver attached to comments section')
+  }
+}
+
+async function extractData(): Promise<ExtractedData | null> {
   try {
     const pageContext = detectPageType()
     console.log('[YouTube Content] Page type detected:', pageContext.type)
@@ -43,23 +114,68 @@ function extractData(): ExtractedData | null {
 
     if (pageContext.type === 'video') {
       // Extract video page data
-      console.log('[YouTube Content] Extracting video data...')
-      data.videoCommenters = extractVideoCommenters()
-      data.videoLinks = extractVideoLinks()
-      data.videoChannelInfo = extractVideoChannelInfo()
-      console.log('[YouTube Content] Video extraction complete:', {
-        commenters: data.videoCommenters?.length,
-        links: data.videoLinks?.length,
-      })
+      console.log('[YouTube Content] 📹 VIDEO PAGE - Extracting data...')
+
+      // Start continuous comment monitoring if not already started
+      startCommentMutationObserver()
+
+      try {
+        console.log('[YouTube Content] 🧵 Extracting commenters...')
+        // Use accumulated commenters from mutation observer, plus any fresh extraction
+        const freshCommenters = await extractVideoCommenters()
+        // Combine accumulated with fresh, avoiding duplicates
+        const allCommenters = [...accumulatedVideoCommenters]
+        const existingKeys = new Set(allCommenters.map((c) => `${c.name}__${c.url}`))
+        for (const commenter of freshCommenters) {
+          const key = `${commenter.name}__${commenter.url}`
+          if (!existingKeys.has(key)) {
+            allCommenters.push(commenter)
+          }
+        }
+        data.videoCommenters = allCommenters
+        console.log(`[YouTube Content] ✅ Commenters: ${data.videoCommenters?.length || 0} found`)
+      } catch (e) {
+        console.error('[YouTube Content] ❌ Error extracting commenters:', e)
+        data.videoCommenters = accumulatedVideoCommenters
+      }
+      try {
+        console.log('[YouTube Content] 🔗 Extracting links...')
+        data.videoLinks = await extractVideoLinks()
+        console.log(`[YouTube Content] ✅ Links: ${data.videoLinks?.length || 0} found`)
+      } catch (e) {
+        console.error('[YouTube Content] ❌ Error extracting links:', e)
+        data.videoLinks = []
+      }
+      try {
+        console.log('[YouTube Content] 📊 Extracting channel info...')
+        data.videoChannelInfo = await extractVideoChannelInfo()
+        console.log(`[YouTube Content] ✅ Channel info: ${data.videoChannelInfo ? 'found' : 'NOT FOUND'}`)
+      } catch (e) {
+        console.error('[YouTube Content] ❌ Error extracting channel info:', e)
+      }
+      console.log('[YouTube Content] 📹 VIDEO EXTRACTION COMPLETE:', { commenters: data.videoCommenters?.length, links: data.videoLinks?.length, channelInfo: !!data.videoChannelInfo })
     } else if (pageContext.type === 'channel') {
       // Extract channel page data
-      console.log('[YouTube Content] Extracting channel data...')
-      data.channelProfile = extractChannelProfile()
-      data.channelLinks = extractChannelLinks()
-      console.log('[YouTube Content] Channel extraction complete:', {
-        profile: !!data.channelProfile,
-        links: Object.keys(data.channelLinks || {}).length,
-      })
+      console.log('[YouTube Content] 🎬 CHANNEL PAGE - Extracting data...')
+      try {
+        console.log('[YouTube Content] 👤 Extracting channel profile...')
+        data.channelProfile = await extractChannelProfile()
+        console.log(`[YouTube Content] ✅ Channel profile: ${data.channelProfile ? 'found' : 'NOT FOUND'}`)
+        if (data.channelProfile) {
+          console.log('[YouTube Content] Profile data:', data.channelProfile)
+        }
+      } catch (e) {
+        console.error('[YouTube Content] ❌ Error extracting profile:', e)
+      }
+      try {
+        console.log('[YouTube Content] 🔗 Extracting channel links...')
+        data.channelLinks = await extractChannelLinks()
+        console.log(`[YouTube Content] ✅ Channel links: ${Object.keys(data.channelLinks || {}).length} found`)
+      } catch (e) {
+        console.error('[YouTube Content] ❌ Error extracting channel links:', e)
+        data.channelLinks = {}
+      }
+      console.log('[YouTube Content] 🎬 CHANNEL EXTRACTION COMPLETE:', { profile: !!data.channelProfile, links: Object.keys(data.channelLinks || {}).length })
     }
 
     return data
@@ -71,15 +187,31 @@ function extractData(): ExtractedData | null {
 
 // Listen for messages from the side panel
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  console.log('[YouTube Content] Received message:', request.action)
+  console.log('[YouTube Content] 📥 Received message:', request.action)
 
   if (request.action === 'extractData') {
-    const data = extractData()
-    console.log('[YouTube Content] Extracted data:', data)
-    sendResponse({ success: true, data })
-  }
+    console.log('[YouTube Content] 🔍 Starting extraction...')
+    // Handle async extraction
+    extractData().then((data) => {
+      console.log('[YouTube Content] ✅ EXTRACTION COMPLETE')
+      console.log('[YouTube Content] Data to send back:', {
+        pageType: data?.pageType,
+        videoCommenters: data?.videoCommenters?.length || 0,
+        videoLinks: data?.videoLinks?.length || 0,
+        videoChannelInfo: !!data?.videoChannelInfo,
+        channelProfile: !!data?.channelProfile,
+        channelLinks: data?.channelLinks ? Object.keys(data.channelLinks).length : 0,
+      })
+      console.log('[YouTube Content] 📤 Sending response...')
+      sendResponse({ success: true, data })
+      console.log('[YouTube Content] ✅ Response sent successfully')
+    }).catch((error) => {
+      console.error('[YouTube Content] ❌ ERROR during extraction:', error)
+      sendResponse({ success: false, error: error.message })
+    })
 
-  return true // Keep the message channel open for async response
+    return true // Keep the message channel open for async response
+  }
 })
 
 console.log('[YouTube Content] Script loaded and listening for messages')

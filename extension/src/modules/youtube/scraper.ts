@@ -19,40 +19,133 @@ export interface ChannelData {
 }
 
 /**
- * Extract commenter data from video page (YouTube /watch)
- * Only extracts comments currently visible in DOM (infinite scroll)
- * Based on live DOM analysis via Chrome DevTools
- *
- * @returns Array of commenters with name, handle, channel URL, verification status
+ * Wait for elements to appear in DOM after scrolling
+ * @param selector CSS selector to wait for
+ * @param timeout Maximum time to wait in ms
+ * @returns Promise that resolves when element appears or timeout
  */
-export function extractVideoCommenters(): Omit<Commenter, 'tier'>[] {
-  const commenters: Omit<Commenter, 'tier'>[] = []
+function waitForElement(selector: string, timeout = 3000): Promise<boolean> {
+  return new Promise((resolve) => {
+    const startTime = Date.now()
 
-  try {
-    const commentThreads = document.querySelectorAll('ytd-comment-thread-renderer')
-    console.log('[YouTube] Found', commentThreads.length, 'comment threads')
-
-    commentThreads.forEach((thread) => {
-      const commentEl = thread.querySelector('ytd-comment-view-model')
-      if (!commentEl) {
+    const check = () => {
+      if (document.querySelector(selector)) {
+        resolve(true)
         return
       }
 
-      let authorLinkEl = commentEl.querySelector('a#author-text') as HTMLAnchorElement | null
-
-      // Fallback: check yt-formatted-string if primary selector empty
-      if (!authorLinkEl) {
-        authorLinkEl = commentEl.querySelector('yt-formatted-string#text a') as HTMLAnchorElement | null
+      if (Date.now() - startTime > timeout) {
+        resolve(false)
+        return
       }
 
-      if (!authorLinkEl) {
-        return // Skip deleted/removed comments
+      setTimeout(check, 100)
+    }
+
+    check()
+  })
+}
+
+/**
+ * Extract commenter data from video page (YouTube /watch)
+ * Handles lazy-loaded comments by triggering scroll and waiting for load
+ * Based on live DOM analysis via Chrome DevTools
+ *
+ * @returns Promise resolving to array of commenters with name, handle, channel URL, verification status
+ */
+export async function extractVideoCommenters(): Promise<Omit<Commenter, 'tier'>[]> {
+  const commenters: Omit<Commenter, 'tier'>[] = []
+
+  try {
+    // Trigger lazy loading by scrolling to comments section
+    const commentsSection = document.querySelector('ytd-comments') as HTMLElement | null
+    if (commentsSection) {
+      console.log('[YouTube] Found comments section, scrolling to trigger lazy loading')
+      commentsSection.scrollIntoView({ behavior: 'auto' })
+      window.scrollBy(0, 500)
+
+      // Wait for comments to load after scroll
+      console.log('[YouTube] Waiting for comments to load...')
+      const commentLoaded = await waitForElement('ytd-comment-thread-renderer', 3000)
+      if (commentLoaded) {
+        console.log('[YouTube] Comments loaded successfully')
+      } else {
+        console.log('[YouTube] Timeout waiting for comments to load')
+      }
+    } else {
+      console.log('[YouTube] ytd-comments section not found on page')
+    }
+
+    // Extract comments using incremental scroll strategy for virtualized lists
+    async function scrollForAllComments() {
+      if (!commentsSection) {
+        console.log('[YouTube] ❌ Comments section not found, skipping scroll')
+        return 0
       }
 
-      const authorName = authorLinkEl.innerText.trim()
-      const href = authorLinkEl.getAttribute('href')
+      // Scroll to comments first
+      commentsSection.scrollIntoView({ behavior: 'auto' })
+      await new Promise((r) => setTimeout(r, 300))
 
-      if (!href) {
+      // Now scroll the window/page to load all comments (comments load as page scrolls)
+      let lastCount = 0
+      let unchangedAttempts = 0
+      let attempts = 0
+      const maxAttempts = 20 // Reduced from 60
+      const scrollTimeout = 5000 // 5 second timeout
+
+      console.log('[YouTube] ⏱️ Starting scroll with 5s timeout...')
+      const startTime = Date.now()
+
+      while (unchangedAttempts < 2 && attempts < maxAttempts) {
+        // Check timeout
+        if (Date.now() - startTime > scrollTimeout) {
+          console.log('[YouTube] ⏰ TIMEOUT reached, stopping scroll')
+          break
+        }
+
+        // Scroll down aggressively to trigger lazy loading
+        window.scrollBy(0, 1500)
+        await new Promise((r) => setTimeout(r, 100)) // Reduced from 150ms
+
+        const currentCount = document.querySelectorAll('ytd-comment-thread-renderer').length
+        console.log(`[YouTube] Scroll #${attempts + 1}: ${currentCount} comments found`)
+
+        if (currentCount === lastCount) {
+          unchangedAttempts++
+          console.log(`[YouTube] No new comments (${unchangedAttempts}/2)`)
+        } else {
+          unchangedAttempts = 0
+          lastCount = currentCount
+        }
+
+        attempts++
+      }
+
+      console.log(`[YouTube] ✅ Scroll complete: ${lastCount} comments after ${attempts} attempts`)
+      return lastCount
+    }
+
+    await scrollForAllComments()
+    let commentThreads = document.querySelectorAll('ytd-comment-thread-renderer')
+    console.log('[YouTube] Found', commentThreads.length, 'total comment threads after scrolling')
+
+    commentThreads.forEach((thread) => {
+      // Try both old and new selectors
+      let authorEl = thread.querySelector('#author-text') as HTMLAnchorElement | null
+
+      if (!authorEl) {
+        authorEl = thread.querySelector('a#author-text') as HTMLAnchorElement | null
+      }
+
+      if (!authorEl) {
+        return // Skip if no author found
+      }
+
+      const authorName = authorEl.innerText?.trim()
+      const href = authorEl.getAttribute('href')
+
+      if (!authorName || !href) {
         return
       }
 
@@ -62,13 +155,11 @@ export function extractVideoCommenters(): Omit<Commenter, 'tier'>[] {
       if (handleMatch) {
         handle = handleMatch[0]
       } else if (authorName.startsWith('@')) {
-        // Fallback to name if href parsing fails
         handle = authorName
       }
 
-      // Verify badge check using SVG path detection
-      const badge = commentEl.querySelector('ytd-author-comment-badge-renderer')
-      const isVerified = !!badge?.querySelector('path[d^="M9.03 2.242"]')
+      // Check for verified badge
+      const isVerified = !!thread.querySelector('ytd-author-comment-badge-renderer')
 
       const commenter: Omit<Commenter, 'tier'> = {
         name: authorName,
@@ -94,21 +185,43 @@ export function extractVideoCommenters(): Omit<Commenter, 'tier'>[] {
  * Extract links from video description and comments
  * Dedupes and filters to external links only (excludes youtube.com)
  *
- * @returns Array of unique external URLs
+ * @returns Promise resolving to array of unique external URLs
  */
-export function extractVideoLinks(): string[] {
+export async function extractVideoLinks(): Promise<string[]> {
   const links: string[] = []
 
   try {
-    // Extract from description
-    const descriptionLinks = Array.from(
-      document.querySelectorAll('#description a, ytd-text-inline-expander a'),
+    // Extract from description - try multiple selectors as YouTube structure varies
+    let descriptionLinks: string[] = []
+
+    // Try confirmed selector first
+    let links1 = Array.from(
+      document.querySelectorAll('#description-inline-expander a'),
     ).map((a) => (a as HTMLAnchorElement).href)
 
-    // Extract from comments
+    // Fallback: broader description selector
+    let links2 = Array.from(
+      document.querySelectorAll('ytd-text-inline-expander a, yt-formatted-string a'),
+    ).map((a) => (a as HTMLAnchorElement).href)
+
+    descriptionLinks = [...new Set([...links1, ...links2])]
+    console.log('[YouTube] Found', descriptionLinks.length, 'links in description (tried', links1.length, 'primary,', links2.length, 'fallback)')
+
+    // Extract from comments - scroll to load them first
+    const commentsSection = document.querySelector('ytd-comments') as HTMLElement | null
+    if (commentsSection) {
+      console.log('[YouTube] Scrolling to comments to load them for link extraction')
+      commentsSection.scrollIntoView({ behavior: 'auto' })
+      window.scrollBy(0, 500)
+
+      // Wait for comments to load
+      await waitForElement('ytd-comment-thread-renderer', 3000)
+    }
+
     const commentLinks = Array.from(
       document.querySelectorAll('ytd-comment-thread-renderer #content-text a'),
     ).map((a) => (a as HTMLAnchorElement).href)
+    console.log('[YouTube] Found', commentLinks.length, 'links in comments')
 
     const allLinks = [...descriptionLinks, ...commentLinks]
 
@@ -135,75 +248,114 @@ export function extractVideoLinks(): string[] {
  * Extract channel creator info from video page
  * Gets channel handle and subscriber count from video owner section
  *
- * @returns Channel handle (@format) and subscriber count as number
+ * @returns Promise resolving to channel handle (@format) and subscriber count as number
  */
-export function extractVideoChannelInfo(): ChannelInfo | null {
+export async function extractVideoChannelInfo(): Promise<ChannelInfo | null> {
   try {
-    console.log('[YouTube] Starting channel info extraction...')
-
-    // Try multiple selectors for channel link (YouTube structure varies)
-    let channelLink: HTMLAnchorElement | null = null
-    let subsEl: HTMLElement | null = null
-
-    // Selector 1: Video owner renderer (traditional)
-    const ownerRenderer = document.querySelector('ytd-video-owner-renderer')
-    console.log('[YouTube] ownerRenderer found:', !!ownerRenderer)
-
-    if (ownerRenderer) {
-      channelLink = ownerRenderer.querySelector('a.ytd-video-owner-renderer') as HTMLAnchorElement | null
-      subsEl = ownerRenderer.querySelector('#owner-sub-count') as HTMLElement | null
-      console.log('[YouTube] From ownerRenderer - channelLink:', !!channelLink, 'subsEl:', !!subsEl)
-    }
-
-    // Selector 2: Channel link in structured data
-    if (!channelLink) {
-      channelLink = document.querySelector('a[href^="/@"]') as HTMLAnchorElement | null
-      console.log('[YouTube] From a[href^="/@"] - channelLink:', !!channelLink)
-    }
-
-    // Selector 3: Broader search for channel subscriber span
-    if (!subsEl) {
-      const subsSpans = Array.from(document.querySelectorAll('span'))
-        .filter(s => s.innerText?.includes('subscriber'))
-      console.log('[YouTube] Found subsSpans:', subsSpans.length)
-      if (subsSpans.length > 0) {
-        subsEl = subsSpans[0] as HTMLElement
-        console.log('[YouTube] Using first subsSpan')
-      }
-    }
-
-    if (!channelLink) {
-      console.log('[YouTube] No channel link found - returning null')
-      return null
-    }
-
-    const href = channelLink.getAttribute('href') || ''
-    const subsText = subsEl?.innerText || subsEl?.getAttribute('aria-label') || ''
-
-    // Extract handle from href (/@handle format)
-    const handleMatch = href.match(/@[\w.-]+/)
-    const handle = handleMatch ? handleMatch[0] : null
+    console.log('[YouTube] 📊 Starting channel info extraction...')
 
     // Parse subscriber count with localization support
     const parseSubs = (text: string): number | null => {
       if (!text) return null
-      const match = text.match(/([\d,.]+)\s*([KMB])?/i)
+
+      const match = text.match(/([\d,.]+)\s*(thousand|million|billion|k|m|b)?/i)
       if (!match) return null
 
       let num = parseFloat(match[1].replace(/,/g, ''))
-      const multiplier = match[2]?.toUpperCase()
+      const unit = match[2]?.toLowerCase()
 
-      if (multiplier === 'K') num *= 1000
-      else if (multiplier === 'M') num *= 1000000
-      else if (multiplier === 'B') num *= 1000000000
+      if (unit === 'thousand' || unit === 'k') num *= 1000
+      else if (unit === 'million' || unit === 'm') num *= 1000000
+      else if (unit === 'billion' || unit === 'b') num *= 1000000000
 
       return Math.floor(num)
     }
 
-    const subs = parseSubs(subsText)
+    // Try primary selector
+    let ownerRenderer = document.querySelector('ytd-video-owner-renderer')
+    console.log('[YouTube] 🔍 Looking for ytd-video-owner-renderer:', !!ownerRenderer)
 
-    if (!handle || subs === null) {
-      console.log('[YouTube] Missing handle or subs:', { handle, subs, subsText })
+    // Fallback: try alternate selectors
+    if (!ownerRenderer) {
+      console.log('[YouTube] ⚠️ Trying alternate selectors...')
+      ownerRenderer = document.querySelector('ytd-channel-tagline-renderer')
+      console.log('[YouTube] Trying ytd-channel-tagline-renderer:', !!ownerRenderer)
+    }
+
+    if (!ownerRenderer) {
+      ownerRenderer = document.querySelector('[data-channel-id]')
+      console.log('[YouTube] Trying [data-channel-id]:', !!ownerRenderer)
+    }
+
+    if (!ownerRenderer) {
+      console.log('[YouTube] ❌ Could not find any owner/channel element')
+      // Last resort: extract from page title
+      const titleMatch = document.title.match(/^(.+?)\s*-\s*YouTube/)
+      if (titleMatch) {
+        console.log('[YouTube] Using fallback from title:', titleMatch[1])
+        return { handle: `@${titleMatch[1].replace(/\s+/g, '')}`, subs: 0 }
+      }
+      return null
+    }
+
+    console.log('[YouTube] ✅ Found owner element')
+
+    // Strategy 1: Look for link in owner renderer with href
+    let channelLink = ownerRenderer.querySelector('a[href^="/@"]') as HTMLAnchorElement | null
+
+    // Strategy 2: If not found, try video description info cards (where link #62 is)
+    if (!channelLink) {
+      console.log('[YouTube] Strategy 1 failed, trying description infocards...')
+      const descSection = document.querySelector('ytd-video-description-infocards-section-renderer')
+      if (descSection) {
+        channelLink = descSection.querySelector('a[href^="/@"]') as HTMLAnchorElement | null
+      }
+    }
+
+    // Strategy 3: If still not found, search entire page for channel link
+    if (!channelLink) {
+      console.log('[YouTube] Strategy 2 failed, searching entire page...')
+      channelLink = document.querySelector('a[href^="/@"]') as HTMLAnchorElement | null
+    }
+
+    if (!channelLink) {
+      console.log('[YouTube] ❌ Could not find any channel link with href containing /@')
+      return null
+    }
+
+    console.log('[YouTube] ✅ Found channel link via strategy')
+    const href = channelLink.getAttribute('href') || ''
+
+    // Extract handle from href (/@handle format)
+    let handle: string | null = null
+    const handleMatch = href.match(/@([\w.-]+)/)
+    if (handleMatch) {
+      handle = `@${handleMatch[1]}`
+    } else {
+      const channelIdMatch = href.match(/\/channel\/([\w-]+)/)
+      if (channelIdMatch) {
+        handle = `@${channelIdMatch[1]}`
+      }
+    }
+
+    // Get subscriber count from #owner-sub-count
+    // Use aria-label for accurate number (e.g., "17.7 million subscribers")
+    const subsEl = ownerRenderer.querySelector('#owner-sub-count') as HTMLElement | null
+    const subsAriaLabel = subsEl?.getAttribute('aria-label') || ''
+    const subsInnerText = subsEl?.innerText || ''
+
+    console.log('[YouTube] Sub count sources - aria-label:', subsAriaLabel, 'innerText:', subsInnerText)
+
+    // Try aria-label first (more accurate), then innerText
+    const subs = parseSubs(subsAriaLabel) || parseSubs(subsInnerText)
+
+    if (!handle) {
+      console.log('[YouTube] Could not extract handle from href:', href)
+      return null
+    }
+
+    if (subs === null) {
+      console.log('[YouTube] Could not parse subscriber count')
       return null
     }
 
@@ -219,9 +371,9 @@ export function extractVideoChannelInfo(): ChannelInfo | null {
  * Extract channel profile data from channel page (/@handle)
  * Gets handle and subscriber count from channel header
  *
- * @returns Channel handle (@format), subscriber count as number
+ * @returns Promise resolving to channel handle (@format), subscriber count as number
  */
-export function extractChannelProfile(): ChannelData | null {
+export async function extractChannelProfile(): Promise<ChannelData | null> {
   try {
     // Extract handle from URL pathname
     const pathname = window.location.pathname
@@ -283,7 +435,7 @@ export function extractChannelProfile(): ChannelData | null {
  *
  * TODO: Fill in DOM selectors using Chrome DOM AI
  */
-export function extractChannelLinks(): Record<string, string> {
+export async function extractChannelLinks(): Promise<Record<string, string>> {
   const links: Record<string, string> = {}
 
   try {

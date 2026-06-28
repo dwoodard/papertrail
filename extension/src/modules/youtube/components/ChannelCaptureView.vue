@@ -103,21 +103,63 @@ onMounted(() => {
   })
 
   // Request initial data from content script
+  console.log('[ChannelCaptureView] 📤 Sending extractData request...')
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
     if (tabs[0]?.id) {
+      console.log('[ChannelCaptureView] ✅ Got tab ID:', tabs[0].id)
       chrome.tabs.sendMessage(tabs[0].id, { action: 'extractData' }, (response) => {
+        if (chrome.runtime.lastError) {
+          console.error('[ChannelCaptureView] ❌ Chrome runtime error:', chrome.runtime.lastError)
+          return
+        }
+
+        console.log('[ChannelCaptureView] 📥 Received response:', {
+          success: response?.success,
+          pageType: response?.data?.pageType,
+          hasProfile: !!response?.data?.channelProfile,
+          linksCount: response?.data?.channelLinks ? Object.keys(response.data.channelLinks).length : 0,
+        })
+
         if (response?.data?.pageType === 'channel') {
-          console.log('[ChannelCaptureView] Got initial data:', response.data)
+          console.log('[ChannelCaptureView] ✅ CHANNEL PAGE - Processing data:', response.data)
 
           if (response.data.channelProfile) {
             channelData.value = {
               handle: response.data.channelProfile.handle,
               subs: response.data.channelProfile.subs,
             }
+            console.log('[ChannelCaptureView] ✅ Channel data set:', channelData.value)
+          } else {
+            console.error('[ChannelCaptureView] ❌ NO PROFILE DATA - extractChannelProfile() returned null')
+            console.log('[ChannelCaptureView] Full response:', response.data)
+
+            // Try to load saved data from previous video captures
+            const handle = channelData.value.handle
+            const storageKey = `youtube:channel:${handle}`
+            const saved = localStorage.getItem(storageKey)
+            console.log('[ChannelCaptureView] Looking for saved data under:', storageKey)
+            console.log('[ChannelCaptureView] Found:', !!saved)
+            if (saved) {
+              try {
+                const data = JSON.parse(saved)
+                console.log('[ChannelCaptureView] Loaded saved data:', data)
+                // Update with saved info if available
+                if (data.allLinks) {
+                  console.log('[ChannelCaptureView] Setting saved links')
+                  // Convert back to the format expected by the component
+                  for (const link of data.allLinks) {
+                    if (link.url) channelLinks.value[link.url] = link.url
+                  }
+                }
+              } catch (e) {
+                console.error('[ChannelCaptureView] Error parsing saved data:', e)
+              }
+            }
           }
 
           if (response.data.channelLinks) {
-            channelLinks.value = response.data.channelLinks
+            channelLinks.value = { ...channelLinks.value, ...response.data.channelLinks }
+            console.log('[ChannelCaptureView] Merged with scraped links')
           }
         }
       })
@@ -179,6 +221,12 @@ function handleSave() {
     })
 
     console.log('[YouTube] Channel saved successfully')
+
+    // Notify dashboard that data was saved
+    chrome.runtime.sendMessage({ action: 'dataSaved' }).catch(() => {
+      // Ignore error if no listener
+    })
+
     showNotification(channelData.value.handle)
   } catch (error) {
     console.error('[YouTube] Error saving channel:', error)
