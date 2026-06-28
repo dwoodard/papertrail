@@ -22,6 +22,8 @@ export interface Video {
   title: string
   url: string
   savedAt: string
+  commentersCount: number
+  linksCount: number
 }
 
 export interface Channel {
@@ -143,6 +145,8 @@ export function mergeVideo(
         title: videoInfo.title,
         url: videoInfo.url,
         savedAt: new Date().toISOString(),
+        commentersCount: commenters.length,
+        linksCount: videoLinks.length,
       })
     }
   }

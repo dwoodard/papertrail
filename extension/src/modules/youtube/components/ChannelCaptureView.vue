@@ -39,6 +39,22 @@
       </div>
     </div>
 
+    <!-- Videos Section -->
+    <div v-if="capturedVideos.length > 0" class="section">
+      <div class="section-header">
+        <span class="section-title">🎬 Videos</span>
+        <span class="count">{{ capturedVideos.length }}</span>
+      </div>
+
+      <div class="videos-list">
+        <div v-for="video in capturedVideos" :key="video.id" class="video-row">
+          <a :href="video.url" target="_blank" class="video-title">{{ video.title }}</a>
+          <span class="video-stat">👤 {{ video.commentersCount }}</span>
+          <span class="video-stat">🔗 {{ video.linksCount }}</span>
+        </div>
+      </div>
+    </div>
+
     <!-- Links Section -->
     <div class="section">
       <div class="section-header">
@@ -98,16 +114,18 @@ interface ChannelData {
 const channelData = ref<ChannelData | null>(null)
 const channelLinks = ref<Record<string, string>>({})
 const capturedLeads = ref<Commenter[]>([])
+const capturedVideos = ref<any[]>([])
 const loading = ref(false)
 const notification = ref<{ handle: string } | null>(null)
 
 const linkCount = computed(() => Object.keys(channelLinks.value).length)
 
-function loadCapturedLeads() {
+function loadCapturedData() {
   if (!channelData.value?.handle) return
   const data = getChannelData(channelData.value.handle)
   if (data) {
     capturedLeads.value = data.uniqueCommenters
+    capturedVideos.value = data.videos || []
   }
 }
 
@@ -124,7 +142,7 @@ onMounted(() => {
           handle: request.data.channelProfile.handle,
           subs: request.data.channelProfile.subs,
         }
-        loadCapturedLeads()
+        loadCapturedData()
       }
 
       if (request.data.channelLinks) {
@@ -162,7 +180,7 @@ onMounted(() => {
               subs: response.data.channelProfile.subs,
             }
             console.log('[ChannelCaptureView] ✅ Channel data set:', channelData.value)
-            loadCapturedLeads()
+            loadCapturedData()
           } else {
             console.error('[ChannelCaptureView] ❌ NO PROFILE DATA - extractChannelProfile() returned null')
             console.log('[ChannelCaptureView] Full response:', response.data)
@@ -544,6 +562,50 @@ function handleSave() {
   color: var(--color-text-secondary);
   font-size: var(--font-size-xs);
   font-style: italic;
+}
+
+.videos-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.video-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px;
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  font-size: var(--font-size-sm);
+  transition: background-color 0.2s;
+}
+
+.video-row:hover {
+  background: #f5f5f5;
+}
+
+.video-title {
+  flex: 1;
+  min-width: 0;
+  color: var(--color-link);
+  text-decoration: none;
+  font-weight: var(--font-weight-medium);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.video-title:hover {
+  text-decoration: underline;
+}
+
+.video-stat {
+  white-space: nowrap;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  flex-shrink: 0;
 }
 
 .save-button {
