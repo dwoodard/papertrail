@@ -180,9 +180,16 @@ onMounted(() => {
   // Request initial data from content script
   console.log('[ChannelCaptureView] 📤 Sending extractData request...')
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-    if (tabs[0]?.id) {
-      console.log('[ChannelCaptureView] ✅ Got tab ID:', tabs[0].id)
-      chrome.tabs.sendMessage(tabs[0].id, { action: 'extractData' }, (response) => {
+    const activeTab = tabs[0]
+    if (!activeTab?.id) {
+      console.error('[ChannelCaptureView] ❌ No active tab found')
+      return
+    }
+
+    const tabUrl = activeTab.url || ''
+    console.log('[ChannelCaptureView] ✅ Active tab URL:', tabUrl)
+
+    chrome.tabs.sendMessage(activeTab.id, { action: 'extractData' }, (response) => {
         if (chrome.runtime.lastError) {
           console.error('[ChannelCaptureView] ❌ Chrome runtime error:', chrome.runtime.lastError)
           return
@@ -207,9 +214,9 @@ onMounted(() => {
             loadCapturedData()
           } else {
             console.error('[ChannelCaptureView] ❌ NO PROFILE DATA - extractChannelProfile() returned null')
-            // Fallback: extract handle from URL
-            const urlMatch = window.location.href.match(/@([\w.-]+)/)
-            console.log('[ChannelCaptureView] URL fallback attempt:', { url: window.location.href, match: urlMatch })
+            // Fallback: extract handle from tab URL
+            const urlMatch = tabUrl.match(/@([\w.-]+)/)
+            console.log('[ChannelCaptureView] URL fallback attempt:', { url: tabUrl, match: urlMatch })
             if (urlMatch) {
               const handle = `@${urlMatch[1]}`
               console.log('[ChannelCaptureView] ✅ Using URL fallback handle:', handle)
@@ -224,12 +231,12 @@ onMounted(() => {
             console.log('[ChannelCaptureView] Full response:', response.data)
 
             // Try to load saved data from previous video captures
-            const handle = channelData.value.handle
-            const storageKey = `youtube:channel:${handle}`
-            const saved = localStorage.getItem(storageKey)
-            console.log('[ChannelCaptureView] Looking for saved data under:', storageKey)
-            console.log('[ChannelCaptureView] Found:', !!saved)
-            if (saved) {
+            if (channelData.value?.handle) {
+              const storageKey = `youtube:channel:${channelData.value.handle}`
+              const saved = localStorage.getItem(storageKey)
+              console.log('[ChannelCaptureView] Looking for saved data under:', storageKey)
+              console.log('[ChannelCaptureView] Found:', !!saved)
+              if (saved) {
               try {
                 const data = JSON.parse(saved)
                 console.log('[ChannelCaptureView] Loaded saved data:', data)
@@ -253,7 +260,6 @@ onMounted(() => {
           }
         }
       })
-    }
   })
 })
 
