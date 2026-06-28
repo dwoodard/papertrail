@@ -127,6 +127,8 @@ async function extractData(): Promise<ExtractedData | null> {
 
       // Clean title by removing " - YouTube" suffix
       let videoTitle = document.title.trim()
+      // Strip tab unread-count prefix e.g. "(205) "
+      videoTitle = videoTitle.replace(/^\(\d+\)\s*/, '')
       if (videoTitle.includes(' - YouTube')) {
         videoTitle = videoTitle.replace(/\s*-\s*YouTube\s*$/, '').trim()
       }

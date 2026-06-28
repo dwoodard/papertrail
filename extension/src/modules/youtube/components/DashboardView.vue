@@ -44,7 +44,7 @@
           </div>
 
           <div class="action-col">
-            <button class="action-btn delete" title="Delete channel">
+            <button class="action-btn delete" title="Delete channel" @click.stop="handleDelete(channel.handle)">
               ✕
             </button>
           </div>
@@ -76,7 +76,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { getChannels, getChannelData } from '../storage'
+import { getChannels, getChannelData, deleteChannel } from '../storage'
 
 interface ChannelDisplay {
   handle: string
@@ -160,6 +160,12 @@ function goToChannel(handle: string) {
       chrome.tabs.update(tabs[0].id, { url })
     }
   })
+}
+
+function handleDelete(handle: string) {
+  if (!confirm(`Delete all data for ${handle}?`)) return
+  deleteChannel(handle)
+  loadChannels()
 }
 </script>
 

@@ -31,9 +31,6 @@
             </a>
             <span class="subs">{{ formatSubs(channelInfo.subs) }} subscribers</span>
           </div>
-          <a :href="`https://www.youtube.com/${channelInfo.handle}`" class="track-channel-btn">
-            📌 Track Channel
-          </a>
         </div>
       </div>
       <div v-else class="video-header loading">
@@ -304,49 +301,42 @@ function handleSave() {
 
   loading.value = true
 
-  try {
-    const handle = channelInfo.value.handle
+  // If videoInfo wasn't extracted by the content script, build it from the active tab.
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    const tab = tabs[0]
+    let resolvedVideoInfo = videoInfo.value
 
-    console.log('[YouTube] 🎯 videoInfo.value AT SAVE TIME:', videoInfo.value)
-    if (!videoInfo.value) {
-      console.log('[YouTube] ❌ videoInfo is NULL - content script did not provide video data')
+    if (!resolvedVideoInfo && tab?.url) {
+      const idMatch = tab.url.match(/[?&]v=([a-zA-Z0-9_-]+)/)
+      const id = idMatch?.[1] ?? 'unknown'
+      let title = tab.title ?? 'Untitled Video'
+      title = title.replace(/^\(\d+\)\s*/, '').replace(/\s*-\s*YouTube\s*$/, '').trim() || 'Untitled Video'
+      resolvedVideoInfo = { id, title, url: tab.url }
     }
 
-    console.log('[YouTube] Saving video capture:', {
-      channel: handle,
-      hasVideoInfo: !!videoInfo.value,
-      videoInfoId: videoInfo.value?.id,
-      videoInfoTitle: videoInfo.value?.title,
-      links: extractedLinks.value.length,
-      leads: sortedLeads.value.length,
-    })
+    try {
+      const handle = channelInfo.value!.handle
 
-    // Save to storage (using deduplicated sorted leads) with video info from content script
-    const result = mergeVideo(handle, extractedLinks.value, sortedLeads.value, {
-      subs: channelInfo.value.subs,
-      links: {},
-    }, videoInfo.value || undefined)
+      const result = mergeVideo(
+        handle,
+        extractedLinks.value,
+        sortedLeads.value,
+        { subs: channelInfo.value!.subs, links: {} },
+        resolvedVideoInfo ?? undefined,
+      )
 
-    console.log('[YouTube] Video capture saved successfully to localStorage')
-    console.log('[YouTube] Saved data:', result)
+      chrome.runtime.sendMessage({ action: 'dataSaved' }).catch(() => {})
 
-    // Verify it was saved
-    const stored = localStorage.getItem(`youtube:channel:${handle}`)
-    console.log('[YouTube] Verified in localStorage:', !!stored)
-
-    // Notify dashboard that data was saved
-    chrome.runtime.sendMessage({ action: 'dataSaved' }).catch(() => {
-      // Ignore error if no listener
-    })
-
-    const leadsText = sortedLeads.value.length > 0 ? ` Added ${sortedLeads.value.length} leads.` : ''
-    showNotification(`Saved to ${handle}${leadsText}`)
-  } catch (error) {
-    console.error('[YouTube] Error saving video capture:', error)
-    showNotification('Error saving. Check console.')
-  } finally {
-    loading.value = false
-  }
+      const leadsText = sortedLeads.value.length > 0 ? ` Added ${sortedLeads.value.length} leads.` : ''
+      showNotification(`Saved to ${handle}${leadsText}`)
+      console.log('[YouTube] Video capture saved:', result)
+    } catch (error) {
+      console.error('[YouTube] Error saving video capture:', error)
+      showNotification('Error saving. Check console.')
+    } finally {
+      loading.value = false
+    }
+  })
 }
 </script>
 
@@ -491,22 +481,6 @@ function handleSave() {
   50% {
     opacity: 0.4;
   }
-}
-
-.track-channel-btn {
-  padding: var(--space-xs) var(--space-md);
-  background: var(--color-success);
-  color: white;
-  border-radius: var(--radius-sm);
-  font-size: var(--font-size-base);
-  font-weight: var(--font-weight-medium);
-  text-decoration: none;
-  white-space: nowrap;
-  transition: background var(--transition-fast);
-}
-
-.track-channel-btn:hover {
-  background: var(--color-success-hover);
 }
 
 .section {

@@ -84,7 +84,8 @@ export function dedupeCommenters(commenters: Omit<Commenter, 'tier'>[]): Comment
   const seen = new Map<string, Commenter>()
 
   for (const commenter of commenters) {
-    const key = `${commenter.name}__${commenter.count}`
+    // Key by URL (most stable identifier). Fall back to handle then name.
+    const key = commenter.url || commenter.handle || commenter.name
 
     if (seen.has(key)) {
       const existing = seen.get(key)!

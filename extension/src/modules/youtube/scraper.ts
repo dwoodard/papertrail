@@ -91,8 +91,8 @@ export async function extractVideoCommenters(): Promise<Omit<Commenter, 'tier'>[
       let lastCount = 0
       let unchangedAttempts = 0
       let attempts = 0
-      const maxAttempts = 20 // Reduced from 60
-      const scrollTimeout = 5000 // 5 second timeout
+      const maxAttempts = 60
+      const scrollTimeout = 20000 // 20 second timeout
 
       console.log('[YouTube] ⏱️ Starting scroll with 5s timeout...')
       const startTime = Date.now()
