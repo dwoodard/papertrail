@@ -43,18 +43,38 @@
     <div class="section">
       <div class="section-header">
         <span class="section-title">🔗 Links</span>
-        <span class="count">{{ Object.keys(channelLinks).length }}</span>
+        <span class="count">{{ linkCount }}</span>
       </div>
 
-      <div v-if="Object.keys(channelLinks).length > 0" class="links-list">
+      <div v-if="linkCount > 0" class="links-list">
         <div v-for="(url, type) in channelLinks" :key="type" class="link-item">
-          <div class="link-type">{{ type }}</div>
           <a :href="url" target="_blank" class="link-url">
-            {{ formatUrl(url) }}
+            • {{ formatUrl(url) }}
           </a>
         </div>
       </div>
       <div v-else class="empty-state">No links found</div>
+    </div>
+
+    <!-- Leads Summary Section -->
+    <div v-if="capturedLeads.length > 0" class="section">
+      <div class="section-header">
+        <span class="section-title">👤 Captured Leads</span>
+        <span class="count">{{ capturedLeads.length }}</span>
+      </div>
+
+      <div class="leads-summary">
+        <div v-for="lead in capturedLeads.slice(0, 5)" :key="lead.url" class="lead-summary-item">
+          <a :href="lead.url" target="_blank" class="lead-name">
+            {{ lead.handle || lead.name }}
+          </a>
+          <span v-if="lead.isVerified" class="verified-badge">✓</span>
+          <span class="lead-count">({{ lead.count }}×)</span>
+        </div>
+        <div v-if="capturedLeads.length > 5" class="more-leads">
+          +{{ capturedLeads.length - 5 }} more leads
+        </div>
+      </div>
     </div>
 
     <!-- Save Button -->
@@ -66,8 +86,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { saveChannelData } from '../storage'
+import { ref, computed, onMounted } from 'vue'
+import { saveChannelData, getChannelData } from '../storage'
+import type { Commenter } from '../storage'
 
 interface ChannelData {
   handle: string
@@ -76,8 +97,19 @@ interface ChannelData {
 
 const channelData = ref<ChannelData | null>(null)
 const channelLinks = ref<Record<string, string>>({})
+const capturedLeads = ref<Commenter[]>([])
 const loading = ref(false)
 const notification = ref<{ handle: string } | null>(null)
+
+const linkCount = computed(() => Object.keys(channelLinks.value).length)
+
+function loadCapturedLeads() {
+  if (!channelData.value?.handle) return
+  const data = getChannelData(channelData.value.handle)
+  if (data) {
+    capturedLeads.value = data.uniqueCommenters
+  }
+}
 
 onMounted(() => {
   // Listen for data from content script
@@ -92,6 +124,7 @@ onMounted(() => {
           handle: request.data.channelProfile.handle,
           subs: request.data.channelProfile.subs,
         }
+        loadCapturedLeads()
       }
 
       if (request.data.channelLinks) {
@@ -129,6 +162,7 @@ onMounted(() => {
               subs: response.data.channelProfile.subs,
             }
             console.log('[ChannelCaptureView] ✅ Channel data set:', channelData.value)
+            loadCapturedLeads()
           } else {
             console.error('[ChannelCaptureView] ❌ NO PROFILE DATA - extractChannelProfile() returned null')
             console.log('[ChannelCaptureView] Full response:', response.data)
@@ -457,6 +491,59 @@ function handleSave() {
 
 .link-url:hover {
   text-decoration: underline;
+}
+
+.leads-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.lead-summary-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+}
+
+.lead-name {
+  color: var(--color-link);
+  text-decoration: none;
+  font-weight: var(--font-weight-medium);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lead-name:hover {
+  text-decoration: underline;
+}
+
+.verified-badge {
+  background: #d4edda;
+  color: #155724;
+  font-size: var(--font-size-xs);
+  padding: 0 3px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.lead-count {
+  color: var(--color-text-tertiary);
+  font-size: var(--font-size-xs);
+  flex-shrink: 0;
+}
+
+.more-leads {
+  padding: 8px;
+  text-align: center;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  font-style: italic;
 }
 
 .save-button {

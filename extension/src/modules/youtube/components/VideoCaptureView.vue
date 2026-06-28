@@ -110,13 +110,20 @@ const loading = ref(false)
 const notification = ref<{ message: string } | null>(null)
 
 const sortedLeads = computed(() => {
-  const seen = new Set<string>()
-  const unique = extractedLeads.value.filter((lead) => {
+  const deduped = new Map<string, Omit<Commenter, 'tier'>>()
+
+  // Group by URL and sum counts
+  for (const lead of extractedLeads.value) {
     const key = lead.url
-    if (seen.has(key)) return false
-    seen.add(key)
-    return true
-  })
+    if (deduped.has(key)) {
+      const existing = deduped.get(key)!
+      existing.count += lead.count
+    } else {
+      deduped.set(key, { ...lead })
+    }
+  }
+
+  const unique = Array.from(deduped.values())
 
   return unique.sort((a, b) => {
     // Verified first
@@ -229,8 +236,18 @@ onMounted(() => {
 })
 
 function goToChannel() {
-  const handle = channelInfo.value?.handle
-  if (!handle) return
+  let handle = channelInfo.value?.handle
+
+  // Fallback: try to extract handle from leads
+  if (!handle && extractedLeads.value.length > 0) {
+    const firstLead = extractedLeads.value[0]
+    handle = firstLead.handle
+  }
+
+  if (!handle) {
+    console.warn('[VideoCaptureView] No channel handle found, cannot navigate back')
+    return
+  }
 
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
     if (tabs[0]?.id) {
