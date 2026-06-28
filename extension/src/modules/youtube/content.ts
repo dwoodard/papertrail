@@ -173,16 +173,26 @@ async function extractData(): Promise<ExtractedData | null> {
         console.log('[YouTube Content] 🧵 Extracting commenters...')
         // Use accumulated commenters from mutation observer, plus any fresh extraction
         const freshCommenters = await extractVideoCommenters()
-        // Combine accumulated with fresh, avoiding duplicates
-        const allCommenters = [...accumulatedVideoCommenters]
-        const existingKeys = new Set(allCommenters.map((c) => `${c.name}__${c.url}`))
+        // Combine accumulated with fresh, summing counts for duplicates
+        const countsMap = new Map<string, any>()
+
+        // Build initial map from accumulated
+        for (const c of accumulatedVideoCommenters) {
+          const key = `${c.name}__${c.url}`
+          countsMap.set(key, c)
+        }
+
+        // Merge fresh, summing counts for duplicates
         for (const commenter of freshCommenters) {
           const key = `${commenter.name}__${commenter.url}`
-          if (!existingKeys.has(key)) {
-            allCommenters.push(commenter)
+          if (countsMap.has(key)) {
+            countsMap.get(key)!.count += commenter.count
+          } else {
+            countsMap.set(key, commenter)
           }
         }
-        data.videoCommenters = allCommenters
+
+        data.videoCommenters = Array.from(countsMap.values())
         console.log(`[YouTube Content] ✅ Commenters: ${data.videoCommenters?.length || 0} found`)
       } catch (e) {
         console.error('[YouTube Content] ❌ Error extracting commenters:', e)
