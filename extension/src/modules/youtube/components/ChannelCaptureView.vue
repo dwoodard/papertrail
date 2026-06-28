@@ -75,21 +75,18 @@
     <!-- Leads Summary Section -->
     <div v-if="capturedLeads.length > 0" class="section">
       <div class="section-header">
-        <span class="section-title">👤 Captured Leads</span>
+        <span class="section-title">👤 Top Leads</span>
         <span class="count">{{ capturedLeads.length }}</span>
       </div>
 
-      <div class="leads-summary">
-        <div v-for="lead in capturedLeads.slice(0, 5)" :key="lead.url" class="lead-summary-item">
-          <a :href="lead.url" target="_blank" class="lead-name">
-            {{ lead.handle || lead.name }}
-          </a>
-          <span v-if="lead.isVerified" class="verified-badge">✓</span>
-          <span class="lead-count">({{ lead.count }}×)</span>
-        </div>
-        <div v-if="capturedLeads.length > 5" class="more-leads">
-          +{{ capturedLeads.length - 5 }} more leads
-        </div>
+      <div class="leads-compact">
+        <a v-for="lead in capturedLeads.slice(0, 3)" :key="lead.url" :href="lead.url" target="_blank" class="lead-tag">
+          {{ lead.handle || lead.name }}
+          <span v-if="lead.isVerified">✓</span>
+        </a>
+        <span v-if="capturedLeads.length > 3" class="lead-tag more">
+          +{{ capturedLeads.length - 3 }}
+        </span>
       </div>
     </div>
 
@@ -121,8 +118,18 @@ const notification = ref<{ handle: string } | null>(null)
 const linkCount = computed(() => Object.keys(channelLinks.value).length)
 
 function loadCapturedData() {
-  if (!channelData.value?.handle) return
+  console.log('[ChannelCaptureView] loadCapturedData called, handle:', channelData.value?.handle)
+  if (!channelData.value?.handle) {
+    console.log('[ChannelCaptureView] ❌ No channel handle, skipping load')
+    return
+  }
   const data = getChannelData(channelData.value.handle)
+  console.log('[ChannelCaptureView] ✅ Loaded data from localStorage:', {
+    hasLeads: !!data?.uniqueCommenters,
+    leadsCount: data?.uniqueCommenters?.length || 0,
+    hasVideos: !!data?.videos,
+    videosCount: data?.videos?.length || 0,
+  })
   if (data) {
     capturedLeads.value = data.uniqueCommenters
     capturedVideos.value = data.videos || []
@@ -142,17 +149,23 @@ onMounted(() => {
           handle: request.data.channelProfile.handle,
           subs: request.data.channelProfile.subs,
         }
+        console.log('[ChannelCaptureView] ✅ Got channel profile:', channelData.value)
         loadCapturedData()
       } else {
+        console.log('[ChannelCaptureView] ❌ No profile, trying URL fallback')
         // Fallback: extract handle from URL if profile extraction failed
         const urlMatch = window.location.href.match(/@([\w.-]+)/)
+        console.log('[ChannelCaptureView] URL match result:', urlMatch)
         if (urlMatch) {
           const handle = `@${urlMatch[1]}`
+          console.log('[ChannelCaptureView] ✅ Extracted handle from URL:', handle)
           channelData.value = {
             handle,
             subs: 0,
           }
           loadCapturedData()
+        } else {
+          console.log('[ChannelCaptureView] ❌ Could not extract handle from URL:', window.location.href)
         }
       }
 
@@ -190,12 +203,13 @@ onMounted(() => {
               handle: response.data.channelProfile.handle,
               subs: response.data.channelProfile.subs,
             }
-            console.log('[ChannelCaptureView] ✅ Channel data set:', channelData.value)
+            console.log('[ChannelCaptureView] ✅ Channel data set from profile:', channelData.value)
             loadCapturedData()
           } else {
             console.error('[ChannelCaptureView] ❌ NO PROFILE DATA - extractChannelProfile() returned null')
             // Fallback: extract handle from URL
             const urlMatch = window.location.href.match(/@([\w.-]+)/)
+            console.log('[ChannelCaptureView] URL fallback attempt:', { url: window.location.href, match: urlMatch })
             if (urlMatch) {
               const handle = `@${urlMatch[1]}`
               console.log('[ChannelCaptureView] ✅ Using URL fallback handle:', handle)
@@ -204,6 +218,8 @@ onMounted(() => {
                 subs: 0,
               }
               loadCapturedData()
+            } else {
+              console.log('[ChannelCaptureView] ❌ URL fallback failed, no handle extracted')
             }
             console.log('[ChannelCaptureView] Full response:', response.data)
 
@@ -539,51 +555,47 @@ function handleSave() {
   gap: 8px;
 }
 
-.lead-summary-item {
+.leads-compact {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px;
-  background: var(--color-bg-secondary);
-  border-radius: var(--radius-sm);
-  font-size: var(--font-size-sm);
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
-.lead-name {
+.lead-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  font-size: var(--font-size-xs);
   color: var(--color-link);
   text-decoration: none;
-  font-weight: var(--font-weight-medium);
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
+  transition: background-color 0.2s;
 }
 
-.lead-name:hover {
-  text-decoration: underline;
+.lead-tag:hover {
+  background: #f0f0f0;
+  text-decoration: none;
 }
 
-.verified-badge {
+.lead-tag span {
   background: #d4edda;
   color: #155724;
-  font-size: var(--font-size-xs);
-  padding: 0 3px;
+  padding: 0 2px;
   border-radius: 2px;
-  flex-shrink: 0;
+  font-weight: 600;
 }
 
-.lead-count {
-  color: var(--color-text-tertiary);
-  font-size: var(--font-size-xs);
-  flex-shrink: 0;
-}
-
-.more-leads {
-  padding: 8px;
-  text-align: center;
+.lead-tag.more {
+  cursor: default;
   color: var(--color-text-secondary);
-  font-size: var(--font-size-xs);
-  font-style: italic;
+}
+
+.lead-tag.more:hover {
+  background: var(--color-bg-secondary);
 }
 
 .videos-list {
@@ -595,13 +607,15 @@ function handleSave() {
 .video-row {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
   padding: 8px;
   background: var(--color-bg-secondary);
   border-radius: var(--radius-sm);
   border: 1px solid var(--color-border);
   font-size: var(--font-size-sm);
   transition: background-color 0.2s;
+  flex-wrap: nowrap;
+  white-space: nowrap;
 }
 
 .video-row:hover {
@@ -609,7 +623,7 @@ function handleSave() {
 }
 
 .video-title {
-  flex: 1;
+  flex: 0 1 auto;
   min-width: 0;
   color: var(--color-link);
   text-decoration: none;
