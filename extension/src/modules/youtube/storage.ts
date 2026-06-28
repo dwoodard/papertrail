@@ -108,7 +108,19 @@ export function mergeVideo(
   channelInfo: { subs: number; links: Record<string, string> },
   videoInfo?: { id: string; title: string; url: string },
 ): ChannelData {
+  console.log('[Storage] mergeVideo called:', {
+    handle,
+    commentersCount: commenters.length,
+    linksCount: videoLinks.length,
+    hasVideoInfo: !!videoInfo,
+  })
+
   const existing = getChannelData(handle)
+  console.log('[Storage] Existing data:', {
+    hasExisting: !!existing,
+    existingCommenters: existing?.uniqueCommenters?.length || 0,
+    existingVideos: existing?.videos?.length || 0,
+  })
 
   // Merge links
   const allLinksMap = new Map<string, number>()
@@ -126,12 +138,14 @@ export function mergeVideo(
   const allCommenters = [...existingCommenters, ...commenters]
 
   // Dedupe and retier
+  console.log('[Storage] Before dedup:', { allCommentersCount: allCommenters.length })
   const dedupedCommenters = dedupeCommenters(
     allCommenters.map((c) => {
       const { tier, ...rest } = c
       return rest
     }),
   )
+  console.log('[Storage] After dedup:', { dedupedCommentersCount: dedupedCommenters.length })
 
   // Merge videos
   const existingVideos = existing?.videos || []
@@ -162,7 +176,21 @@ export function mergeVideo(
     videos,
   }
 
-  saveChannelData(channelData)
+  console.log('[Storage] Final data to save:', {
+    handle: channelData.channel.handle,
+    commentersCount: channelData.uniqueCommenters.length,
+    linksCount: channelData.allLinks.length,
+    videosCount: channelData.videos.length,
+  })
+
+  try {
+    saveChannelData(channelData)
+    console.log('[Storage] ✅ saveChannelData completed')
+  } catch (e) {
+    console.error('[Storage] ❌ saveChannelData failed:', e)
+    throw e
+  }
+
   return channelData
 }
 
