@@ -17,6 +17,13 @@ export interface Link {
   count: number
 }
 
+export interface Video {
+  id: string
+  title: string
+  url: string
+  savedAt: string
+}
+
 export interface Channel {
   handle: string
   subs: number
@@ -27,6 +34,7 @@ export interface ChannelData {
   channel: Channel
   allLinks: Link[]
   uniqueCommenters: Commenter[]
+  videos: Video[]
 }
 
 const CHANNELS_KEY = 'youtube:channels'
@@ -96,6 +104,7 @@ export function mergeVideo(
   videoLinks: string[],
   commenters: Omit<Commenter, 'tier'>[],
   channelInfo: { subs: number; links: Record<string, string> },
+  videoInfo?: { id: string; title: string; url: string },
 ): ChannelData {
   const existing = getChannelData(handle)
 
@@ -122,6 +131,22 @@ export function mergeVideo(
     }),
   )
 
+  // Merge videos
+  const existingVideos = existing?.videos || []
+  const videos = [...existingVideos]
+  if (videoInfo) {
+    // Add video if not already saved
+    const videoExists = videos.some((v) => v.id === videoInfo.id)
+    if (!videoExists) {
+      videos.push({
+        id: videoInfo.id,
+        title: videoInfo.title,
+        url: videoInfo.url,
+        savedAt: new Date().toISOString(),
+      })
+    }
+  }
+
   const channelData: ChannelData = {
     channel: {
       handle,
@@ -130,6 +155,7 @@ export function mergeVideo(
     },
     allLinks: Array.from(allLinksMap.entries()).map(([url, count]) => ({ url, count })),
     uniqueCommenters: dedupedCommenters,
+    videos,
   }
 
   saveChannelData(channelData)

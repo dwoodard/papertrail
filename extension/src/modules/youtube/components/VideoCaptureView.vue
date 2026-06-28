@@ -294,16 +294,29 @@ function handleSave() {
 
   try {
     const handle = channelInfo.value.handle
+
+    // Extract video info from current tab
+    const url = window.location.href
+    const videoIdMatch = url.match(/v=([a-zA-Z0-9_-]+)/)
+    const videoId = videoIdMatch?.[1] || 'unknown'
+    const videoTitle = document.title.replace(' - YouTube', '').trim() || 'Untitled Video'
+
     console.log('[YouTube] Saving video capture:', {
       channel: handle,
+      videoId,
+      videoTitle,
       links: extractedLinks.value,
       leads: sortedLeads.value.length,
     })
 
-    // Save to storage (using deduplicated sorted leads)
+    // Save to storage (using deduplicated sorted leads) with video info
     const result = mergeVideo(handle, extractedLinks.value, sortedLeads.value, {
       subs: channelInfo.value.subs,
       links: {},
+    }, {
+      id: videoId,
+      title: videoTitle,
+      url,
     })
 
     console.log('[YouTube] Video capture saved successfully to localStorage')
