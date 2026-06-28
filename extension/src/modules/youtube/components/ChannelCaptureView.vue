@@ -143,6 +143,17 @@ onMounted(() => {
           subs: request.data.channelProfile.subs,
         }
         loadCapturedData()
+      } else {
+        // Fallback: extract handle from URL if profile extraction failed
+        const urlMatch = window.location.href.match(/@([\w.-]+)/)
+        if (urlMatch) {
+          const handle = `@${urlMatch[1]}`
+          channelData.value = {
+            handle,
+            subs: 0,
+          }
+          loadCapturedData()
+        }
       }
 
       if (request.data.channelLinks) {
@@ -183,6 +194,17 @@ onMounted(() => {
             loadCapturedData()
           } else {
             console.error('[ChannelCaptureView] ❌ NO PROFILE DATA - extractChannelProfile() returned null')
+            // Fallback: extract handle from URL
+            const urlMatch = window.location.href.match(/@([\w.-]+)/)
+            if (urlMatch) {
+              const handle = `@${urlMatch[1]}`
+              console.log('[ChannelCaptureView] ✅ Using URL fallback handle:', handle)
+              channelData.value = {
+                handle,
+                subs: 0,
+              }
+              loadCapturedData()
+            }
             console.log('[ChannelCaptureView] Full response:', response.data)
 
             // Try to load saved data from previous video captures
