@@ -64,6 +64,12 @@
       </div>
     </div>
 
+    <!-- Save Button -->
+    <button class="save-button" @click="handleSave" :disabled="loading">
+      <span v-if="!loading">💾 Save to Channel</span>
+      <span v-else>Saving...</span>
+    </button>
+
     <!-- Leads Section with Accordion -->
     <div class="section leads-section">
       <div class="section-header">
@@ -84,12 +90,6 @@
       </div>
       <div v-else class="empty-state">No commenters extracted yet</div>
     </div>
-
-    <!-- Save Button -->
-    <button class="save-button" @click="handleSave" :disabled="loading">
-      <span v-if="!loading">💾 Save to Channel</span>
-      <span v-else>Saving...</span>
-    </button>
   </div>
 </template>
 
