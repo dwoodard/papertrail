@@ -416,13 +416,13 @@ export async function extractChannelProfile(): Promise<ChannelData | null> {
     const rawSubsText = (subsEl as HTMLElement | null)?.getAttribute('aria-label') || (subsEl as HTMLElement | null)?.innerText
     const subs = parseSubs(rawSubsText || '')
 
-    if (!handle || subs === null) {
-      console.log('[YouTube] Missing channel profile data:', { handle, subs })
+    if (!handle) {
+      console.log('[YouTube] Missing channel handle, cannot extract profile')
       return null
     }
 
-    console.log('[YouTube] Extracted channel profile:', { handle, subs })
-    return { handle, subs }
+    console.log('[YouTube] Extracted channel profile:', { handle, subs: subs || 0 })
+    return { handle, subs: subs || 0 }
   } catch (error) {
     console.error('[YouTube] Error extracting channel profile:', error)
     return null
