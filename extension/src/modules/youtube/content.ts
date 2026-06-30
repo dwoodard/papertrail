@@ -13,6 +13,7 @@ import {
   extractVideoChannelInfo,
   extractChannelProfile,
   extractChannelLinks,
+  extractVideoTranscript,
 } from './scraper'
 
 // Guard: only initialize on YouTube pages
@@ -272,6 +273,25 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     })
 
     return true // Keep the message channel open for async response
+  }
+
+  if (request.action === 'extractTranscript') {
+    console.log('[YouTube Content] 📝 RECEIVED extractTranscript request')
+    console.log('[YouTube Content] About to call extractVideoTranscript()...')
+
+    extractVideoTranscript().then((transcript) => {
+      console.log('[YouTube Content] ✅ extractVideoTranscript() returned successfully')
+      console.log('[YouTube Content] Transcript length:', transcript?.length || 0)
+      console.log('[YouTube Content] First 200 chars:', transcript?.substring(0, 200))
+      sendResponse({ success: true, transcript })
+    }).catch((error) => {
+      console.error('[YouTube Content] ❌ extractVideoTranscript() threw error:', error)
+      console.error('[YouTube Content] Error message:', error?.message)
+      console.error('[YouTube Content] Error type:', typeof error)
+      sendResponse({ success: false, error: error?.message || String(error) })
+    })
+
+    return true
   }
 })
 

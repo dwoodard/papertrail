@@ -509,3 +509,126 @@ export async function extractChannelLinks(): Promise<Record<string, string>> {
 
   return links
 }
+
+/**
+ * Extract video transcript from YouTube's transcript panel
+ * Uses MutationObserver to watch for transcript segments appearing, then extracts immediately
+ */
+export async function extractVideoTranscript(): Promise<string> {
+  try {
+    console.log('[YouTube] Starting transcript extraction...')
+
+    // Find and click the transcript button
+    const transcriptButton = document.querySelector(
+      'button[aria-label="Show transcript"], #primary-button ytd-button-shape button'
+    ) as HTMLElement | null
+
+    if (!transcriptButton) {
+      console.error('[YouTube] Transcript button not found. Description may need to be expanded first.')
+      return ''
+    }
+
+    console.log('[YouTube] Found transcript button, clicking...')
+    transcriptButton.click()
+
+    // Wait for transcript segments to appear using observer pattern
+    const transcript = await new Promise<string>((resolve, reject) => {
+      let observer: MutationObserver | null = null
+      let resolved = false
+      let timeoutId: NodeJS.Timeout | null = null
+
+      const extractText = (segments: Element[]): string => {
+        console.log(`[YouTube] Extracting text from ${segments.length} segments...`)
+        const lines = segments
+          .map((segment: any) => {
+            const timestamp =
+              segment.querySelector('.ytwTranscriptSegmentViewModelTimestamp')?.innerText?.trim() || ''
+            const text = segment.querySelector('.ytAttributedStringHost')?.innerText?.trim() || ''
+            return `${timestamp} ${text}`.trim()
+          })
+          .filter((line: string) => line.length > 0)
+
+        return lines.join('\n')
+      }
+
+      const finish = (segments: Element[]) => {
+        if (resolved) return
+        resolved = true
+
+        if (observer) observer.disconnect()
+        if (timeoutId) clearTimeout(timeoutId)
+
+        console.log(`[YouTube] ✅ Transcript ready with ${segments.length} segments`)
+        const text = extractText(segments)
+        resolve(text)
+      }
+
+      const checkForSegments = (): Element[] | null => {
+        const container = document.querySelector('.ytSectionListRendererContents')
+        if (!container) {
+          console.log('[YouTube] Container not found yet')
+          return null
+        }
+
+        const segments = Array.from(container.querySelectorAll('.ytwTranscriptSegmentViewModelHost'))
+        if (segments.length === 0) {
+          console.log('[YouTube] No segments found yet')
+          return null
+        }
+
+        console.log(`[YouTube] Found ${segments.length} segments!`)
+        return segments
+      }
+
+      // Check if already loaded
+      const existingSegments = checkForSegments()
+      if (existingSegments && existingSegments.length > 0) {
+        console.log('[YouTube] Transcript already loaded, extracting immediately')
+        finish(existingSegments)
+        return
+      }
+
+      // Watch the entire document for transcript segments to appear
+      observer = new MutationObserver((mutations) => {
+        // Only check on mutations that could add segments
+        const hasRelevantMutation = mutations.some(
+          (m) => m.type === 'childList' || (m.type === 'characterData' && m.target.nodeValue?.trim().length)
+        )
+
+        if (!hasRelevantMutation) return
+
+        const segments = checkForSegments()
+        if (segments && segments.length > 0) {
+          console.log('[YouTube] 🎯 Segments detected via observer!')
+          finish(segments)
+        }
+      })
+
+      // Watch the entire document for transcript content
+      observer.observe(document.body, {
+        childList: true,
+        subtree: true,
+        characterData: true,
+        attributes: false,
+      })
+
+      console.log('[YouTube] Observer ready, watching for transcript segments...')
+
+      // Fallback timeout - if nothing appears in 15 seconds, give up
+      timeoutId = setTimeout(() => {
+        if (!resolved) {
+          resolved = true
+          if (observer) observer.disconnect()
+          console.error('[YouTube] ⏱️ Timeout waiting for transcript segments after 15 seconds')
+          reject(new Error('Transcript did not load within 15 seconds. Transcript may not be available for this video.'))
+        }
+      }, 15000)
+    })
+
+    console.log('[YouTube] Transcript extraction complete')
+    return transcript
+  } catch (error) {
+    console.error('[YouTube] Error extracting transcript:', error)
+    return ''
+  }
+}

@@ -1,5 +1,5 @@
 <template>
-  <div class="video-capture">
+  <div class="youtube-module">
     <!-- Success Notification -->
     <transition name="toast-fade">
       <div v-if="notification" class="notification notification-success">
@@ -10,83 +10,156 @@
       </div>
     </transition>
 
-
-    <!-- Video Header (Always Visible) -->
-    <div class="channel-header">
-      <div class="header-top">
-        <div class="component-label">YouTube / Video</div>
-        <div class="nav-buttons">
-          <button class="nav-btn back-btn" @click="goToChannel" title="Back to Channel">
-            ← Back
-          </button>
-        </div>
+    <!-- Module Header -->
+    <header class="module-header">
+      <div class="module-title-block">
+        <div class="module-eyebrow">YouTube Module</div>
+        <h1 class="module-title">Channel Discovery</h1>
       </div>
 
-      <div v-if="channelInfo" class="video-header">
-        <div class="header-content">
-          <div class="channel-link">
-            <span class="youtube-label">Channel</span>
-            <a :href="`https://www.youtube.com/${channelInfo.handle}`" class="channel-handle-link">
-              {{ channelInfo.handle }}
-            </a>
-            <span class="subs">{{ formatSubs(channelInfo.subs) }} subscribers</span>
+      <div class="module-actions">
+        <button class="btn" @click="goToChannel" title="Back to Channel">
+          ← Back
+        </button>
+        <button class="btn" @click="extractTranscript" :disabled="transcriptLoading">
+          <span v-if="transcriptLoading" class="spinner"></span>
+          <span v-if="transcriptLoading">Transcript loading…</span>
+          <span v-else>📝 Transcript</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Channel Summary Card -->
+    <section v-if="channelInfo" class="summary-card">
+      <div class="source-label">YouTube / Video</div>
+      <a :href="`https://www.youtube.com/${channelInfo.handle}`" class="channel-name-link">
+        <h2 class="channel-name">{{ channelInfo.handle }}</h2>
+      </a>
+      <div class="channel-meta">{{ formatSubs(channelInfo.subs) }} subscribers</div>
+    </section>
+
+    <section v-else class="summary-card loading">
+      <div class="skeleton-line" style="width: 40%; height: 12px; margin-bottom: 8px;"></div>
+      <div class="skeleton-line" style="width: 60%; height: 32px; margin-bottom: 8px;"></div>
+      <div class="skeleton-line" style="width: 30%; height: 16px;"></div>
+    </section>
+
+    <!-- Accordion Stack -->
+    <section class="accordion-stack">
+
+         <!-- Transcript Accordion -->
+      <details class="accordion">
+        <summary>
+          <div class="accordion-header">
+            <div class="accordion-heading">
+              <div class="accordion-icon">📄</div>
+              <div class="accordion-title-group">
+                <div class="accordion-title">Transcript</div>
+                <div class="accordion-subtitle">Video transcript with timestamps</div>
+              </div>
+            </div>
+            <div class="accordion-meta">
+              <span v-if="transcriptLoading" class="status-pill">
+                <span class="spinner"></span>
+                Loading
+              </span>
+              <span v-else-if="transcriptText" class="status-pill status-ready">✓ Ready</span>
+              <span class="chevron">›</span>
+            </div>
+          </div>
+        </summary>
+
+        <div class="accordion-body">
+          <div class="transcript-box">
+            <div class="transcript-toolbar">
+              <div class="transcript-toolbar-title">Transcript</div>
+              <button v-if="transcriptText" class="btn" @click="copyTranscript" title="Copy to clipboard">
+                📋 Copy
+              </button>
+            </div>
+            <div class="transcript-content">
+              <div v-if="transcriptText" class="transcript-text">{{ transcriptText }}</div>
+              <div v-else class="transcript-placeholder">Transcript is still loading. Once available, the transcript text can appear here.</div>
+            </div>
           </div>
         </div>
-      </div>
-      <div v-else class="video-header loading">
-        <div class="header-content">
-          <div class="channel-link">
-            <span class="skeleton-line channel-name" style="width: 60%;"></span>
+      </details>
+
+      <!-- Links Accordion -->
+      <details class="accordion">
+        <summary>
+          <div class="accordion-header">
+            <div class="accordion-heading">
+              <div class="accordion-icon">🔗</div>
+              <div class="accordion-title-group">
+                <div class="accordion-title">Links</div>
+                <div class="accordion-subtitle">External links found in description/comments</div>
+              </div>
+            </div>
+            <div class="accordion-meta">
+              <span class="result-pill">{{ extractedLinks.length }}</span>
+              <span class="chevron">›</span>
+            </div>
+          </div>
+        </summary>
+
+        <div class="accordion-body">
+          <div v-if="extractedLinks.length > 0" class="links-list">
+            <div v-for="(link, idx) in extractedLinks" :key="idx" class="link-row">
+              <a :href="link" target="_blank" class="link-url">{{ formatUrl(link) }}</a>
+            </div>
+          </div>
+          <div v-else class="empty-state">
+            <p class="empty-title">No external links found</p>
+            <p class="empty-copy">No external links were found in the description or comments.</p>
+            <button class="save-btn" @click="handleSave" :disabled="loading || sortedLeads.length === 0">
+              💾 Save to Channel
+            </button>
           </div>
         </div>
-      </div>
-    </div>
+      </details>
 
-    <!-- Links Section -->
-    <div class="section">
-      <div class="section-header">
-        <span class="section-title">🔗 Links</span>
-        <span class="count">{{ extractedLinks.length }}</span>
-      </div>
-      <div v-if="extractedLinks.length > 0" class="links-list">
-        <div v-for="(link, idx) in extractedLinks" :key="idx" class="link-item">
-          <a :href="link" target="_blank" class="link-url">
-            {{ formatUrl(link) }}
-          </a>
-        </div>
-      </div>
-      <div v-else class="empty-state">
-        <span v-if="extractedLeads.length > 0">No external links in description/comments</span>
-        <span v-else>Checking for links...</span>
-      </div>
-    </div>
-
-    <!-- Save Button -->
-    <button class="save-button" @click="handleSave" :disabled="loading">
-      <span v-if="!loading">💾 Save to Channel</span>
-      <span v-else>Saving...</span>
-    </button>
-
-    <!-- Leads Section with Accordion -->
-    <div class="section leads-section">
-      <div class="section-header">
-        <span class="section-title">👤 Leads</span>
-        <span class="count">{{ sortedLeads.length }}</span>
-      </div>
-      <div v-if="extractedLeads.length > 0" class="leads-list-scroll">
-        <div v-for="lead in sortedLeads" :key="lead.url" class="lead-item">
-          <div class="lead-left">
-            <a :href="lead.url" target="_blank" class="lead-name">{{ lead.handle || lead.name }}</a>
-            <span v-if="lead.isVerified" class="lead-verified-check">✓</span>
+      <!-- Leads Accordion -->
+      <details class="accordion">
+        <summary>
+          <div class="accordion-header">
+            <div class="accordion-heading">
+              <div class="accordion-icon">👤</div>
+              <div class="accordion-title-group">
+                <div class="accordion-title">Leads</div>
+                <div class="accordion-subtitle">Handles mentioned across comments/results</div>
+              </div>
+            </div>
+            <div class="accordion-meta">
+              <span class="result-pill">{{ sortedLeads.length }}</span>
+              <span class="chevron">›</span>
+            </div>
           </div>
-          <div class="lead-spacer"></div>
-          <div class="lead-right">
-            <span class="lead-count">({{ lead.count }}×)</span>
+        </summary>
+
+        <div class="accordion-body">
+          <div v-if="sortedLeads.length > 0" class="lead-list">
+            <div v-for="lead in sortedLeads" :key="lead.url" class="lead-row">
+              <a :href="lead.url" target="_blank" class="lead-handle">{{ lead.handle || lead.name }}</a>
+              <span class="lead-frequency">{{ lead.count }}×</span>
+            </div>
+          </div>
+          <div v-else class="empty-state">
+            <p class="empty-title">No commenters found</p>
+            <p class="empty-copy">Scroll to load comments on the YouTube page to extract leads.</p>
+            <button class="save-btn" disabled>💾 Save to Channel</button>
           </div>
         </div>
-      </div>
-      <div v-else class="empty-state">No commenters extracted yet</div>
-    </div>
+      </details>
+
+
+
+      <!-- Save Button (Global) -->
+      <button v-if="sortedLeads.length > 0" class="save-button-global" @click="handleSave" :disabled="loading">
+        <span v-if="!loading">💾 Save to Channel</span>
+        <span v-else>Saving...</span>
+      </button>
+    </section>
   </div>
 </template>
 
@@ -106,6 +179,8 @@ const extractedLeads = ref<Omit<Commenter, 'tier'>[]>([])
 const videoInfo = ref<{ id: string; title: string; url: string } | null>(null)
 const loading = ref(false)
 const notification = ref<{ message: string } | null>(null)
+const transcriptText = ref<string>('')
+const transcriptLoading = ref(false)
 
 const sortedLeads = computed(() => {
   const deduped = new Map<string, Omit<Commenter, 'tier'>>()
@@ -287,6 +362,55 @@ function showNotification(message: string) {
   }, 4000)
 }
 
+function copyTranscript() {
+  if (transcriptText.value) {
+    navigator.clipboard.writeText(transcriptText.value).then(() => {
+      showNotification('Transcript copied to clipboard')
+    }).catch(() => {
+      showNotification('Failed to copy transcript')
+    })
+  }
+}
+
+function extractTranscript() {
+  transcriptLoading.value = true
+  console.log('[VideoCaptureView] ▶️ START: extractTranscript() called')
+
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    if (tabs[0]?.id) {
+      console.log('[VideoCaptureView] ℹ️ Tab ID:', tabs[0].id)
+      console.log('[VideoCaptureView] 📤 Sending extractTranscript message to content script...')
+
+      chrome.tabs.sendMessage(tabs[0].id, { action: 'extractTranscript' }, (response) => {
+        console.log('[VideoCaptureView] 📥 Received response from content script:', response)
+
+        if (chrome.runtime.lastError) {
+          console.error('[VideoCaptureView] ❌ Chrome runtime error:', chrome.runtime.lastError)
+          showNotification('Error extracting transcript. Check console.')
+          transcriptLoading.value = false
+          return
+        }
+
+        if (response?.success && response?.transcript) {
+          console.log('[VideoCaptureView] ✅ Success! Transcript length:', response.transcript.length)
+          transcriptText.value = response.transcript
+          showNotification('Transcript extracted successfully')
+          console.log('[VideoCaptureView] First 200 chars:', response.transcript.substring(0, 200))
+        } else {
+          console.error('[VideoCaptureView] ❌ Extraction failed. Error:', response?.error)
+          showNotification('Failed to extract transcript. Make sure description is expanded.')
+        }
+
+        transcriptLoading.value = false
+      })
+    } else {
+      console.error('[VideoCaptureView] ❌ No tab ID found')
+      showNotification('Error: No active tab')
+      transcriptLoading.value = false
+    }
+  })
+}
+
 function handleSave() {
   if (!channelInfo.value) {
     showNotification('Please navigate from a YouTube page with channel info')
@@ -341,137 +465,41 @@ function handleSave() {
 </script>
 
 <style scoped>
-@import '../design-system.css';
+@import '../youtube-design-system.css';
 
-.video-capture {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-lg);
-  max-height: calc(100vh - 40px);
+.youtube-module {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 28px;
+  background: var(--bg);
+  color: var(--text);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  max-height: 100vh;
   overflow-y: auto;
-  padding-right: var(--space-xs);
 }
 
-.video-capture::-webkit-scrollbar {
-  width: 6px;
+.youtube-module::-webkit-scrollbar {
+  width: 8px;
 }
 
-.video-capture::-webkit-scrollbar-track {
+.youtube-module::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.video-capture::-webkit-scrollbar-thumb {
-  background: var(--color-border);
-  border-radius: var(--radius-sm);
+.youtube-module::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
 }
 
-.video-capture::-webkit-scrollbar-thumb:hover {
-  background: var(--color-text-tertiary);
-}
-
-.channel-header {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-md);
-  padding: var(--space-md);
-  background: var(--color-bg-secondary);
-  border-radius: var(--radius-sm);
-  border-left: 3px solid var(--yt-red);
-}
-
-.header-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: var(--space-md);
-}
-
-.nav-buttons {
-  display: flex;
-  gap: var(--space-sm);
-}
-
-.nav-btn {
-  padding: var(--space-xs) var(--space-md);
-  background: var(--color-bg-tertiary);
-  color: var(--color-text-primary);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-  cursor: pointer;
-  transition: background var(--transition-fast), border-color var(--transition-fast);
-}
-
-.nav-btn:hover {
-  background: var(--color-border);
-  border-color: var(--color-text-secondary);
-}
-
-.back-btn {
-  white-space: nowrap;
-}
-
-.video-header {
-  padding: var(--space-md);
-  background: var(--color-bg-secondary);
-  border-radius: var(--radius-sm);
-  border-left: 3px solid var(--yt-red);
-}
-
-.component-label {
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-tertiary);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: var(--space-sm);
-}
-
-.header-content {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: var(--space-sm);
-}
-
-.channel-link {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-sm);
-  flex-wrap: wrap;
-  flex: 1;
-}
-
-.youtube-label {
-  font-weight: var(--font-weight-semibold);
-  font-size: var(--font-size-md);
-  color: var(--color-text-primary);
-}
-
-.channel-handle-link {
-  font-weight: var(--font-weight-semibold);
-  font-size: var(--font-size-md);
-  color: var(--color-link);
-  text-decoration: none;
-}
-
-.channel-handle-link:hover {
-  text-decoration: underline;
-}
-
-.subs {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-tertiary);
-  flex-basis: 100%;
+.youtube-module::-webkit-scrollbar-thumb:hover {
+  background: var(--border-strong);
 }
 
 .skeleton-line {
-  background: var(--color-bg-tertiary);
-  border-radius: var(--radius-sm);
-  height: 1em;
+  background: var(--panel-soft);
+  border-radius: 8px;
   animation: skeleton-pulse 1.5s ease-in-out infinite;
-  display: inline-block;
+  display: block;
 }
 
 @keyframes skeleton-pulse {
@@ -481,273 +509,5 @@ function handleSave() {
   50% {
     opacity: 0.4;
   }
-}
-
-.section {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-sm);
-}
-
-.section-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0 2px;
-}
-
-.section-title {
-  font-weight: var(--font-weight-semibold);
-  font-size: var(--font-size-base);
-  color: var(--color-text-primary);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.count {
-  font-size: var(--font-size-sm);
-  background: var(--color-bg-tertiary);
-  color: var(--color-text-secondary);
-  padding: var(--space-xs) 6px;
-  border-radius: var(--radius-sm);
-}
-
-.empty-state {
-  padding: var(--space-md);
-  text-align: center;
-  color: var(--color-text-tertiary);
-  font-size: var(--font-size-base);
-  background: var(--color-bg-secondary);
-  border-radius: var(--radius-sm);
-}
-
-/* Links List */
-.links-list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-sm);
-}
-
-.link-item {
-  padding: 8px;
-  background: linear-gradient(135deg, #fafafa 0%, #f5f5f5 100%);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  overflow: hidden;
-}
-
-.link-url {
-  font-size: var(--font-size-base);
-  color: var(--color-link);
-  text-decoration: none;
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.link-url:hover {
-  text-decoration: underline;
-}
-
-/* Leads List */
-/* Leads Section Container */
-.leads-section {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-sm);
-  max-height: 400px;
-  overflow: hidden;
-}
-
-/* Scrollable List Container */
-.leads-list-scroll {
-  max-height: 350px;
-  overflow-y: auto;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-bg-primary);
-}
-
-.leads-list-scroll::-webkit-scrollbar {
-  width: 8px;
-}
-
-.leads-list-scroll::-webkit-scrollbar-track {
-  background: var(--color-bg-primary);
-}
-
-.leads-list-scroll::-webkit-scrollbar-thumb {
-  background: var(--color-border);
-  border-radius: 4px;
-  border: 2px solid var(--color-bg-primary);
-}
-
-.leads-list-scroll::-webkit-scrollbar-thumb:hover {
-  background: var(--color-text-secondary);
-}
-
-/* Lead Item - Directory Format */
-.lead-item {
-  display: flex;
-  align-items: center;
-  padding: 8px var(--space-md);
-  border-bottom: 1px solid var(--color-border);
-  font-size: var(--font-size-sm);
-  transition: background-color 0.2s;
-  white-space: nowrap;
-}
-
-.lead-item:hover {
-  background: var(--color-bg-secondary);
-}
-
-.lead-item:last-child {
-  border-bottom: none;
-}
-
-.lead-left {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
-}
-
-.lead-name {
-  font-weight: var(--font-weight-medium);
-  color: var(--color-link);
-  text-decoration: none;
-  transition: opacity 0.2s;
-}
-
-.lead-name:hover {
-  opacity: 0.8;
-  text-decoration: underline;
-}
-
-.lead-verified-check {
-  background: #d4edda;
-  color: #155724;
-  font-size: var(--font-size-xs);
-  padding: 0 3px;
-  border-radius: 2px;
-}
-
-.lead-spacer {
-  flex: 1;
-  margin: 0 8px;
-  height: 1em;
-  border-bottom: 1px dotted var(--color-border);
-}
-
-.lead-right {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-}
-
-.lead-count {
-  color: var(--color-text-tertiary);
-  font-size: var(--font-size-xs);
-}
-
-.lead-link {
-  color: var(--color-link);
-  text-decoration: none;
-  padding: 0 4px;
-  border-radius: 2px;
-  transition: background-color 0.2s;
-  font-size: var(--font-size-sm);
-}
-
-.lead-link:hover {
-  background: rgba(26, 115, 232, 0.1);
-  text-decoration: none;
-}
-
-/* Save Button */
-.save-button {
-  width: 100%;
-  padding: var(--space-md) var(--space-lg);
-  background: var(--color-success);
-  color: white;
-  border: none;
-  border-radius: var(--radius-sm);
-  font-weight: var(--font-weight-semibold);
-  font-size: var(--font-size-base);
-  cursor: pointer;
-  transition: all var(--transition-fast);
-  margin-top: var(--space-md);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-sm);
-}
-
-.save-button:hover:not(:disabled) {
-  background: var(--color-success-hover);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-  transform: translateY(-1px);
-}
-
-.save-button:active:not(:disabled) {
-  transform: translateY(0);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.save-button:disabled {
-  background: var(--color-bg-tertiary);
-  cursor: not-allowed;
-  color: var(--color-text-secondary);
-  box-shadow: none;
-}
-
-.notification {
-  position: fixed;
-  top: var(--space-md);
-  right: var(--space-md);
-  left: var(--space-md);
-  padding: var(--space-md) var(--space-lg);
-  border-radius: var(--radius-md);
-  display: flex;
-  gap: var(--space-md);
-  align-items: flex-start;
-  font-size: var(--font-size-md);
-  line-height: 1.4;
-  z-index: 1000;
-  box-shadow: var(--shadow-md);
-}
-
-.notification-success {
-  background: #d4edda;
-  color: #155724;
-  border: 1px solid #c3e6cb;
-}
-
-.notification-success span {
-  font-size: var(--font-size-xl);
-  font-weight: var(--font-weight-semibold);
-  flex-shrink: 0;
-}
-
-.notification-content {
-  flex: 1;
-}
-
-.notification-title {
-  font-weight: var(--font-weight-semibold);
-}
-
-.toast-fade-enter-active,
-.toast-fade-leave-active {
-  transition: all var(--transition-standard);
-}
-
-.toast-fade-enter-from,
-.toast-fade-leave-to {
-  opacity: 0;
-  transform: translateY(-8px);
 }
 </style>
