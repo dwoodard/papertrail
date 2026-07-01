@@ -106,19 +106,16 @@ function startCommentMutationObserver(): void {
 }
 
 function extractVideoTitle(): string | null {
-  // Try selectors in order of reliability
-  const selectors = [
-    'ytd-video-primary-info-renderer h1 yt-formatted-string',
-    'h1 yt-formatted-string',
-    'h1',
-  ]
+  // Get title from h1 yt-formatted-string (always on the page)
+  const titleEl = document.querySelector('h1 yt-formatted-string')
+  const title = titleEl?.textContent?.trim()
 
-  for (const selector of selectors) {
-    const el = document.querySelector(selector)
-    const title = el?.textContent?.trim()
-    if (title) return title
+  if (title) {
+    console.log('[YouTube] ✅ Video title extracted:', title)
+    return title
   }
 
+  console.log('[YouTube] ❌ Could not extract video title')
   return null
 }
 
@@ -273,6 +270,51 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     })
 
     return true // Keep the message channel open for async response
+  }
+
+  if (request.action === 'extractDataInitial') {
+    console.log('[YouTube Content] 🔍 Starting initial extraction (channel info and links only)...')
+    extractData().then((data) => {
+      if (data && data.pageType === 'video') {
+        // Remove commenters from initial extraction
+        const initialData = {
+          pageType: data.pageType,
+          videoChannelInfo: data.videoChannelInfo,
+          videoLinks: data.videoLinks,
+          videoInfo: data.videoInfo,
+        }
+        console.log('[YouTube Content] ✅ INITIAL EXTRACTION COMPLETE')
+        console.log('[YouTube Content] Data to send back:', {
+          pageType: initialData.pageType,
+          videoLinks: initialData.videoLinks?.length || 0,
+          videoInfo: initialData.videoInfo ? { id: initialData.videoInfo.id, title: initialData.videoInfo.title } : null,
+          videoChannelInfo: initialData.videoChannelInfo,
+        })
+        sendResponse({ success: true, data: initialData })
+      } else {
+        sendResponse({ success: true, data })
+      }
+    }).catch((error) => {
+      console.error('[YouTube Content] ❌ ERROR during extraction:', error)
+      sendResponse({ success: false, error: error.message })
+    })
+
+    return true
+  }
+
+  if (request.action === 'extractCommenters') {
+    console.log('[YouTube Content] 👤 RECEIVED extractCommenters request')
+
+    extractVideoCommenters().then((commenters) => {
+      console.log('[YouTube Content] ✅ extractCommenters() returned successfully')
+      console.log('[YouTube Content] Found', commenters?.length || 0, 'commenters')
+      sendResponse({ success: true, commenters })
+    }).catch((error) => {
+      console.error('[YouTube Content] ❌ extractCommenters() threw error:', error)
+      sendResponse({ success: false, error: error?.message || String(error) })
+    })
+
+    return true
   }
 
   if (request.action === 'extractTranscript') {

@@ -150,6 +150,14 @@
   color: var(--blue);
 }
 
+.video-title {
+  margin-bottom: 12px;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--text);
+  font-weight: 500;
+}
+
 .channel-meta {
   margin-top: 6px;
   color: var(--muted);
@@ -535,6 +543,18 @@
 }
 
 .notification-success span {
+  font-size: 18px;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.notification-error {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+.notification-error span {
   font-size: 18px;
   font-weight: 800;
   flex-shrink: 0;

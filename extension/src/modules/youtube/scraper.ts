@@ -3,6 +3,7 @@ import type { Commenter } from './storage'
 export interface ChannelInfo {
   handle: string
   subs: number
+  url?: string
   links?: Record<string, string>
 }
 
@@ -271,64 +272,15 @@ export async function extractVideoChannelInfo(): Promise<ChannelInfo | null> {
       return Math.floor(num)
     }
 
-    // Try primary selector for video owner info (channel info section below video title)
-    let ownerRenderer = document.querySelector('ytd-video-owner-renderer')
-    console.log('[YouTube] 🔍 Looking for ytd-video-owner-renderer:', !!ownerRenderer)
+    // Get channel link directly from ytd-channel-name (always on the page)
+    const channelLink = document.querySelector('.ytd-channel-name a[href^="/@"]') as HTMLAnchorElement | null
 
-    // Fallback: try looking in video-secondary-info for channel link
-    if (!ownerRenderer) {
-      console.log('[YouTube] ⚠️ Trying video-secondary-info...')
-      ownerRenderer = document.querySelector('ytd-video-secondary-info-renderer')
-      console.log('[YouTube] Trying ytd-video-secondary-info-renderer:', !!ownerRenderer)
-    }
-
-    // Fallback: try channel tagline
-    if (!ownerRenderer) {
-      ownerRenderer = document.querySelector('ytd-channel-tagline-renderer')
-      console.log('[YouTube] Trying ytd-channel-tagline-renderer:', !!ownerRenderer)
-    }
-
-    if (!ownerRenderer) {
-      console.log('[YouTube] ❌ Could not find owner/channel element, searching page for channel link...')
-      // Search entire page for any channel link (/@handle format)
-      const channelLink = document.querySelector('a[href^="/@"]') as HTMLAnchorElement | null
-      if (channelLink) {
-        const href = channelLink.getAttribute('href') || ''
-        const handleMatch = href.match(/@([\w.-]+)/)
-        if (handleMatch) {
-          const handle = `@${handleMatch[1]}`
-          console.log('[YouTube] Found channel handle via page search:', handle)
-          return { handle, subs: 0 }
-        }
-      }
-      console.log('[YouTube] No channel link found on page')
+    if (!channelLink) {
+      console.log('[YouTube] ❌ Could not find channel link in ytd-channel-name')
       return null
     }
 
-    console.log('[YouTube] ✅ Found owner element')
-
-    // Strategy 1: Look for link in owner renderer with href
-    let channelLink = ownerRenderer.querySelector('a[href^="/@"]') as HTMLAnchorElement | null
-
-    // Strategy 2: If not found, try video description info cards (where link #62 is)
-    if (!channelLink) {
-      console.log('[YouTube] Strategy 1 failed, trying description infocards...')
-      const descSection = document.querySelector('ytd-video-description-infocards-section-renderer')
-      if (descSection) {
-        channelLink = descSection.querySelector('a[href^="/@"]') as HTMLAnchorElement | null
-      }
-    }
-
-    // Strategy 3: If still not found, search entire page for channel link
-    if (!channelLink) {
-      console.log('[YouTube] Strategy 2 failed, searching entire page...')
-      channelLink = document.querySelector('a[href^="/@"]') as HTMLAnchorElement | null
-    }
-
-    if (!channelLink) {
-      console.log('[YouTube] ❌ Could not find any channel link with href containing /@')
-      return null
-    }
+    console.log('[YouTube] ✅ Found channel link')
 
     console.log('[YouTube] ✅ Found channel link via strategy')
     const href = channelLink.getAttribute('href') || ''
@@ -347,7 +299,7 @@ export async function extractVideoChannelInfo(): Promise<ChannelInfo | null> {
 
     // Get subscriber count from #owner-sub-count
     // Use aria-label for accurate number (e.g., "17.7 million subscribers")
-    const subsEl = ownerRenderer.querySelector('#owner-sub-count') as HTMLElement | null
+    const subsEl = document.querySelector('#owner-sub-count') as HTMLElement | null
     const subsAriaLabel = subsEl?.getAttribute('aria-label') || ''
     const subsInnerText = subsEl?.innerText || ''
 
@@ -362,12 +314,13 @@ export async function extractVideoChannelInfo(): Promise<ChannelInfo | null> {
     }
 
     if (subs === null) {
-      console.log('[YouTube] Could not parse subscriber count')
-      return null
+      console.log('[YouTube] ⚠️ Could not parse subscriber count, using 0')
+      // Continue anyway - we have the handle and URL which is what matters
     }
 
-    console.log('[YouTube] Extracted channel info:', { handle, subs })
-    return { handle, subs }
+    const channelUrl = `https://www.youtube.com${href}`
+    console.log('[YouTube] Extracted channel info:', { handle, subs: subs ?? 0, url: channelUrl })
+    return { handle, subs: subs ?? 0, url: channelUrl }
   } catch (error) {
     console.error('[YouTube] Error extracting channel info:', error)
     return null

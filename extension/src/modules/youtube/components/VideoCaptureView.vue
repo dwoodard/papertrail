@@ -1,9 +1,9 @@
 <template>
   <div class="youtube-module">
-    <!-- Success Notification -->
+    <!-- Notification -->
     <transition name="toast-fade">
-      <div v-if="notification" class="notification notification-success">
-        <span>✓</span>
+      <div v-if="notification" :class="['notification', `notification-${notification.type}`]">
+        <span>{{ notification.type === 'error' ? '✕' : '✓' }}</span>
         <div class="notification-content">
           <div class="notification-title">{{ notification.message }}</div>
         </div>
@@ -21,27 +21,42 @@
         <button class="btn" @click="goToChannel" title="Back to Channel">
           ← Back
         </button>
-        <button class="btn" @click="extractTranscript" :disabled="transcriptLoading">
-          <span v-if="transcriptLoading" class="spinner"></span>
-          <span v-if="transcriptLoading">Transcript loading…</span>
-          <span v-else>📝 Transcript</span>
+        <button v-if="hasExtractedData" class="save-button-global" @click="handleSave" :disabled="loading">
+          <span v-if="!loading">💾 Save to Channel</span>
+          <span v-else>Saving...</span>
         </button>
       </div>
     </header>
 
     <!-- Channel Summary Card -->
     <section v-if="channelInfo" class="summary-card">
-      <div class="source-label">YouTube / Video</div>
-      <a :href="`https://www.youtube.com/${channelInfo.handle}`" class="channel-name-link">
-        <h2 class="channel-name">{{ channelInfo.handle }}</h2>
-      </a>
-      <div class="channel-meta">{{ formatSubs(channelInfo.subs) }} subscribers</div>
-    </section>
+      <div class="summary-top">
+        <div>
+          <div class="source-label">YouTube / Video</div>
+          <div v-if="videoInfo?.title" class="video-title">{{ videoInfo.title }}</div>
+          <a :href="channelInfo.url || `https://www.youtube.com/${channelInfo.handle}`" class="channel-name-link">
+            <h2 class="channel-name">{{ channelInfo.handle }}</h2>
+          </a>
+          <div class="channel-meta">{{ formatSubs(channelInfo.subs) }} subscribers</div>
+        </div>
 
-    <section v-else class="summary-card loading">
-      <div class="skeleton-line" style="width: 40%; height: 12px; margin-bottom: 8px;"></div>
-      <div class="skeleton-line" style="width: 60%; height: 32px; margin-bottom: 8px;"></div>
-      <div class="skeleton-line" style="width: 30%; height: 16px;"></div>
+        <div class="summary-stats">
+          <div class="stat-card">
+            <div class="stat-label">🔗 Links</div>
+            <div class="stat-value">{{ extractedLinks.length }}</div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-label">👤 Leads</div>
+            <div class="stat-value">{{ sortedLeads.length }}</div>
+          </div>
+
+          <div v-if="transcriptText" class="stat-card">
+            <div class="stat-label">📝</div>
+            <div class="stat-value">✓</div>
+          </div>
+        </div>
+      </div>
     </section>
 
     <!-- Accordion Stack -->
@@ -58,7 +73,16 @@
                 <div class="accordion-subtitle">Video transcript with timestamps</div>
               </div>
             </div>
+
+
             <div class="accordion-meta">
+
+                <button class="btn" @click="extractTranscript" :disabled="transcriptLoading">
+                    <span v-if="transcriptLoading" class="spinner"></span>
+                    <span v-if="transcriptLoading">Transcript loading…</span>
+                    <span v-else>📝 Transcript</span>
+                </button>
+
               <span v-if="transcriptLoading" class="status-pill">
                 <span class="spinner"></span>
                 Loading
@@ -112,9 +136,6 @@
           <div v-else class="empty-state">
             <p class="empty-title">No external links found</p>
             <p class="empty-copy">No external links were found in the description or comments.</p>
-            <button class="save-btn" @click="handleSave" :disabled="loading || sortedLeads.length === 0">
-              💾 Save to Channel
-            </button>
           </div>
         </div>
       </details>
@@ -131,6 +152,11 @@
               </div>
             </div>
             <div class="accordion-meta">
+              <button class="btn" @click.stop="extractLeads" :disabled="leadsLoading" title="Extract leads from comments">
+                <span v-if="leadsLoading" class="spinner"></span>
+                <span v-if="leadsLoading">Extracting…</span>
+                <span v-else>👤 Extract</span>
+              </button>
               <span class="result-pill">{{ sortedLeads.length }}</span>
               <span class="chevron">›</span>
             </div>
@@ -145,20 +171,12 @@
             </div>
           </div>
           <div v-else class="empty-state">
-            <p class="empty-title">No commenters found</p>
-            <p class="empty-copy">Scroll to load comments on the YouTube page to extract leads.</p>
-            <button class="save-btn" disabled>💾 Save to Channel</button>
+            <p class="empty-title">No commenters extracted yet</p>
+            <p class="empty-copy">Scroll to load comments on the YouTube page first, then click the button in the header to extract leads.</p>
           </div>
         </div>
       </details>
 
-
-
-      <!-- Save Button (Global) -->
-      <button v-if="sortedLeads.length > 0" class="save-button-global" @click="handleSave" :disabled="loading">
-        <span v-if="!loading">💾 Save to Channel</span>
-        <span v-else>Saving...</span>
-      </button>
     </section>
   </div>
 </template>
@@ -171,6 +189,7 @@ import { mergeVideo } from '../storage'
 interface ChannelInfo {
   handle: string
   subs: number
+  url?: string
 }
 
 const channelInfo = ref<ChannelInfo | null>(null)
@@ -178,9 +197,10 @@ const extractedLinks = ref<string[]>([])
 const extractedLeads = ref<Omit<Commenter, 'tier'>[]>([])
 const videoInfo = ref<{ id: string; title: string; url: string } | null>(null)
 const loading = ref(false)
-const notification = ref<{ message: string } | null>(null)
+const notification = ref<{ message: string; type: 'success' | 'error' } | null>(null)
 const transcriptText = ref<string>('')
 const transcriptLoading = ref(false)
+const leadsLoading = ref(false)
 
 const sortedLeads = computed(() => {
   const deduped = new Map<string, Omit<Commenter, 'tier'>>()
@@ -208,6 +228,10 @@ const sortedLeads = computed(() => {
   })
 })
 
+const hasExtractedData = computed(() => {
+  return extractedLinks.value.length > 0 || sortedLeads.value.length > 0 || transcriptText.value.length > 0
+})
+
 onMounted(() => {
   // Listen for data from content script
   chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -220,6 +244,7 @@ onMounted(() => {
         channelInfo.value = {
           handle: request.data.videoChannelInfo.handle,
           subs: request.data.videoChannelInfo.subs,
+          url: request.data.videoChannelInfo.url,
         }
       }
 
@@ -239,11 +264,11 @@ onMounted(() => {
     sendResponse({ success: true })
   })
 
-  // Request initial data from content script
+  // Request initial data from content script (channel info and links only)
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
     if (tabs[0]?.id) {
       console.log('[VideoCaptureView] ✅ Got tab ID:', tabs[0].id)
-      chrome.tabs.sendMessage(tabs[0].id, { action: 'extractData' }, (response) => {
+      chrome.tabs.sendMessage(tabs[0].id, { action: 'extractDataInitial' }, (response) => {
         if (chrome.runtime.lastError) {
           console.error('[VideoCaptureView] ❌ Chrome runtime error:', chrome.runtime.lastError)
           return
@@ -252,8 +277,7 @@ onMounted(() => {
         console.log('[VideoCaptureView] 📥 Received response:', {
           success: response?.success,
           pageType: response?.data?.pageType,
-          hasChannelInfo: !!response?.data?.videoChannelInfo,
-          commentersCount: response?.data?.videoCommenters?.length || 0,
+          videoChannelInfo: response?.data?.videoChannelInfo,
           linksCount: response?.data?.videoLinks?.length || 0,
         })
 
@@ -264,6 +288,7 @@ onMounted(() => {
             channelInfo.value = {
               handle: response.data.videoChannelInfo.handle,
               subs: response.data.videoChannelInfo.subs,
+              url: response.data.videoChannelInfo.url,
             }
             console.log('[VideoCaptureView] ✅ Channel info set:', channelInfo.value)
           } else {
@@ -277,13 +302,6 @@ onMounted(() => {
             console.log('[VideoCaptureView] ℹ️ No links in response')
           }
 
-          if (response.data.videoCommenters) {
-            extractedLeads.value = response.data.videoCommenters
-            console.log(`[VideoCaptureView] ✅ Leads set: ${response.data.videoCommenters.length} commenters`)
-          } else {
-            console.warn('[VideoCaptureView] ⚠️ No commenters in response')
-          }
-
           if (response.data.videoInfo) {
             videoInfo.value = response.data.videoInfo
             console.log('[VideoCaptureView] ✅ Video info set:', videoInfo.value)
@@ -292,27 +310,9 @@ onMounted(() => {
           }
         }
 
-        // Fallback: if no channel info, try to extract from page title/URL
+        // If no channel info from content script, that's a real error
         if (!channelInfo.value) {
-          console.log('[VideoCaptureView] No channel info from content script, trying fallback')
-          // Try to extract from page title or use unknown
-          const titleMatch = document.title.match(/^\s*[^-]*-\s*([^-]+)/)
-          if (titleMatch) {
-            const channelName = titleMatch[1].trim()
-            channelInfo.value = { handle: `@${channelName}`, subs: 0 }
-            console.log('[VideoCaptureView] Using channel from title:', channelInfo.value)
-          } else {
-            // Last resort: ask content script again with explicit logging
-            chrome.tabs.sendMessage(tabs[0]!.id!, { action: 'extractData' }, (response) => {
-              if (response?.data?.videoChannelInfo) {
-                console.log('[VideoCaptureView] Got channel info on retry:', response.data.videoChannelInfo)
-                channelInfo.value = {
-                  handle: response.data.videoChannelInfo.handle,
-                  subs: response.data.videoChannelInfo.subs,
-                }
-              }
-            })
-          }
+          console.warn('[VideoCaptureView] ⚠️ Failed to extract channel info from page')
         }
       })
     }
@@ -320,22 +320,21 @@ onMounted(() => {
 })
 
 function goToChannel() {
-  let handle = channelInfo.value?.handle
+  console.log('[VideoCaptureView] goToChannel() called', { channelInfo: channelInfo.value })
+  const channelUrl = channelInfo.value?.url
 
-  // Fallback: try to extract handle from leads
-  if (!handle && extractedLeads.value.length > 0) {
-    const firstLead = extractedLeads.value[0]
-    handle = firstLead.handle
-  }
-
-  if (!handle) {
-    console.warn('[VideoCaptureView] No channel handle found, cannot navigate back')
+  if (!channelUrl) {
+    console.warn('[VideoCaptureView] No channel URL found, cannot navigate back', { channelInfo: channelInfo.value })
     return
   }
 
+  console.log('[VideoCaptureView] Navigating to:', channelUrl)
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
     if (tabs[0]?.id) {
-      chrome.tabs.update(tabs[0].id, { url: `https://www.youtube.com/${handle}` })
+      console.log('[VideoCaptureView] Updating tab', tabs[0].id, 'to URL:', channelUrl)
+      chrome.tabs.update(tabs[0].id, { url: channelUrl })
+    } else {
+      console.error('[VideoCaptureView] No active tab found')
     }
   })
 }
@@ -355,8 +354,8 @@ function formatSubs(count: number): string {
   return count.toString()
 }
 
-function showNotification(message: string) {
-  notification.value = { message }
+function showNotification(message: string, type: 'success' | 'error' = 'success') {
+  notification.value = { message, type }
   setTimeout(() => {
     notification.value = null
   }, 4000)
@@ -367,7 +366,7 @@ function copyTranscript() {
     navigator.clipboard.writeText(transcriptText.value).then(() => {
       showNotification('Transcript copied to clipboard')
     }).catch(() => {
-      showNotification('Failed to copy transcript')
+      showNotification('Failed to copy transcript', 'error')
     })
   }
 }
@@ -386,7 +385,7 @@ function extractTranscript() {
 
         if (chrome.runtime.lastError) {
           console.error('[VideoCaptureView] ❌ Chrome runtime error:', chrome.runtime.lastError)
-          showNotification('Error extracting transcript. Check console.')
+          showNotification('Error extracting transcript. Check console.', 'error')
           transcriptLoading.value = false
           return
         }
@@ -398,15 +397,52 @@ function extractTranscript() {
           console.log('[VideoCaptureView] First 200 chars:', response.transcript.substring(0, 200))
         } else {
           console.error('[VideoCaptureView] ❌ Extraction failed. Error:', response?.error)
-          showNotification('Failed to extract transcript. Make sure description is expanded.')
+          showNotification('Failed to extract transcript. Make sure description is expanded.', 'error')
         }
 
         transcriptLoading.value = false
       })
     } else {
       console.error('[VideoCaptureView] ❌ No tab ID found')
-      showNotification('Error: No active tab')
+      showNotification('Error: No active tab', 'error')
       transcriptLoading.value = false
+    }
+  })
+}
+
+function extractLeads() {
+  leadsLoading.value = true
+  console.log('[VideoCaptureView] ▶️ START: extractLeads() called')
+
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    if (tabs[0]?.id) {
+      console.log('[VideoCaptureView] 📤 Sending extractCommenters message to content script...')
+
+      chrome.tabs.sendMessage(tabs[0].id, { action: 'extractCommenters' }, (response) => {
+        console.log('[VideoCaptureView] 📥 Received response from content script:', response)
+
+        if (chrome.runtime.lastError) {
+          console.error('[VideoCaptureView] ❌ Chrome runtime error:', chrome.runtime.lastError)
+          showNotification('Error extracting leads. Check console.', 'error')
+          leadsLoading.value = false
+          return
+        }
+
+        if (response?.success && response?.commenters) {
+          console.log('[VideoCaptureView] ✅ Success! Found', response.commenters.length, 'commenters')
+          extractedLeads.value = response.commenters
+          showNotification(`Extracted ${response.commenters.length} leads`)
+        } else {
+          console.error('[VideoCaptureView] ❌ Extraction failed. Error:', response?.error)
+          showNotification('Failed to extract leads. Make sure comments are loaded.', 'error')
+        }
+
+        leadsLoading.value = false
+      })
+    } else {
+      console.error('[VideoCaptureView] ❌ No tab ID found')
+      showNotification('Error: No active tab', 'error')
+      leadsLoading.value = false
     }
   })
 }
@@ -456,7 +492,7 @@ function handleSave() {
       console.log('[YouTube] Video capture saved:', result)
     } catch (error) {
       console.error('[YouTube] Error saving video capture:', error)
-      showNotification('Error saving. Check console.')
+      showNotification('Error saving. Check console.', 'error')
     } finally {
       loading.value = false
     }
@@ -495,19 +531,4 @@ function handleSave() {
   background: var(--border-strong);
 }
 
-.skeleton-line {
-  background: var(--panel-soft);
-  border-radius: 8px;
-  animation: skeleton-pulse 1.5s ease-in-out infinite;
-  display: block;
-}
-
-@keyframes skeleton-pulse {
-  0%, 100% {
-    opacity: 0.6;
-  }
-  50% {
-    opacity: 0.4;
-  }
-}
 </style>
