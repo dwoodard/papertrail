@@ -12,10 +12,6 @@
 
     <!-- Module Header -->
     <header class="module-header">
-      <div class="module-title-block">
-        <div class="module-eyebrow">YouTube Module</div>
-        <h1 class="module-title">Channel Discovery</h1>
-      </div>
 
       <div class="module-actions">
         <button class="btn" @click="goToChannel" title="Back to Channel">
@@ -33,6 +29,7 @@
       <div class="summary-top">
         <div>
           <div class="source-label">YouTube / Video</div>
+
           <div v-if="videoInfo?.title" class="video-title">{{ videoInfo.title }}</div>
           <a :href="channelInfo.url || `https://www.youtube.com/${channelInfo.handle}`" class="channel-name-link">
             <h2 class="channel-name">{{ channelInfo.handle }}</h2>
@@ -97,12 +94,18 @@
           <div class="transcript-box">
             <div class="transcript-toolbar">
               <div class="transcript-toolbar-title">Transcript</div>
-              <button v-if="transcriptText" class="btn" @click="copyTranscript" title="Copy to clipboard">
-                📋 Copy
-              </button>
+              <div class="transcript-toolbar-actions">
+                <label v-if="transcriptText" class="checkbox-label">
+                  <input type="checkbox" v-model="showTimestamps" class="checkbox-input">
+                  <span class="checkbox-text">Timestamps</span>
+                </label>
+                <button v-if="transcriptText" class="btn" @click="copyTranscript" title="Copy to clipboard">
+                  📋 Copy
+                </button>
+              </div>
             </div>
             <div class="transcript-content">
-              <div v-if="transcriptText" class="transcript-text">{{ transcriptText }}</div>
+              <div v-if="transcriptText" class="transcript-text">{{ displayedTranscript }}</div>
               <div v-else class="transcript-placeholder">Transcript is still loading. Once available, the transcript text can appear here.</div>
             </div>
           </div>
@@ -201,6 +204,7 @@ const notification = ref<{ message: string; type: 'success' | 'error' } | null>(
 const transcriptText = ref<string>('')
 const transcriptLoading = ref(false)
 const leadsLoading = ref(false)
+const showTimestamps = ref(true)
 
 const sortedLeads = computed(() => {
   const deduped = new Map<string, Omit<Commenter, 'tier'>>()
@@ -232,9 +236,15 @@ const hasExtractedData = computed(() => {
   return extractedLinks.value.length > 0 || sortedLeads.value.length > 0 || transcriptText.value.length > 0
 })
 
+const displayedTranscript = computed(() => {
+  if (!transcriptText.value) return ''
+  if (showTimestamps.value) return transcriptText.value
+  return transcriptText.value.replace(/^\d{1,2}:\d{2}(?::\d{2})?\s+/gm, '')
+})
+
 onMounted(() => {
   // Listen for data from content script
-  chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
     console.log('[VideoCaptureView] Received message:', request.action)
 
     if (request.action === 'updateData' && request.data?.pageType === 'video') {
@@ -362,8 +372,8 @@ function showNotification(message: string, type: 'success' | 'error' = 'success'
 }
 
 function copyTranscript() {
-  if (transcriptText.value) {
-    navigator.clipboard.writeText(transcriptText.value).then(() => {
+  if (displayedTranscript.value) {
+    navigator.clipboard.writeText(displayedTranscript.value).then(() => {
       showNotification('Transcript copied to clipboard')
     }).catch(() => {
       showNotification('Failed to copy transcript', 'error')
