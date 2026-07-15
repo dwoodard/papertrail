@@ -122,16 +122,8 @@ export async function scrapeAllMaps(scrollToLoadAll: boolean = true) {
     }
 
     console.log(
-      `[Papertrail] --- Phase 2: Found ${listings.length} total listings. Starting detail extraction ---`
+      `[Papertrail] --- Phase 2: Found ${listings.length} total listings. Starting data extraction ---`
     )
-
-    // Attach click handlers to prevent default navigation behavior
-    listings.forEach((listing) => {
-      listing.addEventListener('click', (e) => {
-        e.preventDefault()
-        e.stopPropagation()
-      })
-    })
 
     // Notify side panel of total listings found
     const totalListings = listings.length
@@ -141,7 +133,7 @@ export async function scrapeAllMaps(scrollToLoadAll: boolean = true) {
       totalListings: totalListings,
     })
 
-    // 2. Iterate through each and get detailInfo
+    // 2. Extract visible data from each listing (no clicks, all in-page)
     for (let i = 0; i < listings.length; i++) {
       if (!isScraping) {
         console.log(`[Papertrail] Scrape cancelled by user at listing ${i + 1}/${listings.length}`)
@@ -158,30 +150,13 @@ export async function scrapeAllMaps(scrollToLoadAll: boolean = true) {
           .trim()
       }
 
-      console.log(`[Papertrail] [${i + 1}/${listings.length}] Scraping: ${name}`)
-
-      listing.click() // Open detail panel
-      const detailWaitMs = 2000 + Math.floor(Math.random() * 8001)
-      const detailWaitSec = Math.ceil(detailWaitMs / 1000)
-      void sendRuntimeMessage({
-        type: 'MAPS_SCRAPE_WAITING',
-        waitSeconds: detailWaitSec,
-        collectedCount: scrapedCount,
-      })
-      await new Promise((r) => setTimeout(r, detailWaitMs)) // Wait 2-10s for panel to render
+      console.log(`[Papertrail] [${i + 1}/${listings.length}] Extracting: ${name}`)
 
       try {
         const cleanText = (text?: string): string | null => {
           if (!text) return null
           const cleaned = text.trim().replace(/\n/g, ' ').replace(/\s+/g, ' ').replace(/\s*·\s*Visited link\s*$/, '').trim()
           return cleaned || null
-        }
-
-        const getMapsValue = (selector: string, textSelector = '.Io6YTe'): string | null => {
-          const el = document.querySelector(selector) as HTMLElement | null
-          if (!el) return null
-          const textEl = el.querySelector(textSelector)
-          return cleanText(textEl?.textContent ?? el.innerText)
         }
 
         const extractId = (href: string): string | null => {
@@ -213,27 +188,35 @@ export async function scrapeAllMaps(scrollToLoadAll: boolean = true) {
           return null
         }
 
-        // Extract data
-        const websiteElement = document.querySelector('a[data-item-id="authority"]') as HTMLAnchorElement | null
+        // Extract visible data directly from listing element
         const linkElement = findListingLink(listing)
-        const detailRows = Array.from(document.querySelectorAll('.W4Efsd')) as HTMLElement[]
-
-        // Extract data using consistent helpers
-        const website = getMapsValue('[data-item-id="authority"]')
-        const websiteUrl = websiteElement?.href ? new URL(websiteElement.href, window.location.href).href : ''
-        const address = getMapsValue('[data-item-id="address"]')
-        const phone = getMapsValue('button[data-tooltip="Copy phone number"]') ?? getMapsValue('[data-item-id^="phone:tel:"]')
-        const rating = getMapsValue('.F7nice [aria-hidden="true"]')
-        const reviews = getMapsValue('.F7nice [aria-label*="reviews"]')
         const id = linkElement?.href ? extractId(linkElement.href) : null
 
-        const extracted = {
+        // Extract rating and review count from visible elements within the listing
+        const ratingElement = listing.querySelector('[aria-hidden="true"]') as HTMLElement | null
+        const reviewsElement = listing.querySelector('[aria-label*="review"]') as HTMLElement | null
+
+        const rating = ratingElement ? cleanText(ratingElement.textContent) : null
+        const reviews = reviewsElement ? cleanText(reviewsElement.getAttribute('aria-label') ?? reviewsElement.textContent) : null
+
+        // Extract price range if visible in the listing
+        const priceMatch = listing.innerText?.match(/\$[0-9–]+/)?.[0] ?? null
+
+        const info: ScrapedListing = {
+          name,
+          address: null,
+          phone: null,
+          website: null,
+          websiteUrl: null,
+          id,
           rating,
           reviews,
-          priceRange: detailRows[0]?.innerText?.match(/\$[0-9–]+/)?.[0] ?? null,
-          category: detailRows[1]?.innerText ? cleanText(detailRows[1].innerText)?.split('·')[0].trim() ?? null : null,
-          description: detailRows.length > 3 ? cleanText(detailRows[detailRows.length - 1].innerText) : null,
+          priceRange: priceMatch,
+          category: null,
+          description: null,
         }
+
+        scrapedCount++
 
         if (rating || reviews) {
           console.log(`[Papertrail] Rating: ${rating}, Reviews: ${reviews}`)
@@ -241,26 +224,7 @@ export async function scrapeAllMaps(scrollToLoadAll: boolean = true) {
 
         if (id) {
           console.log(`[Papertrail] Extracted ID for "${name}": ${id}`)
-        } else {
-          console.warn(`[Papertrail] Could not extract place ID for "${name}"`)
-          console.warn(`[Papertrail] Listing element HTML:`, listing.outerHTML.substring(0, 200))
         }
-
-        const info: ScrapedListing = {
-          name,
-          address,
-          phone,
-          website,
-          websiteUrl,
-          id,
-          rating: extracted.rating,
-          reviews: extracted.reviews,
-          priceRange: extracted.priceRange,
-          category: extracted.category,
-          description: extracted.description,
-        }
-
-        scrapedCount++
 
         // Send result back to side panel in real-time
         void sendRuntimeMessage({
