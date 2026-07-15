@@ -86,13 +86,48 @@ function extractListingData(listing: HTMLElement): ScrapedListing | null {
       return null
     }
 
-    const ratingElement = listing.querySelector('[aria-hidden="true"]') as HTMLElement | null
-    const reviewsElement = listing.querySelector('[aria-label*="review"]') as HTMLElement | null
+    // Extract rating and reviews from image alt text (e.g., "3.9 stars 1,423 Reviews")
+    let rating: string | null = null
+    let reviews: string | null = null
+    const ratingImg = listing.querySelector('img[alt*="stars"]') as HTMLImageElement | null
+    if (ratingImg?.alt) {
+      const altText = ratingImg.alt
+      const starsMatch = altText.match(/(\d+\.?\d*)\s*star/)
+      if (starsMatch) {
+        rating = starsMatch[1] + ' stars'
+      }
+      const reviewsMatch = altText.match(/(\d+(?:,\d+)?)\s*Review/)
+      if (reviewsMatch) {
+        reviews = reviewsMatch[1] + ' reviews'
+      }
+    }
 
-    const rating = ratingElement ? cleanText(ratingElement.textContent) : null
-    const reviews = reviewsElement ? cleanText(reviewsElement.getAttribute('aria-label') ?? reviewsElement.textContent) : null
+    // Extract price from the visible text
+    const text = listing.innerText || ''
+    const priceMatch = text.match(/\$(\d+)/)?.[0] ?? null
 
-    const priceMatch = listing.innerText?.match(/\$[0-9–]+/)?.[0] ?? null
+    // Extract category/type (2-star hotel, Budget option, etc.)
+    let category: string | null = null
+    const categoryMatch = text.match(/(\d+-star \w+)/i)
+    if (categoryMatch) {
+      category = categoryMatch[1]
+    }
+
+    // Extract description (first line of descriptive text after the category)
+    let description: string | null = null
+    const lines = text.split('\n').filter((l) => l.trim())
+    for (const line of lines) {
+      if (
+        line.includes('hotel') ||
+        line.includes('Budget') ||
+        line.includes('Casual') ||
+        line.includes('option') ||
+        line.includes('suites')
+      ) {
+        description = line.trim()
+        break
+      }
+    }
 
     const info: ScrapedListing = {
       name,
@@ -104,8 +139,8 @@ function extractListingData(listing: HTMLElement): ScrapedListing | null {
       rating,
       reviews,
       priceRange: priceMatch,
-      category: null,
-      description: null,
+      category,
+      description,
     }
 
     extractedIds.add(id)
