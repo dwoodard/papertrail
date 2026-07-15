@@ -243,6 +243,11 @@
       </div>
     </footer>
 
+    <!-- Debug Status (visible while testing) -->
+    <div class="debug-banner">
+      <span>Content Script Status: <strong :style="{ color: contentScriptConnected ? '#10b981' : '#ef4444' }">{{ contentScriptConnected ? '✓ Connected' : '✗ Not Connected' }}</strong></span>
+    </div>
+
     <!-- Sync Section -->
     <div v-if="results.length > 0" class="sync-section">
       <div class="sync-controls">
@@ -317,6 +322,7 @@ const totalListings = ref(0)
 const exportMenuOpen = ref(false)
 const statusMessage = ref('Ready. Click Start Scrape to collect Google Maps listings.')
 const scrollToLoadAll = ref(true)
+const contentScriptConnected = ref(false)
 
 // Projects and sync
 const projects = ref<Project[]>([])
@@ -596,6 +602,17 @@ onMounted(async () => {
   loadSearchTermsFromStorage()
   await loadProjects()
   await sendRuntimeMessage({ type: 'REQUEST_CURRENT_SEARCH_TERM' })
+
+  // Debug: Check content script connection
+  setTimeout(() => {
+    sendToActiveTab({ type: 'DEBUG_PING' }).then(() => {
+      contentScriptConnected.value = true
+      console.log('[Papertrail] ✓ Content script is connected')
+    }).catch(() => {
+      contentScriptConnected.value = false
+      console.error('[Papertrail] ✗ Content script NOT connected - make sure you are on google.com/maps')
+    })
+  }, 500)
 })
 
 const table = computed(() =>
@@ -627,10 +644,13 @@ function toggleExportMenu() {
 }
 
 async function startScrape() {
+  console.log('[UI] Start Scrape button clicked')
   if (running.value) {
-return
-}
+    console.log('[UI] Already running')
+    return
+  }
 
+  console.log('[UI] Setting running = true')
   running.value = true
   stopped.value = false
   results.value = []
@@ -638,9 +658,11 @@ return
   current.value = 0
 
   statusMessage.value = 'Starting Google Maps scraper...'
+  console.log('[UI] Sending START_MAPS_SCRAPE message...')
 
   // Send message to content script on the active tab
   await sendToActiveTab({ type: 'START_MAPS_SCRAPE', scrollToLoadAll: scrollToLoadAll.value })
+  console.log('[UI] Message sent')
 }
 
 function stopScrape() {
@@ -1821,6 +1843,16 @@ return
     background: #fef2f2;
     color: #dc2626;
     border: 1px solid #fee2e2;
+    }
+
+    .debug-banner {
+    padding: 8px 16px;
+    background: #fef3c7;
+    border-top: 1px solid #fcd34d;
+    border-bottom: 1px solid #fcd34d;
+    font-size: 12px;
+    font-weight: 600;
+    color: #92400e;
     }
 
     @media (max-width: 760px) {

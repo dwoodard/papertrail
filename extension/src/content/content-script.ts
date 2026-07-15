@@ -6,7 +6,13 @@ import { onMessage, sendRuntimeMessage } from '@/utils/messaging'
 // Load YouTube module content script
 // Imported directly so side effects (listeners, periodic extraction) execute immediately
 // Initialization is guarded in the module itself to only run on YouTube pages
-import '../modules/youtube/content'
+try {
+  import('../modules/youtube/content').catch(err => {
+    console.log('[Papertrail] YouTube module not applicable for this page:', err.message)
+  })
+} catch (e) {
+  console.log('[Papertrail] YouTube module import failed:', (e as Error).message)
+}
 
 /**
  * Resolve module → create runtime → listen for messages → route to runtime
@@ -25,6 +31,11 @@ try {
 
   if (!module) {
     console.log('[Papertrail] No module found for this URL')
+    localStorage.setItem('__PAPERTRAIL_DEBUG__', JSON.stringify({
+      status: 'no-module',
+      url: window.location.href.substring(0, 100),
+      timestamp: Date.now()
+    }))
   } else {
     console.log(`[Papertrail] Loaded module: ${module.descriptor.label}`)
 
@@ -32,13 +43,34 @@ try {
     runtime = module.createRuntime?.((observations) =>
       dispatchObservations(observations)
     )
+
+    // Write status to localStorage for monitoring
+    localStorage.setItem('__PAPERTRAIL_DEBUG__', JSON.stringify({
+      status: 'module-loaded',
+      module: module.descriptor.label,
+      url: window.location.href.substring(0, 100),
+      timestamp: Date.now()
+    }))
   }
 } catch (err) {
   console.error('[Papertrail] Failed to initialize module:', err)
+  localStorage.setItem('__PAPERTRAIL_DEBUG__', JSON.stringify({
+    status: 'error',
+    error: err.message,
+    timestamp: Date.now()
+  }))
 }
 
-// Handle GET_YOUTUBE_DATA with return value
+// Handle all incoming messages
 chrome.runtime.onMessage.addListener((message: any, sender, sendResponse) => {
+  const respond = (data?: any) => {
+    try {
+      sendResponse(data || { ok: true })
+    } catch {
+      // Port may have closed, ignore
+    }
+  }
+
   if (message.type === 'GET_YOUTUBE_DATA') {
     console.log('[Papertrail] GET_YOUTUBE_DATA message received')
     ;(async () => {
@@ -75,58 +107,24 @@ chrome.runtime.onMessage.addListener((message: any, sender, sendResponse) => {
         sendResponse(null)
       }
     })()
-    return true // Indicate we'll send a response
+    return true
+  } else if (message.type === 'START_MAPS_SCRAPE') {
+    console.log('[Papertrail] ✓ START_MAPS_SCRAPE received - initiating scraper')
+    const scrollToLoadAll = message.scrollToLoadAll !== false
+    console.log('[Papertrail] Calling runtime.scrapeAllMaps with scrollToLoadAll:', scrollToLoadAll)
+    runtime.scrapeAllMaps?.(scrollToLoadAll)
+    respond({ status: 'scraping' })
+  } else if (message.type === 'DEBUG_PING') {
+    console.log('[Papertrail] ✓ DEBUG_PING received')
+    respond({ status: 'ok' })
+  } else {
+    console.log('[Papertrail] Unknown message type:', message.type)
+    respond()
   }
 })
 
-// Listen for messages regardless of module initialization
-onMessage(async (message: PtMessage) => {
-  console.log('[Papertrail] Message received:', message.type)
-
-  try {
-    if (message.type === 'ACTIVATE_PASSIVE') {
-          if (message.active) {
-            console.log('[Papertrail] Starting passive capture')
-            runtime.startPassiveCapture?.()
-          } else {
-            console.log('[Papertrail] Stopping passive capture')
-            runtime.stopPassiveCapture?.()
-          }
-        } else if (message.type === 'BULK_COLLECT') {
-          console.log('[Papertrail] Starting bulk collect')
-          void runtime.bulkCollect?.(message.options)
-        } else if (message.type === 'STOP_COLLECT') {
-          console.log('[Papertrail] Stopping bulk collect')
-          runtime.stopCollect?.()
-        } else if (message.type === 'START_MAPS_SCRAPE') {
-          console.log('[Papertrail] Starting Google Maps scrape')
-          const scrollToLoadAll = message.scrollToLoadAll !== false
-          console.log(`[Papertrail] Scroll to load all: ${scrollToLoadAll}`)
-          runtime.scrapeAllMaps?.(scrollToLoadAll)
-        } else if (message.type === 'STOP_MAPS_SCRAPE') {
-          console.log('[Papertrail] Stopping Google Maps scrape')
-          runtime.stopMapsScrape?.()
-        } else if (message.type === 'REQUEST_CURRENT_SEARCH_TERM') {
-          try {
-            const { extractSearchTerm } = await import('../modules/google-maps/scraper')
-            const searchTerm = extractSearchTerm()
-            console.log(`[Papertrail] Sending current search term: "${searchTerm}"`)
-            void sendRuntimeMessage({ type: 'CURRENT_SEARCH_TERM', searchTerm: searchTerm })
-          } catch (err) {
-            console.error('[Papertrail] Failed to load scraper:', err)
-          }
-        } else if (message.type === 'SET_SEARCH_TERM') {
-          console.log(`[Papertrail] Loading search term: "${message.searchTerm}"`)
-          // Navigate to the Google Maps search page for this term
-          const encodedTerm = encodeURIComponent(message.searchTerm)
-          const searchUrl = `https://www.google.com/maps/search/${encodedTerm}`
-          window.location.href = searchUrl
-        }
-      } catch (error) {
-        console.error('[Papertrail] Runtime error:', error)
-      }
-    })
-
 console.log('[Papertrail] Content script ready')
 
-export {}
+export function onExecute() {
+  console.log('[Papertrail] Content script initialization complete')
+}

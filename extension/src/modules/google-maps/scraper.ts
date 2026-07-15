@@ -50,18 +50,26 @@ export async function scrapeAllMaps(scrollToLoadAll: boolean = true) {
   }, 5 * 60 * 1000)
 
   try {
+    console.log('[Papertrail] Scraper initialization started')
+
     // 1. Identify the scrollable container
+    console.log('[Papertrail] Looking for scrollable container...')
     const scrollContainer =
       document.querySelector('div[role="feed"]') ||
       document.querySelector('.m6B1nf') ||
       document.querySelector('.UL7Qtf')?.parentElement
 
+    console.log('[Papertrail] Scroll container found:', !!scrollContainer)
+
     if (!scrollContainer) {
-      console.error('[Papertrail] Scrollable container not found. Make sure the results list is visible.')
+      console.error('[Papertrail] ❌ Scrollable container not found. Make sure the results list is visible.')
+      console.error('[Papertrail] Tried selectors: div[role="feed"], .m6B1nf, .UL7Qtf')
       clearTimeout(timeoutId)
 
       return
     }
+
+    console.log('[Papertrail] ✓ Scroll container found')
 
     if (shouldScrollToLoadAll) {
       console.log('[Papertrail] --- Phase 1: Scrolling to bottom ---')

@@ -54,11 +54,35 @@ export async function sendToActiveTab(message: PtMessage): Promise<void> {
         return
     }
 
-    const tabs = await chrome.tabs.query({ active: true })
+    // Get all tabs
+    const allTabs = await chrome.tabs.query({})
+    console.log('[Messaging] Total tabs:', allTabs.length)
+
+    // Log all tabs to help debug
+    allTabs.forEach((t, i) => {
+        if (t.url?.includes('google.com') || t.url?.includes('youtube.com')) {
+            console.log(`[Messaging] Tab ${i}: ID=${t.id}, Active=${t.active}, URL=${t.url?.substring(0, 80)}`)
+        }
+    })
+
+    // Find Google Maps or YouTube tab (the content script runs on these)
+    let tabs = allTabs.filter(t => t.url?.includes('google.com/maps/search') || t.url?.includes('youtube.com'))
+    console.log('[Messaging] Found content-script tabs:', tabs.length)
+
+    // If still no tab, try active tab
+    if (tabs.length === 0) {
+        const activeTabs = await chrome.tabs.query({ active: true, currentWindow: true })
+        console.log('[Messaging] Falling back to active tab:', activeTabs[0]?.url?.substring(0, 60))
+        tabs = activeTabs
+    }
+
     const tab = tabs[0]
 
     if (tab?.id != null) {
+        console.log('[Messaging] Sending', message.type, 'to tab', tab.id)
         await sendTabMessage(tab.id, message)
+    } else {
+        console.error('[Messaging] No target tab found for message:', message.type)
     }
 }
 
