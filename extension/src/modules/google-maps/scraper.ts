@@ -5,6 +5,67 @@ let isScraping = false
 let shouldScrollToLoadAll = true
 const extractedIds = new Set<string>()
 
+async function waitForPanel(): Promise<boolean> {
+  for (let i = 0; i < 30; i++) {
+    if (document.querySelector('[role="main"]')) return true
+    await new Promise((r) => setTimeout(r, 100))
+  }
+  return false
+}
+
+function cleanData(text: string | null | undefined): string | null {
+  if (!text) return null
+  return text
+    .replace(/\s+/g, ' ') // normalize whitespace
+    .replace(/^[\s·•]+|[\s·•]+$/g, '') // trim bullets/dots
+    .trim()
+}
+
+function extractFromPanel(): Partial<ScrapedListing> {
+  const panel = document.querySelector('[role="main"]')
+  if (!panel) return {}
+
+  const result: Partial<ScrapedListing> = {}
+  const infoRegion = panel.querySelector('[role="region"]')
+
+  // Address: button with "Address:" label
+  const addrBtn = Array.from(infoRegion?.querySelectorAll('button') || []).find((b) => b.textContent?.includes('Address:'))
+  if (addrBtn) {
+    const raw = addrBtn.textContent
+      ?.split('Address:')[1]
+      ?.split('Copy address')[0]
+    result.address = cleanData(raw)
+  }
+
+  // Phone: button with "Phone:" label
+  const phoneBtn = Array.from(infoRegion?.querySelectorAll('button') || []).find((b) => b.textContent?.includes('Phone:'))
+  if (phoneBtn) {
+    const raw = phoneBtn.textContent
+      ?.split('Phone:')[1]
+      ?.split('Copy phone')[0]
+    result.phone = cleanData(raw)
+  }
+
+  // Website: href="http" excluding known services
+  const exclude = ['maps.google', 'google.com', 'facebook', 'instagram', 'twitter', 'booking', 'expedia', 'tripadvisor', 'grubhub', 'doordash', 'ubereats']
+  const link = Array.from(panel.querySelectorAll('a[href^="http"]')).find((a) => {
+    const href = (a as HTMLAnchorElement).href || ''
+    return !exclude.some((e) => href.includes(e))
+  })
+  if (link) {
+    const url = (link as HTMLAnchorElement).href
+    if (url && url.length > 10) result.websiteUrl = url
+  }
+
+  // Reviews: "number reviews" pattern
+  const rev = Array.from(panel.querySelectorAll('button, div, span'))
+    .map((b) => b.textContent)
+    .find((text) => text?.match(/\d+\s+reviews?/i))
+  if (rev) result.reviews = cleanData(rev)
+
+  return result
+}
+
 export function extractSearchTerm(): string {
   // Try to extract from URL: https://www.google.com/maps/search/query+here
   const urlMatch = window.location.pathname.match(/\/maps\/search\/([^/?]+)/)
@@ -89,14 +150,14 @@ function extractListingData(listing: HTMLElement): ScrapedListing | null {
     // Extract rating and reviews from image alt text (e.g., "3.9 stars 1,423 Reviews")
     let rating: string | null = null
     let reviews: string | null = null
-    const ratingImg = listing.querySelector('img[alt*="stars"]') as HTMLImageElement | null
+    const ratingImg = listing.querySelector('img[alt*="star"]') as HTMLImageElement | null
     if (ratingImg?.alt) {
       const altText = ratingImg.alt
-      const starsMatch = altText.match(/(\d+\.?\d*)\s*star/)
+      const starsMatch = altText.match(/(\d+\.?\d*)\s*stars?/i)
       if (starsMatch) {
         rating = starsMatch[1] + ' stars'
       }
-      const reviewsMatch = altText.match(/(\d+(?:,\d+)?)\s*Review/)
+      const reviewsMatch = altText.match(/(\d+(?:,\d+)?)\s*reviews?/i)
       if (reviewsMatch) {
         reviews = reviewsMatch[1] + ' reviews'
       }
@@ -106,25 +167,23 @@ function extractListingData(listing: HTMLElement): ScrapedListing | null {
     const text = listing.innerText || ''
     const priceMatch = text.match(/\$(\d+)/)?.[0] ?? null
 
-    // Extract category/type (2-star hotel, Budget option, etc.)
+    // Extract category/type from visible text (e.g., "2-star hotel", "Restaurant", etc.)
     let category: string | null = null
-    const categoryMatch = text.match(/(\d+-star \w+)/i)
-    if (categoryMatch) {
-      category = categoryMatch[1]
+    const lines = text.split('\n').filter((l) => l.trim().length > 0)
+    if (lines.length > 1) {
+      const potentialCategory = lines[1]
+      if (potentialCategory && potentialCategory.length < 80) {
+        category = potentialCategory
+      }
     }
 
-    // Extract description (first line of descriptive text after the category)
+    // Extract description: natural descriptive text from the DOM
+    // Skip specific keywords - just pull what's in the text naturally
     let description: string | null = null
-    const lines = text.split('\n').filter((l) => l.trim())
-    for (const line of lines) {
-      if (
-        line.includes('hotel') ||
-        line.includes('Budget') ||
-        line.includes('Casual') ||
-        line.includes('option') ||
-        line.includes('suites')
-      ) {
-        description = line.trim()
+    for (let i = 2; i < Math.min(lines.length, 5); i++) {
+      const line = lines[i]
+      if (line && line.length > 15 && !line.match(/^\$/)) {
+        description = line
         break
       }
     }
@@ -264,32 +323,52 @@ export async function scrapeAllMaps(scrollToLoadAll: boolean = true) {
 
       const listing = listings[i] as HTMLElement
 
-      // First extract visible data from feed
+      // Extract visible data from feed
       const data = extractListingData(listing)
-      if (data) {
-        scrapedCount++
-        console.log(`[Papertrail] ✓ [${scrapedCount}/${listings.length}] ${data.name}`)
+      if (!data) continue
 
-        void sendRuntimeMessage({
-          type: 'MAPS_RESULT',
-          listing: data,
-          index: scrapedCount,
-          total: listings.length,
-          searchTerm: searchTerm,
-        })
+      // Click listing to open detail panel
+      const link = findListingLink(listing)
+      if (!link) continue
 
-        // Respectful delay before clicking next listing (3-5s)
-        const delayMs = 3000 + Math.floor(Math.random() * 2001)
-        const delaySec = Math.ceil(delayMs / 1000)
-
-        void sendRuntimeMessage({
-          type: 'MAPS_SCRAPE_WAITING',
-          waitSeconds: delaySec,
-          collectedCount: scrapedCount,
-        })
-
-        await new Promise((r) => setTimeout(r, delayMs))
+      link.click()
+      const panelReady = await waitForPanel()
+      if (!panelReady) {
+        console.log(`[Papertrail] Panel failed to load for: ${data.name}`)
+        continue
       }
+
+      // Extract from detail panel and merge
+      const panelData = extractFromPanel()
+      Object.assign(data, panelData)
+
+      scrapedCount++
+      console.log(`[Papertrail] ✓ [${scrapedCount}/${listings.length}] ${data.name} | ${data.address || 'no address'} | ${data.phone || 'no phone'}`)
+
+      void sendRuntimeMessage({
+        type: 'MAPS_RESULT',
+        listing: data,
+        index: scrapedCount,
+        total: listings.length,
+        searchTerm: searchTerm,
+      })
+
+      // Close detail panel (click close button or press Escape)
+      const closeBtn = document.querySelector('[role="main"] button[aria-label*="Close"]')
+      if (closeBtn) (closeBtn as HTMLElement).click()
+      else document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+
+      // Respectful delay before next listing (3-5s)
+      const delayMs = 3000 + Math.floor(Math.random() * 2001)
+      const delaySec = Math.ceil(delayMs / 1000)
+
+      void sendRuntimeMessage({
+        type: 'MAPS_SCRAPE_WAITING',
+        waitSeconds: delaySec,
+        collectedCount: scrapedCount,
+      })
+
+      await new Promise((r) => setTimeout(r, delayMs))
     }
 
     console.log('[Papertrail] --- DONE! ---')
