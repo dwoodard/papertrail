@@ -172,11 +172,11 @@ export async function scrapeAllMaps(scrollToLoadAll: boolean = true) {
     searchTerm: searchTerm,
   })
 
-  // Max 5 minutes to prevent infinite loops
+  // Max 10 minutes to prevent infinite loops
   const timeoutId = setTimeout(() => {
     isScraping = false
-    console.warn('[Papertrail] Scraper timeout reached (5 min)')
-  }, 5 * 60 * 1000)
+    console.warn('[Papertrail] Scraper timeout reached (10 min)')
+  }, 10 * 60 * 1000)
 
   try {
     console.log('[Papertrail] Scraper initialization started')
@@ -195,49 +195,91 @@ export async function scrapeAllMaps(scrollToLoadAll: boolean = true) {
 
     console.log('[Papertrail] ✓ Scroll container found')
 
-    // PHASE 1: Immediately extract all currently visible listings
-    console.log('[Papertrail] --- Phase 1: Greedy extraction of visible listings ---')
-    const visibleListings = getVisibleListings()
-    console.log(`[Papertrail] Found ${visibleListings.length} visible listings. Extracting now...`)
+    // PHASE 1: Aggressively load all results by scrolling
+    if (shouldScrollToLoadAll) {
+      console.log('[Papertrail] --- Phase 1: Aggressive scroll to load all results ---')
+      let lastHeight = scrollContainer.scrollHeight
+      let scrollAttempts = 0
+      const maxScrollAttempts = 100
+      let consecutiveNoNew = 0
 
-    for (const listing of visibleListings) {
-      if (!isScraping) break
+      while (isScraping && scrollAttempts < maxScrollAttempts && consecutiveNoNew < 2) {
+        scrollAttempts++
+        scrollContainer.scrollBy({
+          top: 1200, // Scroll more aggressively
+          behavior: 'smooth',
+        })
 
+        // Faster delays for loading (1-2s)
+        const delayMs = 1000 + Math.floor(Math.random() * 1001)
+        const delaySec = Math.ceil(delayMs / 1000)
+
+        void sendRuntimeMessage({
+          type: 'MAPS_SCRAPE_WAITING',
+          waitSeconds: delaySec,
+          collectedCount: 0, // Don't count yet, we're just loading
+        })
+
+        await new Promise((r) => setTimeout(r, delayMs))
+
+        const newHeight = scrollContainer.scrollHeight
+        if (newHeight === lastHeight) {
+          consecutiveNoNew++
+          console.log(`[Papertrail] No new results loaded (${consecutiveNoNew}/2)`)
+        } else {
+          consecutiveNoNew = 0
+        }
+        lastHeight = newHeight
+
+        console.log(`[Papertrail] Load attempt ${scrollAttempts}: height = ${lastHeight}`)
+      }
+
+      console.log(`[Papertrail] Phase 1 complete: Loaded all results (${scrollAttempts} scrolls)`)
+    } else {
+      console.log('[Papertrail] --- Phase 1: Skipped (quick mode) ---')
+    }
+
+    if (!isScraping) {
+      console.log('[Papertrail] Scrape cancelled during load phase')
+      clearTimeout(timeoutId)
+      return
+    }
+
+    // PHASE 2: Click each listing and extract full details
+    console.log('[Papertrail] --- Phase 2: Click & extract full details ---')
+    const listings = getVisibleListings()
+    console.log(`[Papertrail] Found ${listings.length} total listings. Starting detailed extraction...`)
+
+    void sendRuntimeMessage({
+      type: 'MAPS_SCRAPE_STARTING',
+      searchTerm: searchTerm,
+      totalListings: listings.length,
+    })
+
+    for (let i = 0; i < listings.length; i++) {
+      if (!isScraping) {
+        console.log(`[Papertrail] Scrape cancelled at listing ${i + 1}/${listings.length}`)
+        break
+      }
+
+      const listing = listings[i] as HTMLElement
+
+      // First extract visible data from feed
       const data = extractListingData(listing)
       if (data) {
         scrapedCount++
-        console.log(`[Papertrail] ✓ [${scrapedCount}] ${data.name} (${data.rating || 'unrated'})`)
+        console.log(`[Papertrail] ✓ [${scrapedCount}/${listings.length}] ${data.name}`)
 
         void sendRuntimeMessage({
           type: 'MAPS_RESULT',
           listing: data,
           index: scrapedCount,
+          total: listings.length,
           searchTerm: searchTerm,
         })
-      }
-    }
 
-    console.log(`[Papertrail] Phase 1 complete: ${scrapedCount} listings extracted`)
-
-    // PHASE 2: Incremental scroll and extract
-    if (shouldScrollToLoadAll && isScraping) {
-      console.log('[Papertrail] --- Phase 2: Incremental scroll & extract ---')
-      let scrollAttempts = 0
-      const maxScrollAttempts = 50
-      let consecutiveNoNewListings = 0
-      let lastCount = scrapedCount
-
-      while (isScraping && scrollAttempts < maxScrollAttempts && consecutiveNoNewListings < 3) {
-        scrollAttempts++
-
-        // Scroll down gradually
-        scrollContainer.scrollBy({
-          top: 800, // Scroll less aggressively
-          behavior: 'smooth',
-        })
-
-        // Respectful delay (2-4s, random)
-        const delayMs = 2000 + Math.floor(Math.random() * 2001)
+        // Respectful delay before clicking next listing (3-5s)
+        const delayMs = 3000 + Math.floor(Math.random() * 2001)
         const delaySec = Math.ceil(delayMs / 1000)
 
         void sendRuntimeMessage({
@@ -247,48 +289,7 @@ export async function scrapeAllMaps(scrollToLoadAll: boolean = true) {
         })
 
         await new Promise((r) => setTimeout(r, delayMs))
-
-        if (!isScraping) break
-
-        // Extract newly visible listings
-        const current = getVisibleListings()
-        console.log(`[Papertrail] Scroll ${scrollAttempts}: Found ${current.length} total visible, extracting new...`)
-
-        let newInThisScroll = 0
-        for (const listing of current) {
-          const data = extractListingData(listing)
-          if (data) {
-            scrapedCount++
-            newInThisScroll++
-            console.log(`[Papertrail] ✓ [${scrapedCount}] ${data.name} (${data.rating || 'unrated'})`)
-
-            void sendRuntimeMessage({
-              type: 'MAPS_RESULT',
-              listing: data,
-              index: scrapedCount,
-              searchTerm: searchTerm,
-            })
-          }
-        }
-
-        if (newInThisScroll === 0) {
-          consecutiveNoNewListings++
-          console.log(
-            `[Papertrail] No new listings in this scroll (${consecutiveNoNewListings}/3 attempts without new results)`
-          )
-        } else {
-          consecutiveNoNewListings = 0
-          console.log(`[Papertrail] Extracted ${newInThisScroll} new listings in scroll ${scrollAttempts}`)
-        }
-
-        lastCount = scrapedCount
       }
-
-      if (consecutiveNoNewListings >= 3) {
-        console.log('[Papertrail] Reached end of results (3 consecutive scrolls with no new listings)')
-      }
-    } else if (!shouldScrollToLoadAll) {
-      console.log('[Papertrail] --- Phase 2: Skipped (quick mode enabled) ---')
     }
 
     console.log('[Papertrail] --- DONE! ---')
