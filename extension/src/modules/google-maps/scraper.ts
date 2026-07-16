@@ -7,9 +7,15 @@ const extractedIds = new Set<string>()
 
 async function waitForPanel(): Promise<boolean> {
   for (let i = 0; i < 30; i++) {
-    if (document.querySelector('[role="main"]')) return true
+    const panel = document.querySelector('[role="main"]')
+    const infoRegion = panel?.querySelector('[role="region"]')
+    if (panel && infoRegion) {
+      console.log(`[Papertrail] Panel + info region ready (attempt ${i + 1})`)
+      return true
+    }
     await new Promise((r) => setTimeout(r, 100))
   }
+  console.log('[Papertrail] waitForPanel timeout')
   return false
 }
 
@@ -23,46 +29,61 @@ function cleanData(text: string | null | undefined): string | null {
 
 function extractFromPanel(): Partial<ScrapedListing> {
   const panel = document.querySelector('[role="main"]')
-  if (!panel) return {}
+  if (!panel) {
+    console.log('[Papertrail] ❌ No panel found')
+    return {}
+  }
 
   const result: Partial<ScrapedListing> = {}
   const infoRegion = panel.querySelector('[role="region"]')
+  console.log('[Papertrail] Info region found:', !!infoRegion)
 
-  // Address: button with "Address:" label
-  const addrBtn = Array.from(infoRegion?.querySelectorAll('button') || []).find((b) => b.textContent?.includes('Address:'))
-  if (addrBtn) {
-    const raw = addrBtn.textContent
-      ?.split('Address:')[1]
-      ?.split('Copy address')[0]
-    result.address = cleanData(raw)
+  if (infoRegion) {
+    // Address: button with "Address:" label
+    const addrBtn = Array.from(infoRegion.querySelectorAll('button')).find((b) => b.textContent?.includes('Address:'))
+    console.log('[Papertrail] Address button found:', !!addrBtn)
+    if (addrBtn) {
+      const raw = addrBtn.textContent?.split('Address:')[1]?.split('Copy address')[0]
+      result.address = cleanData(raw)
+      console.log('[Papertrail] Extracted address:', result.address)
+    }
+
+    // Phone: button with "Phone:" label
+    const phoneBtn = Array.from(infoRegion.querySelectorAll('button')).find((b) => b.textContent?.includes('Phone:'))
+    console.log('[Papertrail] Phone button found:', !!phoneBtn)
+    if (phoneBtn) {
+      const raw = phoneBtn.textContent?.split('Phone:')[1]?.split('Copy phone')[0]
+      result.phone = cleanData(raw)
+      console.log('[Papertrail] Extracted phone:', result.phone)
+    }
+
+    // Website: href="http" excluding known services
+    const exclude = ['maps.google', 'google.com', 'facebook', 'instagram', 'twitter', 'booking', 'expedia', 'tripadvisor', 'grubhub', 'doordash', 'ubereats']
+    const links = Array.from(panel.querySelectorAll('a[href^="http"]'))
+    console.log('[Papertrail] Total http links found:', links.length)
+    const link = links.find((a) => {
+      const href = (a as HTMLAnchorElement).href || ''
+      return !exclude.some((e) => href.includes(e))
+    })
+    if (link) {
+      const url = (link as HTMLAnchorElement).href
+      if (url && url.length > 10) {
+        result.websiteUrl = url
+        console.log('[Papertrail] Extracted website:', url)
+      }
+    }
+
+    // Reviews: "number reviews" pattern
+    const rev = Array.from(panel.querySelectorAll('button, div, span'))
+      .map((b) => b.textContent)
+      .find((text) => text?.match(/\d+\s+reviews?/i))
+    if (rev) {
+      result.reviews = cleanData(rev)
+      console.log('[Papertrail] Extracted reviews:', result.reviews)
+    }
   }
 
-  // Phone: button with "Phone:" label
-  const phoneBtn = Array.from(infoRegion?.querySelectorAll('button') || []).find((b) => b.textContent?.includes('Phone:'))
-  if (phoneBtn) {
-    const raw = phoneBtn.textContent
-      ?.split('Phone:')[1]
-      ?.split('Copy phone')[0]
-    result.phone = cleanData(raw)
-  }
-
-  // Website: href="http" excluding known services
-  const exclude = ['maps.google', 'google.com', 'facebook', 'instagram', 'twitter', 'booking', 'expedia', 'tripadvisor', 'grubhub', 'doordash', 'ubereats']
-  const link = Array.from(panel.querySelectorAll('a[href^="http"]')).find((a) => {
-    const href = (a as HTMLAnchorElement).href || ''
-    return !exclude.some((e) => href.includes(e))
-  })
-  if (link) {
-    const url = (link as HTMLAnchorElement).href
-    if (url && url.length > 10) result.websiteUrl = url
-  }
-
-  // Reviews: "number reviews" pattern
-  const rev = Array.from(panel.querySelectorAll('button, div, span'))
-    .map((b) => b.textContent)
-    .find((text) => text?.match(/\d+\s+reviews?/i))
-  if (rev) result.reviews = cleanData(rev)
-
+  console.log('[Papertrail] Panel extraction result:', result)
   return result
 }
 
@@ -332,15 +353,21 @@ export async function scrapeAllMaps(scrollToLoadAll: boolean = true) {
       if (!link) continue
 
       link.click()
+      console.log(`[Papertrail] Clicked: ${data.name}`)
+
       const panelReady = await waitForPanel()
       if (!panelReady) {
-        console.log(`[Papertrail] Panel failed to load for: ${data.name}`)
+        console.log(`[Papertrail] ❌ Panel failed to load for: ${data.name}`)
         continue
       }
+      console.log(`[Papertrail] ✓ Panel loaded for: ${data.name}`)
 
       // Extract from detail panel and merge
+      console.log(`[Papertrail] Extracting from panel...`)
       const panelData = extractFromPanel()
+      console.log(`[Papertrail] Panel data before merge:`, panelData)
       Object.assign(data, panelData)
+      console.log(`[Papertrail] Data after merge:`, { address: data.address, phone: data.phone, website: data.websiteUrl })
 
       scrapedCount++
       console.log(`[Papertrail] ✓ [${scrapedCount}/${listings.length}] ${data.name} | ${data.address || 'no address'} | ${data.phone || 'no phone'}`)
